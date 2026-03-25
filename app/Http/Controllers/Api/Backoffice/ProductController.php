@@ -1,0 +1,64 @@
+<?php
+
+namespace App\Http\Controllers\Api\Backoffice;
+
+use App\Domain\Catalog\CatalogSlugService;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Backoffice\StoreProductRequest;
+use App\Models\Product;
+use Illuminate\Http\JsonResponse;
+
+class ProductController extends Controller
+{
+    public function index(): JsonResponse
+    {
+        $tenant = current_tenant();
+
+        $products = Product::query()
+            ->with('category')
+            ->where('tenant_id', $tenant?->id)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get()
+            ->map(function (Product $product) {
+                return [
+                    'id' => $product->id,
+                    'product_category_id' => $product->product_category_id,
+                    'category_name' => $product->category?->name,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
+                    'description' => $product->description,
+                    'price_excl_vat' => $product->price_excl_vat,
+                    'vat_rate' => $product->vat_rate,
+                    'price_incl_vat' => $product->price_incl_vat,
+                    'is_active' => $product->is_active,
+                    'sort_order' => $product->sort_order,
+                ];
+            });
+
+        return response()->json($products);
+    }
+
+    public function store(
+        StoreProductRequest $request,
+        CatalogSlugService $slugService
+    ): JsonResponse {
+        $tenant = current_tenant();
+
+        $product = Product::create([
+            'tenant_id' => $tenant?->id,
+            'product_category_id' => $request->input('product_category_id'),
+            'name' => $request->string('name')->toString(),
+            'slug' => $request->filled('slug')
+                ? $slugService->makeSlug($request->string('slug')->toString())
+                : $slugService->makeSlug($request->string('name')->toString()),
+            'description' => $request->input('description'),
+            'price_excl_vat' => $request->input('price_excl_vat'),
+            'vat_rate' => $request->input('vat_rate'),
+            'is_active' => $request->boolean('is_active', true),
+            'sort_order' => $request->integer('sort_order', 0),
+        ]);
+
+        return response()->json($product->load('category'), 201);
+    }
+}
