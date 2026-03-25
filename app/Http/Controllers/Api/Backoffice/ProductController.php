@@ -6,17 +6,16 @@ use App\Domain\Catalog\CatalogSlugService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backoffice\StoreProductRequest;
 use App\Models\Product;
+use App\Support\CurrentTenant;
 use Illuminate\Http\JsonResponse;
 
 class ProductController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(CurrentTenant $currentTenant): JsonResponse
     {
-        $tenant = current_tenant();
-
         $products = Product::query()
             ->with('category')
-            ->where('tenant_id', $tenant?->id)
+            ->where('tenant_id', $currentTenant->id())
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get()
@@ -41,12 +40,13 @@ class ProductController extends Controller
 
     public function store(
         StoreProductRequest $request,
-        CatalogSlugService $slugService
+        CatalogSlugService $slugService,
+        CurrentTenant $currentTenant
     ): JsonResponse {
-        $tenant = current_tenant();
+        abort_if(! $currentTenant->exists(), 500, 'No current tenant resolved.');
 
         $product = Product::create([
-            'tenant_id' => $tenant?->id,
+            'tenant_id' => $currentTenant->id(),
             'product_category_id' => $request->input('product_category_id'),
             'name' => $request->string('name')->toString(),
             'slug' => $request->filled('slug')

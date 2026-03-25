@@ -8,3 +8,5 @@ Route::view('/sales', 'frontdesk.app');
 Route::view('/vouchers', 'frontdesk.app');
 Route::view('/agenda', 'frontdesk.app');
 Route::view('/staff', 'frontdesk.app');
+Route::view('/members', 'frontdesk.app');
+Route::view('/tasks', 'frontdesk.app');

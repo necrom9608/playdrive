@@ -3,6 +3,7 @@
 namespace App\Domain\Tenancy;
 
 use App\Models\Tenant;
+use App\Models\TenantDomain;
 
 class TenantResolver
 {
@@ -12,9 +13,15 @@ class TenantResolver
             return null;
         }
 
-        return Tenant::query()
-            ->where('primary_domain', $host)
-            ->where('is_active', true)
+        $domain = TenantDomain::query()
+            ->with('tenant')
+            ->where('domain', $host)
             ->first();
+
+        if (! $domain || ! $domain->tenant || ! $domain->tenant->is_active) {
+            return null;
+        }
+
+        return $domain->tenant;
     }
 }

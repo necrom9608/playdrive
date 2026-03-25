@@ -1,6 +1,17 @@
 <template>
-    <div>
-        <h1 class="text-3xl font-bold text-white">POS</h1>
-        <p class="mt-2 text-slate-400">Frontdesk POS placeholder.</p>
+    <div class="h-full min-h-0">
+        <PosLayout />
     </div>
 </template>
+
+<script setup>
+import { onMounted } from 'vue'
+import PosLayout from '../components/PosLayout.vue'
+import { usePosStore } from '../stores/usePosStore'
+
+const store = usePosStore()
+
+onMounted(() => {
+    store.loadInitialData()
+})
+</script>
