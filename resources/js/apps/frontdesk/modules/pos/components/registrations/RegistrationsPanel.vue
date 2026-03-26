@@ -291,6 +291,7 @@
                             class="inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition"
                             :class="store.selectedReservationId ? 'bg-blue-600 text-white hover:bg-blue-700' : 'cursor-not-allowed bg-slate-800 text-slate-500'"
                             :disabled="!store.selectedReservationId"
+                            @click="handleCheckIn"
                         >
                             Inchecken
                         </button>
@@ -300,6 +301,7 @@
                             class="inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition"
                             :class="store.selectedReservationId ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'cursor-not-allowed bg-slate-800 text-slate-500'"
                             :disabled="!store.selectedReservationId"
+                            @click="handleCheckOut"
                         >
                             Uitchecken
                         </button>
@@ -320,6 +322,7 @@
                             class="inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition"
                             :class="store.selectedReservationId ? 'bg-slate-600 text-white hover:bg-slate-500' : 'cursor-not-allowed bg-slate-800 text-slate-500'"
                             :disabled="!store.selectedReservationId"
+                            @click="handleCancelReservation"
                         >
                             Annuleren
                         </button>
@@ -329,6 +332,7 @@
                             class="inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition"
                             :class="store.selectedReservationId ? 'bg-rose-600 text-white hover:bg-rose-700' : 'cursor-not-allowed bg-slate-800 text-slate-500'"
                             :disabled="!store.selectedReservationId"
+                            @click="handleNoShowReservation"
                         >
                             No-show
                         </button>
@@ -338,6 +342,7 @@
                             class="inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition"
                             :class="store.selectedReservationId ? 'bg-red-600 text-white hover:bg-red-700' : 'cursor-not-allowed bg-slate-800 text-slate-500'"
                             :disabled="!store.selectedReservationId"
+                            @click="handleDeleteReservation"
                         >
                             Verwijderen
                         </button>
@@ -397,13 +402,8 @@ function closeRegistrationModal() {
 }
 
 async function handleRegistrationSubmit(payload) {
-    console.log('submit fired', payload)
-
     try {
         const response = await axios.post('/api/frontdesk/registrations', payload)
-
-        console.log('registration saved', response.data)
-
         store.addReservation(response.data.data)
         showRegistrationModal.value = false
     } catch (error) {
@@ -412,6 +412,66 @@ async function handleRegistrationSubmit(payload) {
         if (error.response?.status === 422) {
             console.log('validation errors', error.response.data.errors)
         }
+    }
+}
+
+async function handleCheckIn() {
+    if (!store.selectedReservationId) return
+
+    try {
+        const response = await axios.post(`/api/frontdesk/registrations/${store.selectedReservationId}/check-in`)
+        store.updateReservation(response.data.data)
+    } catch (error) {
+        console.error(error)
+    }
+}
+
+async function handleCheckOut() {
+    if (!store.selectedReservationId) return
+
+    try {
+        const response = await axios.post(`/api/frontdesk/registrations/${store.selectedReservationId}/check-out`)
+        store.updateReservation(response.data.data)
+    } catch (error) {
+        console.error(error)
+    }
+}
+
+async function handleCancelReservation() {
+    if (!store.selectedReservationId) return
+
+    try {
+        const response = await axios.post(`/api/frontdesk/registrations/${store.selectedReservationId}/cancel`)
+        store.updateReservation(response.data.data)
+    } catch (error) {
+        console.error(error)
+    }
+}
+
+async function handleNoShowReservation() {
+    if (!store.selectedReservationId) return
+
+    try {
+        const response = await axios.post(`/api/frontdesk/registrations/${store.selectedReservationId}/no-show`)
+        store.updateReservation(response.data.data)
+    } catch (error) {
+        console.error(error)
+    }
+}
+
+async function handleDeleteReservation() {
+    if (!store.selectedReservationId) return
+
+    const id = store.selectedReservationId
+    const confirmed = window.confirm('Ben je zeker dat je deze registratie wil verwijderen?')
+
+    if (!confirmed) return
+
+    try {
+        await axios.delete(`/api/frontdesk/registrations/${id}`)
+        store.removeReservation(id)
+    } catch (error) {
+        console.error(error)
     }
 }
 

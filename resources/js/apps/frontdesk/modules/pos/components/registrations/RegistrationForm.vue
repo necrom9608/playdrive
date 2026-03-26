@@ -4,6 +4,15 @@
             <div class="flex h-full w-full flex-col rounded-b-2xl bg-slate-950 px-4 py-4">
                 <RegistrationTabs v-model="activeTab" />
 
+                <div class="mb-4 rounded-xl bg-slate-800 p-3 text-xs text-slate-300">
+                    activeTab: {{ activeTab }} |
+                    loading: {{ isLoadingOptions }} |
+                    error: {{ optionsError }} |
+                    eventTypes: {{ eventTypes.length }} |
+                    stayOptions: {{ stayOptions.length }} |
+                    cateringOptions: {{ cateringOptions.length }}
+                </div>
+
                 <div class="min-h-0 flex-1 overflow-y-auto pr-1">
                     <div
                         v-if="isLoadingOptions"
@@ -156,7 +165,7 @@ async function loadOptions() {
             form.catering_option_id = noneOption?.id ?? null
         }
     } catch (error) {
-        console.error(error)
+        console.error('form-options failed', error)
         optionsError.value = true
     } finally {
         isLoadingOptions.value = false
@@ -187,7 +196,6 @@ function goPrevious() {
 
 function handleSubmit() {
     const payload = JSON.parse(JSON.stringify(toRaw(form)))
-    console.log('form handleSubmit fired', payload)
     emit('submit', payload)
 }
 
