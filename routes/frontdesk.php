@@ -14,28 +14,13 @@ Route::view('/staff', 'frontdesk.app');
 Route::view('/members', 'frontdesk.app');
 Route::view('/tasks', 'frontdesk.app');
 
-
-Route::prefix('api/frontdesk')->group(function () {
-    Route::get('/form-options', FormOptionsController::class);
-    Route::get('/locations/search', LocationSearchController::class);
-});
-
 Route::prefix('api/frontdesk')->group(function () {
     Route::get('/form-options', FormOptionsController::class);
     Route::get('/locations/search', LocationSearchController::class);
 
     Route::get('/registrations', [RegistrationController::class, 'index']);
     Route::post('/registrations', [RegistrationController::class, 'store']);
-});
-
-Route::put('/registrations/{registration}', [RegistrationController::class, 'update']);
-
-Route::prefix('api/frontdesk')->group(function () {
-    Route::get('/form-options', FormOptionsController::class);
-    Route::get('/locations/search', LocationSearchController::class);
-
-    Route::get('/registrations', [RegistrationController::class, 'index']);
-    Route::post('/registrations', [RegistrationController::class, 'store']);
+    Route::put('/registrations/{registration}', [RegistrationController::class, 'update']);
 
     Route::post('/registrations/{registration}/check-in', [RegistrationController::class, 'checkIn']);
     Route::post('/registrations/{registration}/check-out', [RegistrationController::class, 'checkOut']);

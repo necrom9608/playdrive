@@ -13,6 +13,7 @@ class EventType extends Model
     protected $fillable = [
         'name',
         'code',
+        'emoji',
         'sort_order',
         'is_active',
     ];

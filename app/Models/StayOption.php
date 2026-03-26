@@ -13,6 +13,7 @@ class StayOption extends Model
     protected $fillable = [
         'name',
         'code',
+        'emoji',
         'duration_minutes',
         'sort_order',
         'is_active',

@@ -75,7 +75,22 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+
+const nowTs = ref(Date.now())
+let timer = null
+
+onMounted(() => {
+    timer = window.setInterval(() => {
+        nowTs.value = Date.now()
+    }, 1000)
+})
+
+onBeforeUnmount(() => {
+    if (timer) {
+        window.clearInterval(timer)
+    }
+})
 
 const props = defineProps({
     registration: {
@@ -139,9 +154,15 @@ const total = computed(() => children.value + adults.value + supervisors.value)
 const checkedInAt = computed(() => parseDateTime(props.registration.checked_in_at))
 const checkedOutAt = computed(() => parseDateTime(props.registration.checked_out_at))
 
-const playedMinutes = computed(() => {
+const plannedMinutes = computed(() => {
+    const value = props.registration.stay_duration_minutes
+    if (value == null) return null
+    return Number(value)
+})
+
+const effectivePlayedMinutes = computed(() => {
     if (status.value === 'checked_in' && checkedInAt.value) {
-        return Math.floor((Date.now() - checkedInAt.value.getTime()) / 60000)
+        return Math.max(0, Math.floor((nowTs.value - checkedInAt.value.getTime()) / 60000))
     }
 
     if (props.registration.played_minutes != null) {
@@ -149,7 +170,7 @@ const playedMinutes = computed(() => {
     }
 
     if (checkedInAt.value && checkedOutAt.value) {
-        return Math.floor((checkedOutAt.value.getTime() - checkedInAt.value.getTime()) / 60000)
+        return Math.max(0, Math.floor((checkedOutAt.value.getTime() - checkedInAt.value.getTime()) / 60000))
     }
 
     return null
@@ -159,12 +180,16 @@ const showPlannedTiming = computed(() =>
     ['new', 'confirmed', 'cancelled', 'no_show'].includes(status.value)
 )
 
+const showEffectiveTiming = computed(() =>
+    ['checked_in', 'checked_out', 'paid'].includes(status.value)
+)
+
 const timeLabel = computed(() => {
     if (showPlannedTiming.value) {
         return formatTime(props.registration.event_time)
     }
 
-    if (checkedInAt.value) {
+    if (showEffectiveTiming.value && checkedInAt.value) {
         return checkedInAt.value.toLocaleTimeString('nl-BE', {
             hour: '2-digit',
             minute: '2-digit',
@@ -177,10 +202,14 @@ const timeLabel = computed(() => {
 
 const durationLabel = computed(() => {
     if (showPlannedTiming.value) {
-        return props.registration.duration_label ?? '--:--'
+        return formatMinutesAsHours(plannedMinutes.value)
     }
 
-    return formatMinutesAsHours(playedMinutes.value)
+    if (showEffectiveTiming.value) {
+        return formatMinutesAsHours(effectivePlayedMinutes.value)
+    }
+
+    return '--:--'
 })
 
 const typeRaw = computed(() => {
@@ -216,6 +245,10 @@ const typeLabel = computed(() => {
 })
 
 const typeEmoji = computed(() => {
+    if (props.registration.event_type_emoji) {
+        return props.registration.event_type_emoji
+    }
+
     switch (String(typeRaw.value)) {
         case 'birthday':
             return '🎂'
@@ -274,6 +307,10 @@ const cateringLabel = computed(() => {
 })
 
 const cateringEmoji = computed(() => {
+    if (props.registration.catering_option_emoji) {
+        return props.registration.catering_option_emoji
+    }
+
     switch (String(cateringRaw.value ?? '')) {
         case 'pizza':
             return '🍕'
@@ -424,11 +461,9 @@ const baseRowClass = computed(() => `border-slate-800 ${rowTintClass.value}`)
 
 const isOvertime = computed(() => {
     if (status.value !== 'checked_in') return false
+    if (plannedMinutes.value == null || effectivePlayedMinutes.value == null) return false
 
-    const planned = props.registration.stay_duration_minutes ?? null
-    if (!planned || playedMinutes.value == null) return false
-
-    return playedMinutes.value > planned
+    return effectivePlayedMinutes.value > plannedMinutes.value
 })
 
 const durationIdleClass = computed(() => {

@@ -30,7 +30,13 @@ class RegistrationController extends Controller
 
     public function store(StoreRegistrationRequest $request): JsonResponse
     {
-        $registration = Registration::create($request->validated());
+        $data = $request->validated();
+
+        if (($data['status'] ?? null) === Registration::STATUS_CHECKED_IN && empty($data['checked_in_at'])) {
+            $data['checked_in_at'] = now();
+        }
+
+        $registration = Registration::create($data);
 
         $registration->load([
             'eventType:id,name,code',
@@ -159,8 +165,10 @@ class RegistrationController extends Controller
             'invoice_address' => $registration->invoice_address,
             'invoice_postal_code' => $registration->invoice_postal_code,
             'invoice_city' => $registration->invoice_city,
-            'checked_in_at' => optional($registration->checked_in_at)?->toDateTimeString(),
-            'checked_out_at' => optional($registration->checked_out_at)?->toDateTimeString(),
+            'checked_in_at' => optional($registration->checked_in_at)?->toIso8601String(),
+            'checked_out_at' => optional($registration->checked_out_at)?->toIso8601String(),
+            'created_at' => optional($registration->created_at)?->toIso8601String(),
+            'updated_at' => optional($registration->updated_at)?->toIso8601String(),
             'played_minutes' => $registration->played_minutes,
             'outside_opening_hours' => $registration->outside_opening_hours,
             'duration_label' => $registration->stayOption?->name,
@@ -169,12 +177,20 @@ class RegistrationController extends Controller
             'event_type_code' => $registration->eventType?->code,
             'catering_option_code' => $registration->cateringOption?->code,
             'stay_duration_minutes' => $registration->stayOption?->duration_minutes,
+            'event_type_emoji' => $registration->eventType?->emoji,
+            'catering_option_emoji' => $registration->cateringOption?->emoji,
         ];
     }
 
     public function update(StoreRegistrationRequest $request, Registration $registration): JsonResponse
     {
-        $registration->update($request->validated());
+        $data = $request->validated();
+
+        if (($data['status'] ?? null) === Registration::STATUS_CHECKED_IN && !$registration->checked_in_at) {
+            $data['checked_in_at'] = now();
+        }
+
+        $registration->update($data);
 
         $registration->load([
             'eventType:id,name,code',
@@ -185,6 +201,7 @@ class RegistrationController extends Controller
         return response()->json([
             'message' => 'Registratie bijgewerkt.',
             'data' => $this->transformRegistration($registration),
+
         ]);
     }
 }

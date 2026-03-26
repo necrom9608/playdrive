@@ -6,31 +6,34 @@
                     <button
                         type="button"
                         class="inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition"
-                        :class="hasSelection ? 'bg-blue-600 text-white hover:bg-blue-700' : 'cursor-not-allowed bg-slate-800 text-slate-500'"
-                        :disabled="!hasSelection"
+                        :class="buttonClass(canCheckIn, 'bg-blue-600 hover:bg-blue-700')"
+                        :disabled="!canCheckIn"
                         @click="$emit('check-in')"
                     >
-                        Inchecken
+                        <ArrowRightCircleIcon class="h-5 w-5" />
+                        <span>Inchecken</span>
                     </button>
 
                     <button
                         type="button"
                         class="inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition"
-                        :class="hasSelection ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'cursor-not-allowed bg-slate-800 text-slate-500'"
-                        :disabled="!hasSelection"
+                        :class="buttonClass(canCheckOut, 'bg-emerald-600 hover:bg-emerald-700')"
+                        :disabled="!canCheckOut"
                         @click="$emit('check-out')"
                     >
-                        Uitchecken
+                        <ArrowLeftCircleIcon class="h-5 w-5" />
+                        <span>Uitchecken</span>
                     </button>
 
                     <button
                         type="button"
                         class="inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition"
-                        :class="hasSelection ? 'bg-amber-500 text-white hover:bg-amber-600' : 'cursor-not-allowed bg-slate-800 text-slate-500'"
-                        :disabled="!hasSelection"
+                        :class="buttonClass(canEdit, 'bg-amber-500 hover:bg-amber-600')"
+                        :disabled="!canEdit"
                         @click="$emit('edit')"
                     >
-                        Bewerken
+                        <PencilSquareIcon class="h-5 w-5" />
+                        <span>Bewerken</span>
                     </button>
                 </div>
 
@@ -38,31 +41,34 @@
                     <button
                         type="button"
                         class="inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition"
-                        :class="hasSelection ? 'bg-slate-600 text-white hover:bg-slate-500' : 'cursor-not-allowed bg-slate-800 text-slate-500'"
-                        :disabled="!hasSelection"
+                        :class="buttonClass(canCancel, 'bg-slate-600 hover:bg-slate-500')"
+                        :disabled="!canCancel"
                         @click="$emit('cancel')"
                     >
-                        Annuleren
+                        <NoSymbolIcon class="h-5 w-5" />
+                        <span>Annuleren</span>
                     </button>
 
                     <button
                         type="button"
                         class="inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition"
-                        :class="hasSelection ? 'bg-rose-600 text-white hover:bg-rose-700' : 'cursor-not-allowed bg-slate-800 text-slate-500'"
-                        :disabled="!hasSelection"
+                        :class="buttonClass(canNoShow, 'bg-rose-600 hover:bg-rose-700')"
+                        :disabled="!canNoShow"
                         @click="$emit('no-show')"
                     >
-                        No-show
+                        <UserMinusIcon class="h-5 w-5" />
+                        <span>No-show</span>
                     </button>
 
                     <button
                         type="button"
                         class="inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition"
-                        :class="hasSelection ? 'bg-red-600 text-white hover:bg-red-700' : 'cursor-not-allowed bg-slate-800 text-slate-500'"
-                        :disabled="!hasSelection"
+                        :class="buttonClass(canDelete, 'bg-red-600 hover:bg-red-700')"
+                        :disabled="!canDelete"
                         @click="$emit('delete')"
                     >
-                        Verwijderen
+                        <TrashIcon class="h-5 w-5" />
+                        <span>Verwijderen</span>
                     </button>
                 </div>
             </div>
@@ -75,6 +81,7 @@
                     :disabled="!hasSelection"
                     @click="$emit('clear-selection')"
                 >
+                    <XMarkIcon class="h-6 w-6" />
                     <span>Selectie wissen</span>
                 </button>
             </div>
@@ -83,10 +90,21 @@
 </template>
 
 <script setup>
-defineProps({
-    hasSelection: {
-        type: Boolean,
-        default: false,
+import { computed } from 'vue'
+import {
+    ArrowRightCircleIcon,
+    ArrowLeftCircleIcon,
+    PencilSquareIcon,
+    NoSymbolIcon,
+    UserMinusIcon,
+    TrashIcon,
+    XMarkIcon,
+} from '@heroicons/vue/24/outline'
+
+const props = defineProps({
+    selectedReservation: {
+        type: Object,
+        default: null,
     },
 })
 
@@ -99,4 +117,37 @@ defineEmits([
     'delete',
     'clear-selection',
 ])
+
+const hasSelection = computed(() => !!props.selectedReservation)
+const status = computed(() => props.selectedReservation?.status ?? null)
+
+const canCheckIn = computed(() => {
+    return hasSelection.value && ['new', 'confirmed'].includes(status.value)
+})
+
+const canCheckOut = computed(() => {
+    return hasSelection.value && status.value === 'checked_in'
+})
+
+const canEdit = computed(() => {
+    return hasSelection.value
+})
+
+const canCancel = computed(() => {
+    return hasSelection.value && ['new', 'confirmed'].includes(status.value)
+})
+
+const canNoShow = computed(() => {
+    return hasSelection.value && ['new', 'confirmed'].includes(status.value)
+})
+
+const canDelete = computed(() => {
+    return hasSelection.value
+})
+
+function buttonClass(enabled, activeClass) {
+    return enabled
+        ? `${activeClass} text-white`
+        : 'cursor-not-allowed bg-slate-800 text-slate-500'
+}
 </script>

@@ -36,22 +36,17 @@
                     v-model="model.stay_option_id"
                     class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-medium text-slate-100 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-900"
                 >
-                    <option :value="null">Kies een optie</option>
-
                     <option
                         v-for="option in stayOptions"
                         :key="option.id"
                         :value="option.id"
                     >
-                        {{ option.name }}
+                        {{ option.emoji ? `${option.emoji} ${option.name}` : option.name }}
                     </option>
                 </select>
             </div>
 
             <div class="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3">
-                <div class="text-xs font-medium text-slate-400">
-                    Gepland einduur
-                </div>
 
                 <div class="mt-1 text-lg font-semibold text-slate-100">
                     {{ plannedEndTime }}

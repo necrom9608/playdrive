@@ -25,7 +25,7 @@
         />
 
         <RegistrationActions
-            :has-selection="!!store.selectedReservationId"
+            :selected-reservation="store.selectedReservation"
             @check-in="handleCheckIn"
             @check-out="handleCheckOut"
             @edit="openEditRegistrationModal"

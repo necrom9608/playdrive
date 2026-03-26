@@ -16,19 +16,19 @@ class FormOptionsController extends Controller
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->get(['id', 'name', 'code']);
+            ->get(['id', 'name', 'code', 'emoji']);
 
         $stayOptions = StayOption::query()
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->get(['id', 'name', 'code', 'duration_minutes']);
+            ->get(['id', 'name', 'code', 'emoji', 'duration_minutes']);
 
         $cateringOptions = CateringOption::query()
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->get(['id', 'name', 'code']);
+            ->get(['id', 'name', 'code', 'emoji']);
 
         return response()->json([
             'event_types' => $eventTypes,

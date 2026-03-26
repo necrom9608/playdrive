@@ -17,7 +17,7 @@
                         :key="option.id"
                         :value="option.id"
                     >
-                        {{ option.name }}
+                        {{ option.emoji ? `${option.emoji} ${option.name}` : option.name }}
                     </option>
                 </select>
             </div>
@@ -38,7 +38,7 @@
                         :key="option.id"
                         :value="option.id"
                     >
-                        {{ option.name }}
+                        {{ option.emoji ? `${option.emoji} ${option.name}` : option.name }}
                     </option>
                 </select>
             </div>

@@ -1,147 +1,138 @@
-import axios from 'axios'
-import { computed, ref } from 'vue'
+import { computed, reactive } from 'vue'
 
-export function useRegistrationActions(store) {
-    const showRegistrationModal = ref(false)
-    const showFilters = ref(false)
-    const editingReservationId = ref(null)
+function getTodayDateString() {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
 
-    const editingReservation = computed(() => {
-        if (!editingReservationId.value) return {}
-        return store.reservations.find(item => item.id === editingReservationId.value) ?? {}
+    return `${year}-${month}-${day}`
+}
+
+function getCurrentTimeString() {
+    const now = new Date()
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+
+    return `${hours}:${minutes}`
+}
+
+function createDefaultForm() {
+    return {
+        id: null,
+
+        name: '',
+        phone: '',
+        email: '',
+        postal_code: '',
+        municipality: '',
+
+        participants_children: 0,
+        participants_adults: 0,
+        participants_supervisors: 0,
+
+        stats: {
+            already_visited: false,
+            recommended_by_friend: false,
+            internet: false,
+            social_media: false,
+            facade: false,
+            ai: false,
+        },
+
+        event_date: getTodayDateString(),
+        event_time: getCurrentTimeString(),
+        event_type_id: null,
+        stay_option_id: null,
+        catering_option_id: null,
+        outside_opening_hours: false,
+
+        status: 'checked_in',
+        comment: '',
+
+        invoice_requested: false,
+        invoice_company_name: '',
+        invoice_vat_number: '',
+        invoice_email: '',
+        invoice_address: '',
+        invoice_postal_code: '',
+        invoice_city: '',
+    }
+}
+
+export function useRegistrationForm(initialValues = {}, selectedStayOption = null) {
+    const defaults = createDefaultForm()
+
+    const form = reactive({
+        ...defaults,
+        ...initialValues,
+        stats: {
+            ...defaults.stats,
+            ...(initialValues.stats ?? {}),
+        },
     })
 
-    function openNewRegistrationModal() {
-        editingReservationId.value = null
-        showRegistrationModal.value = true
-    }
+    const totalParticipants = computed(() => {
+        return Number(form.participants_children || 0)
+            + Number(form.participants_adults || 0)
+            + Number(form.participants_supervisors || 0)
+    })
 
-    function openEditRegistrationModal() {
-        if (!store.selectedReservationId) return
+    const plannedEndTime = computed(() => {
+        if (!form.event_time || !String(form.event_time).includes(':')) {
+            return '--:--'
+        }
 
-        editingReservationId.value = store.selectedReservationId
-        showRegistrationModal.value = true
-    }
+        const [hours, minutes] = String(form.event_time).split(':').map(Number)
 
-    function closeRegistrationModal() {
-        showRegistrationModal.value = false
-        editingReservationId.value = null
-    }
+        if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+            return '--:--'
+        }
 
-    async function handleRegistrationSubmit(payload) {
-        try {
-            let response
+        let durationMinutes = 0
 
-            if (payload.id) {
-                response = await axios.put(`/api/frontdesk/registrations/${payload.id}`, payload)
-                store.updateReservation(response.data.data)
-            } else {
-                response = await axios.post('/api/frontdesk/registrations', payload)
-                store.addReservation(response.data.data)
+        if (selectedStayOption?.value?.duration_minutes) {
+            durationMinutes = Number(selectedStayOption.value.duration_minutes)
+        }
+
+        const total = (hours * 60) + minutes + durationMinutes
+        const endHours = Math.floor(total / 60) % 24
+        const endMinutes = total % 60
+
+        return `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`
+    })
+
+    function resetForm() {
+        const fresh = createDefaultForm()
+
+        Object.keys(fresh).forEach((key) => {
+            if (key === 'stats') {
+                Object.assign(form.stats, fresh.stats)
+                return
             }
 
-            closeRegistrationModal()
-        } catch (error) {
-            console.error(error)
+            form[key] = fresh[key]
+        })
+    }
 
-            if (error.response?.status === 422) {
-                console.log('validation errors', error.response.data.errors)
+    function fillForm(values = {}) {
+        const fresh = createDefaultForm()
+
+        Object.keys(fresh).forEach((key) => {
+            if (key === 'stats') {
+                Object.assign(form.stats, fresh.stats, values.stats ?? {})
+                return
             }
-        }
-    }
 
-    async function handleCheckIn() {
-        if (!store.selectedReservationId) return
-
-        try {
-            const response = await axios.post(`/api/frontdesk/registrations/${store.selectedReservationId}/check-in`)
-            store.updateReservation(response.data.data)
-        } catch (error) {
-            console.error(error)
-        }
-    }
-
-    async function handleCheckOut() {
-        if (!store.selectedReservationId) return
-
-        try {
-            const response = await axios.post(`/api/frontdesk/registrations/${store.selectedReservationId}/check-out`)
-            store.updateReservation(response.data.data)
-        } catch (error) {
-            console.error(error)
-        }
-    }
-
-    async function handleCancelReservation() {
-        if (!store.selectedReservationId) return
-
-        try {
-            const response = await axios.post(`/api/frontdesk/registrations/${store.selectedReservationId}/cancel`)
-            store.updateReservation(response.data.data)
-        } catch (error) {
-            console.error(error)
-        }
-    }
-
-    async function handleNoShowReservation() {
-        if (!store.selectedReservationId) return
-
-        try {
-            const response = await axios.post(`/api/frontdesk/registrations/${store.selectedReservationId}/no-show`)
-            store.updateReservation(response.data.data)
-        } catch (error) {
-            console.error(error)
-        }
-    }
-
-    async function handleDeleteReservation() {
-        if (!store.selectedReservationId) return
-
-        const id = store.selectedReservationId
-        const confirmed = window.confirm('Ben je zeker dat je deze registratie wil verwijderen?')
-
-        if (!confirmed) return
-
-        try {
-            await axios.delete(`/api/frontdesk/registrations/${id}`)
-            store.removeReservation(id)
-        } catch (error) {
-            console.error(error)
-        }
-    }
-
-    function toggleStatusFilter(value) {
-        store.toggleReservationStatusFilter(value)
-    }
-
-    function resetFilters() {
-        store.resetReservationStatusFilters()
-    }
-
-    function closeFilters() {
-        showFilters.value = false
-    }
-
-    function toggleFilters() {
-        showFilters.value = !showFilters.value
+            form[key] = values[key] ?? fresh[key]
+        })
     }
 
     return {
-        showRegistrationModal,
-        showFilters,
-        editingReservation,
-        openNewRegistrationModal,
-        openEditRegistrationModal,
-        closeRegistrationModal,
-        handleRegistrationSubmit,
-        handleCheckIn,
-        handleCheckOut,
-        handleCancelReservation,
-        handleNoShowReservation,
-        handleDeleteReservation,
-        toggleStatusFilter,
-        resetFilters,
-        closeFilters,
-        toggleFilters,
+        form,
+        totalParticipants,
+        plannedEndTime,
+        resetForm,
+        fillForm,
     }
 }
