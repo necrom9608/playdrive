@@ -20,7 +20,7 @@
                     </label>
 
                     <input
-                        v-model="model.start_time"
+                        v-model="model.event_time"
                         type="time"
                         class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-100 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-900"
                     >
@@ -29,18 +29,22 @@
 
             <div>
                 <label class="mb-2 block text-xs font-medium text-slate-400">
-                    Duur
+                    Verblijfsduur
                 </label>
 
                 <select
-                    v-model="model.duration"
+                    v-model="model.stay_option_id"
                     class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-medium text-slate-100 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-900"
                 >
-                    <option value="1h">1 uur</option>
-                    <option value="2h">2 uur</option>
-                    <option value="3h">3 uur</option>
-                    <option value="half_day">Halve dag</option>
-                    <option value="full_day">Volledige dag</option>
+                    <option :value="null">Kies een optie</option>
+
+                    <option
+                        v-for="option in stayOptions"
+                        :key="option.id"
+                        :value="option.id"
+                    >
+                        {{ option.name }}
+                    </option>
                 </select>
             </div>
 
@@ -89,6 +93,10 @@ defineProps({
     plannedEndTime: {
         type: String,
         required: true,
+    },
+    stayOptions: {
+        type: Array,
+        default: () => [],
     },
 })
 

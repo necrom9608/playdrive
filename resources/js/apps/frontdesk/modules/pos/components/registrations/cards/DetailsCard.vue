@@ -7,15 +7,18 @@
                 </label>
 
                 <select
-                    v-model="model.event_type"
+                    v-model="model.event_type_id"
                     class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-medium text-slate-100 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-900"
                 >
-                    <option value="free_play">Vrij spelen</option>
-                    <option value="birthday">Verjaardag</option>
-                    <option value="group_visit">Groepsbezoek</option>
-                    <option value="team_building">Teambuilding</option>
-                    <option value="school">School</option>
-                    <option value="other">Andere</option>
+                    <option :value="null">Kies een type</option>
+
+                    <option
+                        v-for="option in eventTypes"
+                        :key="option.id"
+                        :value="option.id"
+                    >
+                        {{ option.name }}
+                    </option>
                 </select>
             </div>
 
@@ -25,15 +28,18 @@
                 </label>
 
                 <select
-                    v-model="model.catering_option"
+                    v-model="model.catering_option_id"
                     class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-medium text-slate-100 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-900"
                 >
-                    <option value="none">Geen</option>
-                    <option value="drinks">Drank</option>
-                    <option value="snacks">Snacks</option>
-                    <option value="pancakes">Pannenkoeken</option>
-                    <option value="pizza">Pizza</option>
-                    <option value="custom">Aangepast</option>
+                    <option :value="null">Geen / niet gekozen</option>
+
+                    <option
+                        v-for="option in cateringOptions"
+                        :key="option.id"
+                        :value="option.id"
+                    >
+                        {{ option.name }}
+                    </option>
                 </select>
             </div>
 
@@ -74,6 +80,17 @@
 
 <script setup>
 import FormCard from '../fields/FormCard.vue'
+
+defineProps({
+    eventTypes: {
+        type: Array,
+        default: () => [],
+    },
+    cateringOptions: {
+        type: Array,
+        default: () => [],
+    },
+})
 
 const model = defineModel({ type: Object, required: true })
 </script>

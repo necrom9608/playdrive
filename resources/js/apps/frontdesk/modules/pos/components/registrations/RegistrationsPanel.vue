@@ -247,23 +247,23 @@
                     </div>
 
                     <div class="flex items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-slate-300">
-                        {{ reservation.kids_count }}
+                        {{ reservation.kids_count ?? reservation.participants_children ?? 0 }}
                     </div>
 
                     <div class="flex items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-slate-300">
-                        {{ reservation.adults_count }}
+                        {{ reservation.adults_count ?? reservation.participants_adults ?? 0 }}
                     </div>
 
                     <div class="flex items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white">
-                        {{ reservation.total_count }}
+                        {{ reservation.total_count ?? 0 }}
                     </div>
 
                     <div class="flex items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-slate-200">
-                        {{ reservation.start_time }}
+                        {{ reservation.start_time ?? reservation.event_time ?? '-' }}
                     </div>
 
                     <div class="flex items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-slate-400">
-                        {{ reservation.duration_label }}
+                        {{ reservation.duration_label ?? '-' }}
                     </div>
                 </button>
 
@@ -367,6 +367,7 @@
 </template>
 
 <script setup>
+import axios from 'axios'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { usePosStore } from '../../stores/usePosStore.js'
 import RegistrationModal from './RegistrationModal.vue'
@@ -395,9 +396,22 @@ function closeRegistrationModal() {
     showRegistrationModal.value = false
 }
 
-function handleRegistrationSubmit(payload) {
-    console.log('registration payload', payload)
-    showRegistrationModal.value = false
+async function handleRegistrationSubmit(payload) {
+    console.log('submit fired', payload)
+
+    try {
+        const response = await axios.post('/api/frontdesk/registrations', payload)
+
+        console.log('registration saved', response.data)
+
+        showRegistrationModal.value = false
+    } catch (error) {
+        console.error(error)
+
+        if (error.response?.status === 422) {
+            console.log('validation errors', error.response.data.errors)
+        }
+    }
 }
 
 function toggleStatusFilter(value) {

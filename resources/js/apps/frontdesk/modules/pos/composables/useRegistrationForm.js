@@ -8,9 +8,9 @@ function createDefaultForm() {
         postal_code: '',
         municipality: '',
 
-        kids_count: 0,
-        adults_count: 0,
-        supervisors_count: 0,
+        participants_children: 0,
+        participants_adults: 0,
+        participants_supervisors: 0,
 
         stats: {
             already_visited: false,
@@ -22,12 +22,12 @@ function createDefaultForm() {
         },
 
         event_date: '',
-        start_time: '',
-        duration: '2h',
+        event_time: '',
+        event_type_id: null,
+        stay_option_id: null,
+        catering_option_id: null,
         outside_opening_hours: false,
 
-        event_type: 'free_play',
-        catering_option: 'none',
         status: 'new',
         comment: '',
 
@@ -35,47 +35,46 @@ function createDefaultForm() {
         invoice_company_name: '',
         invoice_vat_number: '',
         invoice_email: '',
-        invoice_street: '',
-        invoice_house_number: '',
+        invoice_address: '',
         invoice_postal_code: '',
         invoice_city: '',
     }
 }
 
-export function useRegistrationForm(initialValues = {}) {
+export function useRegistrationForm(initialValues = {}, selectedStayOption = null) {
+    const defaults = createDefaultForm()
+
     const form = reactive({
-        ...createDefaultForm(),
+        ...defaults,
         ...initialValues,
         stats: {
-            ...createDefaultForm().stats,
+            ...defaults.stats,
             ...(initialValues.stats ?? {}),
         },
     })
 
     const totalParticipants = computed(() => {
-        return Number(form.kids_count || 0)
-            + Number(form.adults_count || 0)
-            + Number(form.supervisors_count || 0)
+        return Number(form.participants_children || 0)
+            + Number(form.participants_adults || 0)
+            + Number(form.participants_supervisors || 0)
     })
 
     const plannedEndTime = computed(() => {
-        if (!form.start_time || !String(form.start_time).includes(':')) {
+        if (!form.event_time || !String(form.event_time).includes(':')) {
             return '--:--'
         }
 
-        const [hours, minutes] = form.start_time.split(':').map(Number)
+        const [hours, minutes] = String(form.event_time).split(':').map(Number)
 
         if (Number.isNaN(hours) || Number.isNaN(minutes)) {
             return '--:--'
         }
 
-        let durationMinutes = 120
+        let durationMinutes = 0
 
-        if (form.duration === '1h') durationMinutes = 60
-        if (form.duration === '2h') durationMinutes = 120
-        if (form.duration === '3h') durationMinutes = 180
-        if (form.duration === 'half_day') durationMinutes = 240
-        if (form.duration === 'full_day') durationMinutes = 480
+        if (selectedStayOption?.value?.duration_minutes) {
+            durationMinutes = Number(selectedStayOption.value.duration_minutes)
+        }
 
         const total = (hours * 60) + minutes + durationMinutes
         const endHours = Math.floor(total / 60) % 24
@@ -85,23 +84,36 @@ export function useRegistrationForm(initialValues = {}) {
     })
 
     function resetForm() {
-        const defaults = createDefaultForm()
+        const fresh = createDefaultForm()
 
-        Object.keys(defaults).forEach((key) => {
+        Object.keys(fresh).forEach((key) => {
             if (key === 'stats') {
-                Object.assign(form.stats, defaults.stats)
+                Object.assign(form.stats, fresh.stats)
                 return
             }
 
-            form[key] = defaults[key]
+            form[key] = fresh[key]
         })
     }
 
+    function fillForm(values = {}) {
+        const fresh = createDefaultForm()
+
+        Object.keys(fresh).forEach((key) => {
+            if (key === 'stats') {
+                Object.assign(form.stats, fresh.stats, values.stats ?? {})
+                return
+            }
+
+            form[key] = values[key] ?? fresh[key]
+        })
+    }
 
     return {
         form,
         totalParticipants,
         plannedEndTime,
         resetForm,
+        fillForm,
     }
 }

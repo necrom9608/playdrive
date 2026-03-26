@@ -2,17 +2,17 @@
     <FormCard title="Deelnemers" class="h-full">
         <div class="space-y-5">
             <NumberStepperField
-                v-model="model.kids_count"
+                v-model="model.participants_children"
                 label="Kinderen / studenten"
             />
 
             <NumberStepperField
-                v-model="model.adults_count"
+                v-model="model.participants_adults"
                 label="Volwassenen"
             />
 
             <NumberStepperField
-                v-model="model.supervisors_count"
+                v-model="model.participants_supervisors"
                 label="Begeleiders"
             />
 
