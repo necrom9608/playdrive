@@ -247,11 +247,11 @@
                     </div>
 
                     <div class="flex items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-slate-300">
-                        {{ reservation.kids_count ?? reservation.participants_children ?? 0 }}
+                        {{ reservation.participants_children ?? 0 }}
                     </div>
 
                     <div class="flex items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-slate-300">
-                        {{ reservation.adults_count ?? reservation.participants_adults ?? 0 }}
+                        {{ reservation.participants_adults ?? 0 }}
                     </div>
 
                     <div class="flex items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white">
@@ -259,7 +259,7 @@
                     </div>
 
                     <div class="flex items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-slate-200">
-                        {{ reservation.start_time ?? reservation.event_time ?? '-' }}
+                        {{ reservation.event_time ?? '-' }}
                     </div>
 
                     <div class="flex items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-slate-400">
@@ -369,8 +369,8 @@
 <script setup>
 import axios from 'axios'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { usePosStore } from '../../stores/usePosStore.js'
-import RegistrationModal from './RegistrationModal.vue'
+import { usePosStore } from '../stores/usePosStore.js'
+import RegistrationModal from './registrations/RegistrationModal.vue'
 
 const store = usePosStore()
 
@@ -404,6 +404,7 @@ async function handleRegistrationSubmit(payload) {
 
         console.log('registration saved', response.data)
 
+        store.addReservation(response.data.data)
         showRegistrationModal.value = false
     } catch (error) {
         console.error(error)
@@ -457,6 +458,7 @@ function handleClickOutside(event) {
 
 onMounted(() => {
     document.addEventListener('click', handleClickOutside)
+    store.fetchReservations()
 })
 
 onBeforeUnmount(() => {

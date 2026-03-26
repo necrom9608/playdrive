@@ -5,7 +5,21 @@
                 <RegistrationTabs v-model="activeTab" />
 
                 <div class="min-h-0 flex-1 overflow-y-auto pr-1">
-                    <template v-if="activeTab === 'quick'">
+                    <div
+                        v-if="isLoadingOptions"
+                        class="flex h-full items-center justify-center rounded-2xl border border-slate-800 bg-slate-900/60 p-8 text-sm text-slate-400"
+                    >
+                        Formulieropties laden...
+                    </div>
+
+                    <div
+                        v-else-if="optionsError"
+                        class="rounded-2xl border border-red-900 bg-red-950/30 p-4 text-sm text-red-300"
+                    >
+                        Kon formulieropties niet laden.
+                    </div>
+
+                    <template v-else-if="activeTab === 'quick'">
                         <div class="grid grid-cols-12 gap-4">
                             <div class="col-span-4">
                                 <CustomerCard v-model="form" />
@@ -30,11 +44,16 @@
                                 <ReservationCard
                                     v-model="form"
                                     :planned-end-time="plannedEndTime"
+                                    :stay-options="stayOptions"
                                 />
                             </div>
 
                             <div class="col-span-1">
-                                <DetailsCard v-model="form" />
+                                <DetailsCard
+                                    v-model="form"
+                                    :event-types="eventTypes"
+                                    :catering-options="cateringOptions"
+                                />
                             </div>
                         </div>
                     </template>
@@ -59,7 +78,8 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import axios from 'axios'
+import { computed, onMounted, ref, toRaw, watch } from 'vue'
 import { useRegistrationForm } from '../../composables/useRegistrationForm'
 import RegistrationTabs from './RegistrationTabs.vue'
 import RegistrationFooter from './RegistrationFooter.vue'
@@ -80,12 +100,68 @@ const props = defineProps({
 const emit = defineEmits(['cancel', 'submit'])
 
 const activeTab = ref('quick')
+const isLoadingOptions = ref(true)
+const optionsError = ref(false)
+
+const eventTypes = ref([])
+const stayOptions = ref([])
+const cateringOptions = ref([])
+
+const selectedStayOption = computed(() => {
+    if (!form?.stay_option_id) {
+        return null
+    }
+
+    return stayOptions.value.find((option) => option.id === form.stay_option_id) ?? null
+})
 
 const {
     form,
     totalParticipants,
     plannedEndTime,
-} = useRegistrationForm(props.initialValues)
+    fillForm,
+} = useRegistrationForm(props.initialValues, selectedStayOption)
+
+watch(
+    () => props.initialValues,
+    (value) => {
+        fillForm(value ?? {})
+    },
+    { deep: true }
+)
+
+async function loadOptions() {
+    isLoadingOptions.value = true
+    optionsError.value = false
+
+    try {
+        const response = await axios.get('/api/frontdesk/form-options')
+
+        eventTypes.value = response.data.event_types ?? []
+        stayOptions.value = response.data.stay_options ?? []
+        cateringOptions.value = response.data.catering_options ?? []
+
+        if (!form.event_type_id && eventTypes.value.length > 0) {
+            const freePlay = eventTypes.value.find((item) => item.code === 'free_play')
+            form.event_type_id = freePlay?.id ?? eventTypes.value[0].id
+        }
+
+        if (!form.stay_option_id && stayOptions.value.length > 0) {
+            const twoHours = stayOptions.value.find((item) => item.code === '2h')
+            form.stay_option_id = twoHours?.id ?? stayOptions.value[0].id
+        }
+
+        if (!form.catering_option_id && cateringOptions.value.length > 0) {
+            const noneOption = cateringOptions.value.find((item) => item.code === 'none')
+            form.catering_option_id = noneOption?.id ?? null
+        }
+    } catch (error) {
+        console.error(error)
+        optionsError.value = true
+    } finally {
+        isLoadingOptions.value = false
+    }
+}
 
 function goNext() {
     if (activeTab.value === 'quick') {
@@ -110,6 +186,12 @@ function goPrevious() {
 }
 
 function handleSubmit() {
-    emit('submit', structuredClone(form))
+    const payload = JSON.parse(JSON.stringify(toRaw(form)))
+    console.log('form handleSubmit fired', payload)
+    emit('submit', payload)
 }
+
+onMounted(() => {
+    loadOptions()
+})
 </script>

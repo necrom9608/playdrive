@@ -1,270 +1,170 @@
-import { defineStore } from 'pinia'
 import axios from 'axios'
+import { computed, ref } from 'vue'
+import { defineStore } from 'pinia'
 
-export const usePosStore = defineStore('pos', {
-    state: () => ({
-        categories: [],
-        products: [],
-        selectedCategoryId: null,
-        orderItems: [],
-        loadingCatalog: false,
+export const usePosStore = defineStore('pos', () => {
+    const reservations = ref([])
+    const isLoadingReservations = ref(false)
 
-        reservations: [
-            {
-                id: 1,
-                name: 'Liam Vermeulen',
-                phone: '0472 11 22 33',
-                email: 'liam@example.com',
-                kids_count: 6,
-                adults_count: 2,
-                total_count: 8,
-                start_time: '14:00',
-                duration_label: '2u',
-                status: 'confirmed',
-            },
-            {
-                id: 2,
-                name: 'Emma De Smet',
-                phone: '0499 55 66 77',
-                email: 'emma@example.com',
-                kids_count: 4,
-                adults_count: 1,
-                total_count: 5,
-                start_time: '15:30',
-                duration_label: '2u',
-                status: 'checked_in',
-            },
-            {
-                id: 3,
-                name: 'Noah Van Damme',
-                phone: '0488 99 88 77',
-                email: 'noah@example.com',
-                kids_count: 10,
-                adults_count: 3,
-                total_count: 13,
-                start_time: '16:00',
-                duration_label: '3u',
-                status: 'new',
-            },
-            {
-                id: 4,
-                name: 'Olivia Maes',
-                phone: '0470 44 55 66',
-                email: 'olivia@example.com',
-                kids_count: 5,
-                adults_count: 2,
-                total_count: 7,
-                start_time: '13:00',
-                duration_label: '2u',
-                status: 'checked_out',
-            },
-        ],
+    const selectedReservationId = ref(null)
+    const reservationSearch = ref('')
+    const reservationViewMode = ref('today')
 
-        selectedReservationId: null,
-        reservationSearch: '',
-        reservationViewMode: 'today',
-        reservationStatusFilters: {
+    const reservationStatusFilters = ref({
+        new: true,
+        confirmed: true,
+        checked_in: true,
+        checked_out: true,
+        paid: true,
+        cancelled: false,
+        no_show: false,
+    })
+
+    async function fetchReservations() {
+        isLoadingReservations.value = true
+
+        try {
+            const response = await axios.get('/api/frontdesk/registrations')
+            reservations.value = response.data.data ?? []
+        } catch (error) {
+            console.error('Failed to fetch reservations', error)
+        } finally {
+            isLoadingReservations.value = false
+        }
+    }
+
+    function addReservation(reservation) {
+        reservations.value.unshift(reservation)
+    }
+
+    function selectReservation(id) {
+        selectedReservationId.value = id
+    }
+
+    function clearReservationSelection() {
+        selectedReservationId.value = null
+    }
+
+    function setReservationSearch(value) {
+        reservationSearch.value = value
+    }
+
+    function setReservationViewMode(mode) {
+        reservationViewMode.value = mode
+    }
+
+    function toggleReservationStatusFilter(status) {
+        reservationStatusFilters.value[status] = !reservationStatusFilters.value[status]
+    }
+
+    function resetReservationStatusFilters() {
+        reservationStatusFilters.value = {
             new: true,
             confirmed: true,
             checked_in: true,
             checked_out: true,
-            paid: false,
+            paid: true,
             cancelled: false,
             no_show: false,
-        },
-    }),
+        }
+    }
 
-    getters: {
-        filteredProducts(state) {
-            if (!state.selectedCategoryId) {
-                return state.products
+    const filteredReservations = computed(() => {
+        const search = reservationSearch.value.trim().toLowerCase()
+
+        return reservations.value.filter((reservation) => {
+            const matchesSearch = !search || [
+                reservation.name,
+                reservation.phone,
+                reservation.email,
+                reservation.municipality,
+            ]
+                .filter(Boolean)
+                .some((value) => String(value).toLowerCase().includes(search))
+
+            const matchesStatus = !!reservationStatusFilters.value[reservation.status]
+
+            return matchesSearch && matchesStatus
+        })
+    })
+
+    const selectedReservation = computed(() => {
+        return reservations.value.find(
+            (reservation) => reservation.id === selectedReservationId.value
+        ) ?? null
+    })
+
+    const reservationStats = computed(() => {
+        const stats = {
+            totalReservations: 0,
+            totalPersons: 0,
+
+            confirmedReservations: 0,
+            confirmedPersons: 0,
+
+            checkedInReservations: 0,
+            checkedInPersons: 0,
+
+            checkedOutReservations: 0,
+            checkedOutPersons: 0,
+
+            noShowReservations: 0,
+            noShowPersons: 0,
+        }
+
+        for (const reservation of filteredReservations.value) {
+            const persons = Number(reservation.total_count ?? 0)
+
+            stats.totalReservations += 1
+            stats.totalPersons += persons
+
+            if (reservation.status === 'confirmed') {
+                stats.confirmedReservations += 1
+                stats.confirmedPersons += persons
             }
 
-            return state.products.filter(
-                product => product.product_category_id === state.selectedCategoryId
-            )
-        },
-
-        orderSubtotal(state) {
-            return state.orderItems.reduce((sum, item) => {
-                return sum + (parseFloat(item.price_incl_vat) * item.quantity)
-            }, 0)
-        },
-
-        orderCount(state) {
-            return state.orderItems.reduce((sum, item) => sum + item.quantity, 0)
-        },
-
-        selectedReservation(state) {
-            return state.reservations.find(r => r.id === state.selectedReservationId) ?? null
-        },
-
-        filteredReservations(state) {
-            let items = [...state.reservations]
-
-            const activeStatuses = Object.entries(state.reservationStatusFilters)
-                .filter(([, enabled]) => enabled)
-                .map(([status]) => status)
-
-            items = items.filter(reservation => activeStatuses.includes(reservation.status))
-
-            const q = state.reservationSearch.trim().toLowerCase()
-
-            if (!q) {
-                return items
+            if (reservation.status === 'checked_in') {
+                stats.checkedInReservations += 1
+                stats.checkedInPersons += persons
             }
 
-            return items.filter((reservation) => {
-                return [
-                    reservation.name,
-                    reservation.phone,
-                    reservation.email,
-                ]
-                    .filter(Boolean)
-                    .some(value => value.toLowerCase().includes(q))
-            })
-        },
-
-        reservationStats(state) {
-            const totalReservations = state.reservations.length
-            const totalPersons = state.reservations.reduce((sum, r) => sum + r.total_count, 0)
-
-            const confirmed = state.reservations.filter(r => r.status === 'confirmed')
-            const checkedIn = state.reservations.filter(r => r.status === 'checked_in')
-            const checkedOut = state.reservations.filter(r => r.status === 'checked_out')
-            const noShow = state.reservations.filter(r => r.status === 'no_show')
-
-            const sumPersons = (items) => items.reduce((sum, r) => sum + r.total_count, 0)
-
-            return {
-                totalReservations,
-                totalPersons,
-                confirmedReservations: confirmed.length,
-                confirmedPersons: sumPersons(confirmed),
-                checkedInReservations: checkedIn.length,
-                checkedInPersons: sumPersons(checkedIn),
-                checkedOutReservations: checkedOut.length,
-                checkedOutPersons: sumPersons(checkedOut),
-                noShowReservations: noShow.length,
-                noShowPersons: sumPersons(noShow),
-            }
-        },
-    },
-
-    actions: {
-        async loadCatalog() {
-            this.loadingCatalog = true
-
-            try {
-                const [categoriesResponse, productsResponse] = await Promise.all([
-                    axios.get('/api/backoffice/product-categories'),
-                    axios.get('/api/backoffice/products'),
-                ])
-
-                this.categories = categoriesResponse.data
-                this.products = productsResponse.data
-            } finally {
-                this.loadingCatalog = false
-            }
-        },
-
-        selectCategory(categoryId) {
-            this.selectedCategoryId = categoryId
-        },
-
-        addProduct(product) {
-            const existing = this.orderItems.find(item => item.id === product.id)
-
-            if (existing) {
-                existing.quantity += 1
-                return
+            if (reservation.status === 'checked_out') {
+                stats.checkedOutReservations += 1
+                stats.checkedOutPersons += persons
             }
 
-            this.orderItems.push({
-                id: product.id,
-                name: product.name,
-                price_incl_vat: parseFloat(product.price_incl_vat),
-                quantity: 1,
-            })
-        },
-
-        increaseItem(productId) {
-            const item = this.orderItems.find(item => item.id === productId)
-
-            if (item) {
-                item.quantity += 1
+            if (reservation.status === 'no_show') {
+                stats.noShowReservations += 1
+                stats.noShowPersons += persons
             }
-        },
+        }
 
-        decreaseItem(productId) {
-            const item = this.orderItems.find(item => item.id === productId)
+        return stats
+    })
 
-            if (!item) return
+    return {
+        reservations,
+        isLoadingReservations,
 
-            item.quantity -= 1
+        selectedReservationId,
+        selectedReservation,
 
-            if (item.quantity <= 0) {
-                this.removeItem(productId)
-            }
-        },
+        reservationSearch,
+        reservationViewMode,
+        reservationStatusFilters,
 
-        removeItem(productId) {
-            this.orderItems = this.orderItems.filter(item => item.id !== productId)
-        },
+        filteredReservations,
+        reservationStats,
 
-        clearOrder() {
-            this.orderItems = []
-        },
+        fetchReservations,
+        addReservation,
 
-        selectReservation(id) {
-            this.selectedReservationId = id
-        },
+        selectReservation,
+        clearReservationSelection,
 
-        clearReservationSelection() {
-            this.selectedReservationId = null
-        },
-
-        setReservationSearch(value) {
-            this.reservationSearch = value
-        },
-
-        setReservationViewMode(mode) {
-            this.reservationViewMode = mode
-
-            if (mode === 'open') {
-                this.applyOpenReservationFilters()
-            }
-        },
-
-        setReservationStatusFilter(value) {
-            this.reservationStatusFilter = value
-        },
-        toggleReservationStatusFilter(status) {
-            this.reservationStatusFilters[status] = !this.reservationStatusFilters[status]
-        },
-
-        resetReservationStatusFilters() {
-            this.reservationStatusFilters = {
-                new: true,
-                confirmed: true,
-                checked_in: true,
-                checked_out: true,
-                paid: false,
-                cancelled: false,
-                no_show: false,
-            }
-        },
-
-        applyOpenReservationFilters() {
-            this.reservationStatusFilters = {
-                new: true,
-                confirmed: true,
-                checked_in: false,
-                checked_out: false,
-                paid: false,
-                cancelled: false,
-                no_show: false,
-            }
-        },
-    },
+        setReservationSearch,
+        setReservationViewMode,
+        toggleReservationStatusFilter,
+        resetReservationStatusFilters,
+    }
 })
