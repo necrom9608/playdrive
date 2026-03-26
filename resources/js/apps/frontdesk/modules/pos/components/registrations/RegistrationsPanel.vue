@@ -16,6 +16,7 @@
                     <button
                         type="button"
                         class="inline-flex items-center rounded-2xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 hover:shadow-md"
+                        @click="openNewRegistrationModal"
                     >
                         <span class="mr-2 text-base leading-none">+</span>
                         Nieuw
@@ -124,7 +125,10 @@
                         </button>
                     </div>
 
-                    <div class="relative" ref="filterMenuRef">
+                    <div
+                        ref="filterMenuRef"
+                        class="relative"
+                    >
                         <button
                             type="button"
                             class="inline-flex h-full items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 shadow-sm transition hover:bg-slate-700"
@@ -353,15 +357,23 @@
                 </div>
             </div>
         </div>
+
+        <RegistrationModal
+            :open="showRegistrationModal"
+            @close="closeRegistrationModal"
+            @submit="handleRegistrationSubmit"
+        />
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { usePosStore } from '../../stores/usePosStore.js'
+import RegistrationModal from './RegistrationModal.vue'
 
 const store = usePosStore()
 
+const showRegistrationModal = ref(false)
 const showFilters = ref(false)
 const filterMenuRef = ref(null)
 
@@ -374,6 +386,19 @@ const statusOptions = [
     { label: 'Geannuleerd', value: 'cancelled' },
     { label: 'No-show', value: 'no_show' },
 ]
+
+function openNewRegistrationModal() {
+    showRegistrationModal.value = true
+}
+
+function closeRegistrationModal() {
+    showRegistrationModal.value = false
+}
+
+function handleRegistrationSubmit(payload) {
+    console.log('registration payload', payload)
+    showRegistrationModal.value = false
+}
 
 function toggleStatusFilter(value) {
     store.toggleReservationStatusFilter(value)

@@ -97,6 +97,7 @@ export function useRegistrationForm(initialValues = {}) {
         })
     }
 
+
     return {
         form,
         totalParticipants,

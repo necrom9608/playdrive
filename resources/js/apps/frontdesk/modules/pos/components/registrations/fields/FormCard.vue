@@ -20,6 +20,7 @@ defineOptions({
     inheritAttrs: false,
 })
 
+
 defineProps({
     title: {
         type: String,
