@@ -64,6 +64,33 @@ class Registration extends Model
         'bill_total_cents' => 'integer',
     ];
 
+    public static function statusOptions(): array
+    {
+        return [
+            self::STATUS_NEW => 'Nieuw',
+            self::STATUS_CONFIRMED => 'Bevestigd',
+            self::STATUS_CHECKED_IN => 'Ingecheckt',
+            self::STATUS_CHECKED_OUT => 'Uitgecheckt',
+            self::STATUS_PAID => 'Betaald',
+            self::STATUS_CANCELLED => 'Geannuleerd',
+            self::STATUS_NO_SHOW => 'No-show',
+        ];
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            self::STATUS_NEW => 'Nieuw',
+            self::STATUS_CONFIRMED => 'Bevestigd',
+            self::STATUS_CHECKED_IN => 'Ingecheckt',
+            self::STATUS_CHECKED_OUT => 'Uitgecheckt',
+            self::STATUS_PAID => 'Betaald',
+            self::STATUS_CANCELLED => 'Geannuleerd',
+            self::STATUS_NO_SHOW => 'No-show',
+            default => 'Onbekend',
+        };
+    }
+
     public function eventType(): BelongsTo
     {
         return $this->belongsTo(EventType::class);
@@ -86,16 +113,4 @@ class Registration extends Model
             + (int) $this->participants_supervisors;
     }
 
-    public static function statusOptions(): array
-    {
-        return [
-            self::STATUS_NEW => 'Nieuw',
-            self::STATUS_CONFIRMED => 'Bevestigd',
-            self::STATUS_CHECKED_IN => 'Ingecheckt',
-            self::STATUS_CHECKED_OUT => 'Uitgecheckt',
-            self::STATUS_PAID => 'Betaald',
-            self::STATUS_CANCELLED => 'Geannuleerd',
-            self::STATUS_NO_SHOW => 'No-show',
-        ];
-    }
 }

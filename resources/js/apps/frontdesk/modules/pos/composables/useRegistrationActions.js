@@ -7,8 +7,13 @@ export function useRegistrationActions(store) {
     const editingReservationId = ref(null)
 
     const editingReservation = computed(() => {
-        if (!editingReservationId.value) return {}
-        return store.reservations.find(item => item.id === editingReservationId.value) ?? {}
+        if (!editingReservationId.value) {
+            return {}
+        }
+
+        return store.reservations.find(
+            item => item.id === editingReservationId.value
+        ) ?? {}
     })
 
     function openNewRegistrationModal() {
@@ -54,7 +59,10 @@ export function useRegistrationActions(store) {
         if (!store.selectedReservationId) return
 
         try {
-            const response = await axios.post(`/api/frontdesk/registrations/${store.selectedReservationId}/check-in`)
+            const response = await axios.post(
+                `/api/frontdesk/registrations/${store.selectedReservationId}/check-in`
+            )
+
             store.updateReservation(response.data.data)
         } catch (error) {
             console.error(error)
@@ -65,7 +73,10 @@ export function useRegistrationActions(store) {
         if (!store.selectedReservationId) return
 
         try {
-            const response = await axios.post(`/api/frontdesk/registrations/${store.selectedReservationId}/check-out`)
+            const response = await axios.post(
+                `/api/frontdesk/registrations/${store.selectedReservationId}/check-out`
+            )
+
             store.updateReservation(response.data.data)
         } catch (error) {
             console.error(error)
@@ -76,7 +87,10 @@ export function useRegistrationActions(store) {
         if (!store.selectedReservationId) return
 
         try {
-            const response = await axios.post(`/api/frontdesk/registrations/${store.selectedReservationId}/cancel`)
+            const response = await axios.post(
+                `/api/frontdesk/registrations/${store.selectedReservationId}/cancel`
+            )
+
             store.updateReservation(response.data.data)
         } catch (error) {
             console.error(error)
@@ -87,7 +101,10 @@ export function useRegistrationActions(store) {
         if (!store.selectedReservationId) return
 
         try {
-            const response = await axios.post(`/api/frontdesk/registrations/${store.selectedReservationId}/no-show`)
+            const response = await axios.post(
+                `/api/frontdesk/registrations/${store.selectedReservationId}/no-show`
+            )
+
             store.updateReservation(response.data.data)
         } catch (error) {
             console.error(error)

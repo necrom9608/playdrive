@@ -27,3 +27,19 @@ Route::prefix('api/frontdesk')->group(function () {
     Route::get('/registrations', [RegistrationController::class, 'index']);
     Route::post('/registrations', [RegistrationController::class, 'store']);
 });
+
+Route::put('/registrations/{registration}', [RegistrationController::class, 'update']);
+
+Route::prefix('api/frontdesk')->group(function () {
+    Route::get('/form-options', FormOptionsController::class);
+    Route::get('/locations/search', LocationSearchController::class);
+
+    Route::get('/registrations', [RegistrationController::class, 'index']);
+    Route::post('/registrations', [RegistrationController::class, 'store']);
+
+    Route::post('/registrations/{registration}/check-in', [RegistrationController::class, 'checkIn']);
+    Route::post('/registrations/{registration}/check-out', [RegistrationController::class, 'checkOut']);
+    Route::post('/registrations/{registration}/cancel', [RegistrationController::class, 'cancel']);
+    Route::post('/registrations/{registration}/no-show', [RegistrationController::class, 'noShow']);
+    Route::delete('/registrations/{registration}', [RegistrationController::class, 'destroy']);
+});
