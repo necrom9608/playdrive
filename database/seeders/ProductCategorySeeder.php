@@ -3,12 +3,15 @@
 namespace Database\Seeders;
 
 use App\Models\ProductCategory;
+use App\Models\Tenant;
 use Illuminate\Database\Seeder;
 
 class ProductCategorySeeder extends Seeder
 {
     public function run(): void
     {
+        $tenant = Tenant::where('slug', 'game-inn')->firstOrFail();
+
         $items = [
             [
                 'name' => 'Toegang',
@@ -38,8 +41,17 @@ class ProductCategorySeeder extends Seeder
 
         foreach ($items as $item) {
             ProductCategory::updateOrCreate(
-                ['slug' => $item['slug']],
-                $item
+                [
+                    'tenant_id' => $tenant->id,
+                    'slug' => $item['slug'],
+                ],
+                [
+                    'tenant_id' => $tenant->id,
+                    'name' => $item['name'],
+                    'slug' => $item['slug'],
+                    'sort_order' => $item['sort_order'],
+                    'is_active' => $item['is_active'],
+                ]
             );
         }
     }

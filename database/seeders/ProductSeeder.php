@@ -4,23 +4,24 @@ namespace Database\Seeders;
 
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\Tenant;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class ProductSeeder extends Seeder
 {
     public function run(): void
     {
+        $tenant = Tenant::where('slug', 'game-inn')->firstOrFail();
+
         $categories = [
-            'toegang' => ProductCategory::where('slug', 'toegang')->firstOrFail(),
-            'cadeaubonnen' => ProductCategory::where('slug', 'cadeaubonnen')->firstOrFail(),
-            'snacks' => ProductCategory::where('slug', 'snacks')->firstOrFail(),
-            'drank' => ProductCategory::where('slug', 'drank')->firstOrFail(),
+            'toegang' => ProductCategory::where('tenant_id', $tenant->id)->where('slug', 'toegang')->firstOrFail(),
+            'cadeaubonnen' => ProductCategory::where('tenant_id', $tenant->id)->where('slug', 'cadeaubonnen')->firstOrFail(),
+            'snacks' => ProductCategory::where('tenant_id', $tenant->id)->where('slug', 'snacks')->firstOrFail(),
+            'drank' => ProductCategory::where('tenant_id', $tenant->id)->where('slug', 'drank')->firstOrFail(),
         ];
 
         $items = [
-            // =========================
-            // TOEGANG
-            // =========================
             ['category' => 'toegang', 'name' => 'Abonnement kind / student', 'price' => 119.00, 'vat' => 6],
             ['category' => 'toegang', 'name' => 'Abonnement volwassene', 'price' => 139.00, 'vat' => 6],
             ['category' => 'toegang', 'name' => 'Familieabonnement', 'price' => 249.00, 'vat' => 6],
@@ -35,17 +36,11 @@ class ProductSeeder extends Seeder
             ['category' => 'toegang', 'name' => 'Pizzabuffet', 'price' => 15.00, 'vat' => 12],
             ['category' => 'toegang', 'name' => 'Toeslag extra tijd', 'price' => 2.00, 'vat' => 6],
 
-            // =========================
-            // CADEAUBONNEN
-            // =========================
             ['category' => 'cadeaubonnen', 'name' => 'Cadeaubon kind / student 2u', 'price' => 19.90, 'vat' => 6],
             ['category' => 'cadeaubonnen', 'name' => 'Cadeaubon kind / student dagticket', 'price' => 24.90, 'vat' => 6],
             ['category' => 'cadeaubonnen', 'name' => 'Cadeaubon volwassene 2u', 'price' => 24.90, 'vat' => 6],
-            ['category' => 'cadeaubonnen', 'name' => 'Cadeaubon volwassene dagticket', 'price' => 29.00, 'vat' => 6],
+            ['category' => 'cadeaubonnen', 'name' => 'Cadeaubon volwassene dagticket', 'price' => 29.90, 'vat' => 6],
 
-            // =========================
-            // SNACKS
-            // =========================
             ['category' => 'snacks', 'name' => 'Chips paprika', 'price' => 2.80, 'vat' => 6],
             ['category' => 'snacks', 'name' => 'Chips zout', 'price' => 2.80, 'vat' => 6],
             ['category' => 'snacks', 'name' => 'Chips grills', 'price' => 2.80, 'vat' => 6],
@@ -53,9 +48,6 @@ class ProductSeeder extends Seeder
             ['category' => 'snacks', 'name' => 'Kippensoep', 'price' => 2.80, 'vat' => 6],
             ['category' => 'snacks', 'name' => 'Tomatensoep', 'price' => 3.50, 'vat' => 6],
 
-            // =========================
-            // DRANK
-            // =========================
             ['category' => 'drank', 'name' => 'Coca-Cola', 'price' => 2.80, 'vat' => 21],
             ['category' => 'drank', 'name' => 'Coca-Cola Zero', 'price' => 2.80, 'vat' => 21],
             ['category' => 'drank', 'name' => 'Fanta', 'price' => 2.80, 'vat' => 21],
@@ -83,15 +75,19 @@ class ProductSeeder extends Seeder
             $priceInclVat = (float) $item['price'];
             $vatRate = (float) $item['vat'];
             $priceExclVat = round($priceInclVat / (1 + ($vatRate / 100)), 2);
+            $slug = Str::slug($item['name']);
 
             Product::updateOrCreate(
                 [
-                    'name' => $item['name'],
+                    'tenant_id' => $tenant->id,
+                    'slug' => $slug,
                 ],
                 [
+                    'tenant_id' => $tenant->id,
                     'product_category_id' => $categories[$item['category']]->id,
+                    'name' => $item['name'],
+                    'slug' => $slug,
                     'description' => null,
-                    'price_incl_vat' => $priceInclVat,
                     'price_excl_vat' => $priceExclVat,
                     'vat_rate' => $vatRate,
                     'sort_order' => $index + 1,

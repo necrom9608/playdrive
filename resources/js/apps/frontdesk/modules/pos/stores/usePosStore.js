@@ -1,12 +1,46 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
 
+
+function generateLineId() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID()
+    }
+
+    return `line_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+}
+
+function createEmptyOrder(context = 'walk_in', reservationId = null) {
+    return {
+        id: null,
+        context,
+        reservation_id: reservationId,
+        items: [],
+    }
+}
+
+function cloneOrder(order) {
+    return {
+        id: order?.id ?? null,
+        context: order?.context ?? 'walk_in',
+        reservation_id: order?.reservation_id ?? null,
+        items: Array.isArray(order?.items)
+            ? order.items.map(item => ({
+                line_id: item.line_id ?? generateLineId(),
+                product_id: item.product_id ?? item.id,
+                name: item.name,
+                price_incl_vat: Number(item.price_incl_vat ?? 0),
+                quantity: Number(item.quantity ?? 0),
+            }))
+            : [],
+    }
+}
+
 export const usePosStore = defineStore('pos', {
     state: () => ({
         categories: [],
         products: [],
         selectedCategoryId: null,
-        orderItems: [],
         loadingCatalog: false,
 
         reservations: [],
@@ -24,6 +58,10 @@ export const usePosStore = defineStore('pos', {
             cancelled: false,
             no_show: false,
         },
+
+        walkInOrder: createEmptyOrder('walk_in', null),
+        reservationOrders: {},
+        lastAddedLineId: null,
     }),
 
     getters: {
@@ -37,18 +75,41 @@ export const usePosStore = defineStore('pos', {
             )
         },
 
-        orderSubtotal(state) {
-            return state.orderItems.reduce((sum, item) => {
-                return sum + (parseFloat(item.price_incl_vat) * item.quantity)
+        selectedReservation(state) {
+            return state.reservations.find(r => r.id === state.selectedReservationId) ?? null
+        },
+
+        currentOrder(state) {
+            if (state.selectedReservationId) {
+                return state.reservationOrders[state.selectedReservationId]
+                    ?? createEmptyOrder('reservation', state.selectedReservationId)
+            }
+
+            return state.walkInOrder
+        },
+
+        currentOrderItems() {
+            return this.currentOrder.items
+        },
+
+        orderSubtotal() {
+            return this.currentOrder.items.reduce((sum, item) => {
+                return sum + (Number(item.price_incl_vat) * Number(item.quantity))
             }, 0)
         },
 
-        orderCount(state) {
-            return state.orderItems.reduce((sum, item) => sum + item.quantity, 0)
+        orderCount() {
+            return this.currentOrder.items.reduce((sum, item) => {
+                return sum + Number(item.quantity)
+            }, 0)
         },
 
-        selectedReservation(state) {
-            return state.reservations.find(r => r.id === state.selectedReservationId) ?? null
+        currentOrderLabel() {
+            if (this.selectedReservation) {
+                return `Actieve reservatie: ${this.selectedReservation.name}`
+            }
+
+            return 'Losse verkoop'
         },
 
         filteredReservations(state) {
@@ -155,62 +216,139 @@ export const usePosStore = defineStore('pos', {
             if (this.selectedReservationId === id) {
                 this.selectedReservationId = null
             }
+
+            if (this.reservationOrders[id]) {
+                delete this.reservationOrders[id]
+            }
         },
 
         selectCategory(categoryId) {
             this.selectedCategoryId = categoryId
         },
 
-        addProduct(product) {
-            const existing = this.orderItems.find(item => item.id === product.id)
+        ensureReservationOrder(reservationId) {
+            if (!this.reservationOrders[reservationId]) {
+                this.reservationOrders[reservationId] = createEmptyOrder('reservation', reservationId)
+            }
 
-            if (existing) {
-                existing.quantity += 1
+            return this.reservationOrders[reservationId]
+        },
+
+        getMutableCurrentOrder() {
+            if (this.selectedReservationId) {
+                return this.ensureReservationOrder(this.selectedReservationId)
+            }
+
+            if (!this.walkInOrder) {
+                this.walkInOrder = createEmptyOrder('walk_in', null)
+            }
+
+            return this.walkInOrder
+        },
+
+        addProduct(product) {
+            const order = this.getMutableCurrentOrder()
+            const items = order.items
+            const lastItem = items.length ? items[items.length - 1] : null
+
+            if (lastItem && Number(lastItem.product_id) === Number(product.id)) {
+                lastItem.quantity += 1
+                this.lastAddedLineId = lastItem.line_id
                 return
             }
 
-            this.orderItems.push({
-                id: product.id,
+            const newLine = {
+                line_id: generateLineId(),
+                product_id: product.id,
                 name: product.name,
-                price_incl_vat: parseFloat(product.price_incl_vat),
+                price_incl_vat: Number(product.price_incl_vat ?? product.price ?? 0),
                 quantity: 1,
-            })
+            }
+
+            items.push(newLine)
+            this.lastAddedLineId = newLine.line_id
         },
 
-        increaseItem(productId) {
-            const item = this.orderItems.find(item => item.id === productId)
+        increaseItem(lineId) {
+            const order = this.getMutableCurrentOrder()
+            const item = order.items.find(entry => entry.line_id === lineId)
 
             if (item) {
                 item.quantity += 1
+                this.lastAddedLineId = item.line_id
             }
         },
 
-        decreaseItem(productId) {
-            const item = this.orderItems.find(item => item.id === productId)
+        decreaseItem(lineId) {
+            const order = this.getMutableCurrentOrder()
+            const item = order.items.find(entry => entry.line_id === lineId)
 
-            if (!item) return
+            if (!item) {
+                return
+            }
 
             item.quantity -= 1
+            this.lastAddedLineId = item.line_id
 
             if (item.quantity <= 0) {
-                this.removeItem(productId)
+                this.removeItem(lineId)
             }
         },
 
-        removeItem(productId) {
-            this.orderItems = this.orderItems.filter(item => item.id !== productId)
+        removeItem(lineId) {
+            const order = this.getMutableCurrentOrder()
+            order.items = order.items.filter(item => item.line_id !== lineId)
+
+            if (this.lastAddedLineId === lineId) {
+                this.lastAddedLineId = order.items.length
+                    ? order.items[order.items.length - 1].line_id
+                    : null
+            }
         },
 
         clearOrder() {
-            this.orderItems = []
+            this.lastAddedLineId = null
+
+            if (this.selectedReservationId) {
+                this.reservationOrders[this.selectedReservationId] = createEmptyOrder(
+                    'reservation',
+                    this.selectedReservationId
+                )
+                return
+            }
+
+            this.walkInOrder = createEmptyOrder('walk_in', null)
+        },
+
+        replaceWalkInOrder(order) {
+            this.walkInOrder = cloneOrder({
+                ...order,
+                context: 'walk_in',
+                reservation_id: null,
+            })
+        },
+
+        replaceReservationOrder(reservationId, order) {
+            this.reservationOrders[reservationId] = cloneOrder({
+                ...order,
+                context: 'reservation',
+                reservation_id: reservationId,
+            })
         },
 
         selectReservation(id) {
             this.selectedReservationId = id
+
+            if (id) {
+                this.ensureReservationOrder(id)
+            }
+
+            this.lastAddedLineId = null
         },
 
         clearReservationSelection() {
             this.selectedReservationId = null
+            this.lastAddedLineId = null
         },
 
         setReservationSearch(value) {

@@ -1,5 +1,8 @@
 <template>
-    <div class="rounded-2xl border border-slate-800 bg-slate-950 p-3">
+    <div
+        class="rounded-2xl border border-slate-800 bg-slate-950 p-3 transition"
+        :class="isLastAdded ? 'ring-2 ring-blue-500/30 border-blue-500/50' : ''"
+    >
         <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
                 <div class="truncate text-sm font-semibold text-white">
@@ -12,7 +15,7 @@
 
             <button
                 type="button"
-                @click="store.removeItem(item.id)"
+                @click="store.removeItem(item.line_id)"
                 class="text-xs font-semibold text-rose-400 transition hover:text-rose-300"
             >
                 Verwijder
@@ -23,7 +26,7 @@
             <div class="flex items-center gap-2">
                 <button
                     type="button"
-                    @click="store.decreaseItem(item.id)"
+                    @click="store.decreaseItem(item.line_id)"
                     class="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-sm font-bold text-white hover:bg-slate-700"
                 >
                     −
@@ -35,7 +38,7 @@
 
                 <button
                     type="button"
-                    @click="store.increaseItem(item.id)"
+                    @click="store.increaseItem(item.line_id)"
                     class="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-sm font-bold text-white hover:bg-slate-700"
                 >
                     +
@@ -59,9 +62,16 @@ defineProps({
         type: Object,
         required: true,
     },
+    isLastAdded: {
+        type: Boolean,
+        default: false,
+    },
 })
 
 function formatPrice(value) {
-    return Number(value).toFixed(2)
+    return new Intl.NumberFormat('nl-BE', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(Number(value ?? 0))
 }
 </script>

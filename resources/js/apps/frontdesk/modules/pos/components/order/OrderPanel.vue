@@ -3,21 +3,21 @@
         <div class="border-b border-slate-800 p-4">
             <h2 class="text-base font-semibold text-white">Bestelling</h2>
 
-            <p v-if="store.selectedReservation" class="mt-1 text-sm text-slate-400">
-                Actieve reservatie: <span class="font-semibold text-white">{{ store.selectedReservation.name }}</span>
-            </p>
-
-            <p v-else class="mt-1 text-sm text-slate-400">
-                Overzicht van de geselecteerde producten.
+            <p class="mt-1 text-sm text-slate-400">
+                {{ store.currentOrderLabel }}
             </p>
         </div>
 
-        <div class="min-h-0 flex-1 overflow-auto p-4">
-            <div v-if="store.orderItems.length" class="space-y-3">
+        <div
+            ref="listContainer"
+            class="min-h-0 flex-1 overflow-auto p-4"
+        >
+            <div v-if="store.currentOrderItems.length" class="space-y-3">
                 <OrderItemRow
-                    v-for="item in store.orderItems"
-                    :key="item.id"
+                    v-for="item in store.currentOrderItems"
+                    :key="item.line_id"
                     :item="item"
+                    :is-last-added="item.line_id === store.lastAddedLineId"
                 />
             </div>
 
@@ -65,12 +65,43 @@
 </template>
 
 <script setup>
+import { nextTick, ref, watch } from 'vue'
 import { usePosStore } from '../../stores/usePosStore.js'
 import OrderItemRow from './OrderItemRow.vue'
 
 const store = usePosStore()
+const listContainer = ref(null)
 
 function formatPrice(value) {
-    return Number(value).toFixed(2)
+    return new Intl.NumberFormat('nl-BE', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(Number(value ?? 0))
 }
+
+async function scrollToBottom() {
+    await nextTick()
+
+    const el = listContainer.value
+
+    if (!el) {
+        return
+    }
+
+    el.scrollTo({
+        top: el.scrollHeight,
+        behavior: 'smooth',
+    })
+}
+
+watch(
+    () => store.lastAddedLineId,
+    async (value) => {
+        if (!value) {
+            return
+        }
+
+        await scrollToBottom()
+    }
+)
 </script>
