@@ -12,6 +12,6 @@ import { usePosStore } from '../stores/usePosStore'
 const store = usePosStore()
 
 onMounted(() => {
-    store.loadInitialData()
+    store.loadCatalog()
 })
 </script>
