@@ -369,8 +369,8 @@
 <script setup>
 import axios from 'axios'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { usePosStore } from '../stores/usePosStore.js'
-import RegistrationModal from './registrations/RegistrationModal.vue'
+import { usePosStore } from '../../stores/usePosStore.js'
+import RegistrationModal from './RegistrationModal.vue'
 
 const store = usePosStore()
 
