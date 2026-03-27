@@ -7,6 +7,9 @@ use App\Http\Requests\Backoffice\StoreRegistrationRequest;
 use App\Models\Registration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Domain\Orders\OrderService;
+use App\Support\CurrentTenant;
+use Illuminate\Support\Facades\DB;
 
 class RegistrationController extends Controller
 {
@@ -68,19 +71,28 @@ class RegistrationController extends Controller
         ]);
     }
 
-    public function checkOut(Registration $registration): JsonResponse
-    {
-        $registration->status = Registration::STATUS_CHECKED_OUT;
-        $registration->checked_out_at = now();
+    public function checkOut(
+        Registration $registration,
+        CurrentTenant $currentTenant,
+        OrderService $orderService
+    ): JsonResponse {
+        abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
 
-        if ($registration->checked_in_at) {
-            $registration->played_minutes = max(
-                0,
-                $registration->checked_in_at->diffInMinutes($registration->checked_out_at)
-            );
-        }
+        DB::transaction(function () use ($registration, $currentTenant, $orderService) {
+            $orderService->applyAutomaticCateringItemsForRegistration($registration, $currentTenant);
 
-        $registration->save();
+            $registration->status = Registration::STATUS_CHECKED_OUT;
+            $registration->checked_out_at = now();
+
+            if ($registration->checked_in_at) {
+                $registration->played_minutes = max(
+                    0,
+                    $registration->checked_in_at->diffInMinutes($registration->checked_out_at)
+                );
+            }
+
+            $registration->save();
+        });
 
         $registration->load([
             'eventType:id,name,code',

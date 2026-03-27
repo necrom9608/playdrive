@@ -18,6 +18,7 @@ class User extends Authenticatable
         'username',
         'email',
         'password',
+        'rfid_uid',
         'street',
         'house_number',
         'bus',

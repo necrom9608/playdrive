@@ -1,34 +1,32 @@
-export async function apiFetch(url, options = {}) {
-    const response = await fetch(url, {
-        headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            ...(options.headers || {}),
-        },
-        credentials: 'same-origin',
-        ...options,
+import { apiFetch } from '../../../../../shared/services/api'
+
+export function fetchStaff() {
+    return apiFetch('/api/backoffice/staff')
+}
+
+export function createStaff(payload) {
+    return apiFetch('/api/backoffice/staff', {
+        method: 'POST',
+        body: JSON.stringify(payload),
     })
+}
 
-    const contentType = response.headers.get('content-type') || ''
-    let data = null
+export function updateStaff(id, payload) {
+    return apiFetch(`/api/backoffice/staff/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+    })
+}
 
-    try {
-        if (contentType.includes('application/json')) {
-            data = await response.json()
-        } else {
-            const text = await response.text()
-            data = text ? { message: text } : null
-        }
-    } catch (parseError) {
-        data = { message: 'Kon serverantwoord niet lezen.' }
-    }
+export function deleteStaff(id) {
+    return apiFetch(`/api/backoffice/staff/${id}`, {
+        method: 'DELETE',
+    })
+}
 
-    if (!response.ok) {
-        const error = new Error(data?.message || `API request failed with status ${response.status}`)
-        error.status = response.status
-        error.data = data
-        throw error
-    }
-
-    return data
+export function reorderStaff(items) {
+    return apiFetch('/api/backoffice/staff/reorder', {
+        method: 'POST',
+        body: JSON.stringify({ items }),
+    })
 }

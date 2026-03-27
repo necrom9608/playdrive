@@ -72,12 +72,26 @@ export function useRegistrationActions(store) {
     async function handleCheckOut() {
         if (!store.selectedReservationId) return
 
+        const reservationId = store.selectedReservationId
+
         try {
             const response = await axios.post(
-                `/api/frontdesk/registrations/${store.selectedReservationId}/check-out`
+                `/api/frontdesk/registrations/${reservationId}/check-out`
             )
 
             store.updateReservation(response.data.data)
+
+            if (typeof store.fetchReservations === 'function') {
+                await store.fetchReservations()
+            }
+
+            if (typeof store.fetchOrders === 'function') {
+                await store.fetchOrders()
+            }
+
+            if (typeof store.selectReservation === 'function') {
+                store.selectReservation(reservationId)
+            }
         } catch (error) {
             console.error(error)
         }

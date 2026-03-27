@@ -27,4 +27,11 @@ class CateringOption extends Model
     {
         return $this->hasMany(Registration::class);
     }
+
+    public function productLinks(): HasMany
+    {
+        return $this->hasMany(CateringOptionProduct::class)
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
 }

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
@@ -39,4 +40,9 @@ class Product extends Model
     {
         return round((float) $this->price_excl_vat * (1 + ((float) $this->vat_rate / 100)), 2);
     }
+    public function cateringOptionLinks(): HasMany
+    {
+        return $this->hasMany(CateringOptionProduct::class);
+    }
+
 }
