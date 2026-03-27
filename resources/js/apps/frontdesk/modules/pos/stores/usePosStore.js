@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
 
-
 function generateLineId() {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
         return crypto.randomUUID()
@@ -29,7 +28,7 @@ function cloneOrder(order) {
                 line_id: item.line_id ?? generateLineId(),
                 product_id: item.product_id ?? item.id,
                 name: item.name,
-                price_incl_vat: Number(item.price_incl_vat ?? 0),
+                price_incl_vat: Number(item.price_incl_vat ?? item.price ?? 0),
                 quantity: Number(item.quantity ?? 0),
             }))
             : [],
@@ -62,6 +61,10 @@ export const usePosStore = defineStore('pos', {
         walkInOrder: createEmptyOrder('walk_in', null),
         reservationOrders: {},
         lastAddedLineId: null,
+
+        checkoutProcessing: false,
+        checkoutError: null,
+        lastCheckoutSummary: null,
     }),
 
     getters: {
@@ -308,6 +311,7 @@ export const usePosStore = defineStore('pos', {
 
         clearOrder() {
             this.lastAddedLineId = null
+            this.checkoutError = null
 
             if (this.selectedReservationId) {
                 this.reservationOrders[this.selectedReservationId] = createEmptyOrder(
@@ -344,11 +348,13 @@ export const usePosStore = defineStore('pos', {
             }
 
             this.lastAddedLineId = null
+            this.checkoutError = null
         },
 
         clearReservationSelection() {
             this.selectedReservationId = null
             this.lastAddedLineId = null
+            this.checkoutError = null
         },
 
         setReservationSearch(value) {
@@ -396,6 +402,52 @@ export const usePosStore = defineStore('pos', {
                 paid: false,
                 cancelled: false,
                 no_show: false,
+            }
+        },
+
+        async checkoutCurrentOrder(payload = {}) {
+            const order = this.currentOrder
+            const items = (order?.items ?? [])
+                .filter(item => Number(item.quantity) > 0)
+                .map(item => ({
+                    product_id: Number(item.product_id),
+                    quantity: Number(item.quantity),
+                }))
+
+            if (!items.length) {
+                this.checkoutError = 'Voeg eerst minstens één product toe aan de bestelling.'
+                return null
+            }
+
+            this.checkoutProcessing = true
+            this.checkoutError = null
+
+            try {
+                const response = await axios.post('/api/frontdesk/orders/checkout', {
+                    reservation_id: this.selectedReservationId,
+                    payment_method: payload.payment_method ?? 'cash',
+                    notes: payload.notes ?? null,
+                    invoice_requested: payload.invoice_requested ?? false,
+                    items,
+                })
+
+                this.lastCheckoutSummary = response.data?.data ?? null
+
+                if (this.selectedReservationId && this.selectedReservation) {
+                    this.updateReservation({
+                        ...this.selectedReservation,
+                        status: 'paid',
+                    })
+                }
+
+                this.clearOrder()
+                this.lastCheckoutSummary = response.data?.data ?? null
+                return response.data?.data ?? null
+            } catch (error) {
+                this.checkoutError = error?.response?.data?.message ?? 'Afrekenen mislukt.'
+                return null
+            } finally {
+                this.checkoutProcessing = false
             }
         },
     },

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Registration extends Model
 {
@@ -104,6 +105,12 @@ class Registration extends Model
     public function cateringOption(): BelongsTo
     {
         return $this->belongsTo(CateringOption::class);
+    }
+
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class)->latest('id');
     }
 
     public function getTotalParticipantsAttribute(): int

@@ -11,8 +11,9 @@ class TenantSeeder extends Seeder
     public function run(): void
     {
         $tenant = Tenant::updateOrCreate(
-            ['slug' => 'game-inn'],
+            ['id' => 1],
             [
+                'slug' => 'game-inn',
                 'name' => 'Game-INN',
                 'is_active' => true,
                 'primary_domain' => 'frontdesk.playdrive.test',
@@ -30,7 +31,7 @@ class TenantSeeder extends Seeder
             TenantDomain::updateOrCreate(
                 ['domain' => $domain['domain']],
                 [
-                    'tenant_id' => $tenant->id,
+                    'tenant_id' => 1,
                     'app_type' => $domain['app_type'],
                     'is_primary' => $domain['is_primary'],
                 ]
