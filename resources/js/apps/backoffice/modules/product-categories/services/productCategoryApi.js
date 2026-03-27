@@ -23,3 +23,10 @@ export function deleteProductCategory(id) {
         method: 'DELETE',
     })
 }
+
+export function reorderProductCategories(items) {
+    return apiFetch('/api/backoffice/product-categories/reorder', {
+        method: 'POST',
+        body: JSON.stringify({ items }),
+    })
+}

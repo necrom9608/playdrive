@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api\Frontdesk;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreRegistrationRequest;
+use App\Http\Requests\Backoffice\StoreRegistrationRequest;
 use App\Models\Registration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

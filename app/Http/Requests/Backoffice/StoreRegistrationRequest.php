@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Requests;
+namespace App\Http\Requests\Backoffice;
 
 use App\Models\Registration;
 use Illuminate\Foundation\Http\FormRequest;
