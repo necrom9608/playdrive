@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Frontdesk\LocationSearchController;
 use App\Http\Controllers\Api\Frontdesk\RegistrationController;
 use App\Http\Controllers\Api\Frontdesk\OrderController;
 use App\Http\Controllers\Api\Frontdesk\SalesController;
+use App\Http\Controllers\Api\Frontdesk\AgendaController;
 
 Route::view('/', 'frontdesk.app');
 Route::view('/pos', 'frontdesk.app');
@@ -33,6 +34,7 @@ Route::prefix('api/frontdesk')->group(function () {
     Route::post('/orders/checkout', [OrderController::class, 'checkout']);
 
     Route::get('/sales', [SalesController::class, 'index']);
+    Route::get('/agenda', AgendaController::class);
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel']);
     Route::post('/orders/{order}/refund', [OrderController::class, 'refund']);
 });
