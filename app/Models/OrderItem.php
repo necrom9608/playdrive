@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OrderItem extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'order_id',
         'product_id',
@@ -19,6 +22,8 @@ class OrderItem extends Model
         'line_vat',
         'line_total_incl_vat',
         'sort_order',
+        'source',
+        'source_reference',
     ];
 
     protected $casts = [

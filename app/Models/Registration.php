@@ -20,6 +20,7 @@ class Registration extends Model
     public const STATUS_NO_SHOW = 'no_show';
 
     protected $fillable = [
+        'tenant_id',
         'name',
         'phone',
         'email',
@@ -49,7 +50,6 @@ class Registration extends Model
         'bill_total_cents',
         'outside_opening_hours',
     ];
-
     protected $casts = [
         'event_date' => 'date',
         'event_time' => 'string',

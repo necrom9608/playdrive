@@ -5,23 +5,29 @@ namespace App\Http\Controllers\Api\Frontdesk;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backoffice\StoreRegistrationRequest;
 use App\Models\Registration;
+use App\Support\CurrentTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use App\Support\CurrentTenant;
 use Illuminate\Support\Facades\DB;
 
 class RegistrationController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, CurrentTenant $currentTenant): JsonResponse
     {
-        $registrations = Registration::query()
+        $query = Registration::query()
             ->with([
-                'eventType:id,name,code',
+                'eventType:id,name,code,emoji',
                 'stayOption:id,name,code,duration_minutes',
-                'cateringOption:id,name,code',
+                'cateringOption:id,name,code,emoji',
             ])
             ->latest('id')
-            ->limit(100)
+            ->limit(100);
+
+        if ($currentTenant->exists()) {
+            $query->where('tenant_id', $currentTenant->id());
+        }
+
+        $registrations = $query
             ->get()
             ->map(fn (Registration $registration) => $this->transformRegistration($registration));
 
@@ -30,9 +36,13 @@ class RegistrationController extends Controller
         ]);
     }
 
-    public function store(StoreRegistrationRequest $request): JsonResponse
+    public function store(StoreRegistrationRequest $request, CurrentTenant $currentTenant): JsonResponse
     {
         $data = $request->validated();
+
+        if ($currentTenant->exists()) {
+            $data['tenant_id'] = $currentTenant->id();
+        }
 
         if (($data['status'] ?? null) === Registration::STATUS_CHECKED_IN && empty($data['checked_in_at'])) {
             $data['checked_in_at'] = now();
@@ -41,9 +51,9 @@ class RegistrationController extends Controller
         $registration = Registration::create($data);
 
         $registration->load([
-            'eventType:id,name,code',
+            'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
-            'cateringOption:id,name,code',
+            'cateringOption:id,name,code,emoji',
         ]);
 
         return response()->json([
@@ -52,16 +62,18 @@ class RegistrationController extends Controller
         ], 201);
     }
 
-    public function checkIn(Registration $registration): JsonResponse
+    public function checkIn(Registration $registration, CurrentTenant $currentTenant): JsonResponse
     {
+        abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
+
         $registration->status = Registration::STATUS_CHECKED_IN;
         $registration->checked_in_at = now();
         $registration->save();
 
         $registration->load([
-            'eventType:id,name,code',
+            'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
-            'cateringOption:id,name,code',
+            'cateringOption:id,name,code,emoji',
         ]);
 
         return response()->json([
@@ -70,10 +82,8 @@ class RegistrationController extends Controller
         ]);
     }
 
-    public function checkOut(
-        Registration $registration,
-        CurrentTenant $currentTenant
-    ): JsonResponse {
+    public function checkOut(Registration $registration, CurrentTenant $currentTenant): JsonResponse
+    {
         abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
 
         DB::transaction(function () use ($registration) {
@@ -91,9 +101,9 @@ class RegistrationController extends Controller
         });
 
         $registration->load([
-            'eventType:id,name,code',
+            'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
-            'cateringOption:id,name,code',
+            'cateringOption:id,name,code,emoji',
         ]);
 
         return response()->json([
@@ -102,15 +112,17 @@ class RegistrationController extends Controller
         ]);
     }
 
-    public function cancel(Registration $registration): JsonResponse
+    public function cancel(Registration $registration, CurrentTenant $currentTenant): JsonResponse
     {
+        abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
+
         $registration->status = Registration::STATUS_CANCELLED;
         $registration->save();
 
         $registration->load([
-            'eventType:id,name,code',
+            'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
-            'cateringOption:id,name,code',
+            'cateringOption:id,name,code,emoji',
         ]);
 
         return response()->json([
@@ -119,29 +131,22 @@ class RegistrationController extends Controller
         ]);
     }
 
-    public function noShow(Registration $registration): JsonResponse
+    public function noShow(Registration $registration, CurrentTenant $currentTenant): JsonResponse
     {
+        abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
+
         $registration->status = Registration::STATUS_NO_SHOW;
         $registration->save();
 
         $registration->load([
-            'eventType:id,name,code',
+            'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
-            'cateringOption:id,name,code',
+            'cateringOption:id,name,code,emoji',
         ]);
 
         return response()->json([
             'message' => 'Registratie op no-show gezet.',
             'data' => $this->transformRegistration($registration),
-        ]);
-    }
-
-    public function destroy(Registration $registration): JsonResponse
-    {
-        $registration->delete();
-
-        return response()->json([
-            'message' => 'Registratie verwijderd.',
         ]);
     }
 
@@ -190,26 +195,27 @@ class RegistrationController extends Controller
         ];
     }
 
-    public function update(StoreRegistrationRequest $request, Registration $registration): JsonResponse
+    public function update(StoreRegistrationRequest $request, Registration $registration, CurrentTenant $currentTenant): JsonResponse
     {
+        abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
+
         $data = $request->validated();
 
-        if (($data['status'] ?? null) === Registration::STATUS_CHECKED_IN && !$registration->checked_in_at) {
+        if (($data['status'] ?? null) === Registration::STATUS_CHECKED_IN && ! $registration->checked_in_at) {
             $data['checked_in_at'] = now();
         }
 
         $registration->update($data);
 
         $registration->load([
-            'eventType:id,name,code',
+            'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
-            'cateringOption:id,name,code',
+            'cateringOption:id,name,code,emoji',
         ]);
 
         return response()->json([
             'message' => 'Registratie bijgewerkt.',
             'data' => $this->transformRegistration($registration),
-
         ]);
     }
 }
