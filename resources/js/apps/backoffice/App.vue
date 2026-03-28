@@ -14,6 +14,7 @@ import {
     Squares2X2Icon,
     TagIcon,
     UsersIcon,
+    CurrencyEuroIcon,
 } from '@heroicons/vue/24/outline'
 import AppShell from '../../shared/layouts/AppShell.vue'
 
@@ -24,5 +25,6 @@ const navigation = [
     { label: 'Event Types', to: '/event-types', icon: ArchiveBoxIcon },
     { label: 'Stay Options', to: '/stay-options', icon: ClockIcon },
     { label: 'Staff', to: '/staff', icon: UsersIcon },
+    { label: 'Pricing Engine', to: '/pricing-engine', icon: CurrencyEuroIcon },
 ]
 </script>

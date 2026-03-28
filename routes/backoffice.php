@@ -10,6 +10,7 @@ Route::view('/catering-options', 'backoffice.app');
 Route::view('/event-types', 'backoffice.app');
 Route::view('/stay-options', 'backoffice.app');
 Route::view('/staff', 'backoffice.app');
+Route::view('/pricing-engine', 'backoffice.app');
 
 Route::prefix('backoffice')->group(function () {
     Route::get('/catering-options', [CateringOptionController::class, 'index']);

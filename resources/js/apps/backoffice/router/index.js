@@ -6,6 +6,7 @@ import CateringOptionsPage from '../modules/options/pages/CateringOptionsPage.vu
 import EventTypesPage from '../modules/options/pages/EventTypesPage.vue'
 import StayOptionsPage from '../modules/options/pages/StayOptionsPage.vue'
 import StaffPage from '../modules/staff/pages/StaffPage.vue'
+import PricingEnginePage from '../modules/pricing-engine/pages/PricingEnginePage.vue'
 
 const routes = [
     { path: '/', name: 'backoffice.product-categories', component: ProductCategoriesPage },
@@ -14,6 +15,7 @@ const routes = [
     { path: '/event-types', name: 'backoffice.event-types', component: EventTypesPage },
     { path: '/stay-options', name: 'backoffice.stay-options', component: StayOptionsPage },
     { path: '/staff', name: 'backoffice.staff', component: StaffPage },
+    { path: '/pricing-engine', name: 'backoffice.pricing-engine', component: PricingEnginePage },
 ]
 
 export default createRouter({

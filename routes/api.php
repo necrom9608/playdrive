@@ -3,7 +3,9 @@
 use App\Http\Controllers\Api\Backoffice\OptionController;
 use App\Http\Controllers\Api\Backoffice\ProductCategoryController;
 use App\Http\Controllers\Api\Backoffice\ProductController;
+use App\Http\Controllers\Api\Backoffice\PricingEngineController;
 use App\Http\Controllers\Api\Backoffice\StaffController;
+use App\Http\Controllers\Api\Frontdesk\PricingController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('backoffice')->group(function () {
@@ -25,9 +27,24 @@ Route::prefix('backoffice')->group(function () {
     Route::post('/options/{type}/reorder', [OptionController::class, 'reorder']);
     Route::delete('/options/{type}/{item}', [OptionController::class, 'destroy']);
 
+    Route::get('/pricing-engine', [PricingEngineController::class, 'overview']);
+    Route::post('/pricing-engine/profiles', [PricingEngineController::class, 'storeProfile']);
+    Route::put('/pricing-engine/profiles/{profile}', [PricingEngineController::class, 'updateProfile']);
+    Route::delete('/pricing-engine/profiles/{profile}', [PricingEngineController::class, 'deleteProfile']);
+    Route::post('/pricing-engine/profiles/reorder', [PricingEngineController::class, 'reorderProfiles']);
+
+    Route::post('/pricing-engine/profiles/{profile}/rules', [PricingEngineController::class, 'storeRule']);
+    Route::post('/pricing-engine/profiles/{profile}/rules/reorder', [PricingEngineController::class, 'reorderRules']);
+    Route::put('/pricing-engine/rules/{rule}', [PricingEngineController::class, 'updateRule']);
+    Route::delete('/pricing-engine/rules/{rule}', [PricingEngineController::class, 'deleteRule']);
+
     Route::get('/staff', [StaffController::class, 'index']);
     Route::post('/staff', [StaffController::class, 'store']);
     Route::post('/staff/reorder', [StaffController::class, 'reorder']);
     Route::put('/staff/{staff}', [StaffController::class, 'update']);
     Route::delete('/staff/{staff}', [StaffController::class, 'destroy']);
+});
+
+Route::prefix('frontdesk')->group(function () {
+    Route::post('/pricing/evaluate', [PricingController::class, 'evaluate']);
 });
