@@ -15,9 +15,9 @@
                 <button
                     type="button"
                     class="inline-flex items-center rounded-2xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 hover:shadow-md"
-                    @click="$emit('new')"
+                    @click="emit('new')"
                 >
-                    <span class="mr-2 text-base leading-none">+</span>
+                    <PlusIcon class="mr-2 h-5 w-5" />
                     Nieuw
                 </button>
             </div>
@@ -29,7 +29,7 @@
                         type="text"
                         placeholder="Zoeken op naam, telefoon of e-mail..."
                         class="w-full rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-900"
-                        @input="$emit('search', $event.target.value)"
+                        @input="emit('search', $event.target.value)"
                     >
                 </div>
 
@@ -38,7 +38,7 @@
                         type="button"
                         class="rounded-xl px-3 py-2 text-sm font-semibold transition"
                         :class="viewMode === 'today' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-700'"
-                        @click="$emit('change-view-mode', 'today')"
+                        @click="emit('change-view-mode', 'today')"
                     >
                         Vandaag
                     </button>
@@ -47,7 +47,7 @@
                         type="button"
                         class="rounded-xl px-3 py-2 text-sm font-semibold transition"
                         :class="viewMode === 'date' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-700'"
-                        @click="$emit('change-view-mode', 'date')"
+                        @click="emit('change-view-mode', 'date')"
                     >
                         Datum
                     </button>
@@ -56,21 +56,19 @@
                         type="button"
                         class="rounded-xl px-3 py-2 text-sm font-semibold transition"
                         :class="viewMode === 'open' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-700'"
-                        @click="$emit('change-view-mode', 'open')"
+                        @click="emit('change-view-mode', 'open')"
                     >
                         Open
                     </button>
                 </div>
 
-                <div
-                    ref="filterMenuRef"
-                    class="relative"
-                >
+                <div class="relative">
                     <button
                         type="button"
                         class="inline-flex h-full items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 shadow-sm transition hover:bg-slate-700"
-                        @click="$emit('toggle-filters')"
+                        @click="emit('toggle-filters')"
                     >
+                        <FunnelIcon class="h-5 w-5" />
                         <span>Filters</span>
 
                         <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[11px] font-bold text-white">
@@ -82,11 +80,54 @@
                         :open="showFilters"
                         :status-filters="statusFilters"
                         :status-options="statusOptions"
-                        @toggle-status-filter="$emit('toggle-status-filter', $event)"
-                        @reset-filters="$emit('reset-filters')"
-                        @close="$emit('close-filters')"
+                        @toggle-status-filter="emit('toggle-status-filter', $event)"
+                        @reset-filters="emit('reset-filters')"
+                        @close="emit('close-filters')"
                     />
                 </div>
+            </div>
+
+            <div
+                v-if="viewMode === 'date'"
+                class="flex flex-wrap items-center gap-3"
+            >
+                <label class="text-sm font-medium text-slate-300">
+                    Datum:
+                </label>
+
+                <div class="flex items-center gap-2">
+                    <button
+                        type="button"
+                        class="inline-flex items-center justify-center rounded-2xl border border-slate-700 bg-slate-800 p-3 text-slate-200 shadow-sm transition hover:bg-slate-700"
+                        @click="changeDay(-1)"
+                    >
+                        <ChevronLeftIcon class="h-5 w-5" />
+                    </button>
+
+                    <input
+                        :value="selectedDate"
+                        type="date"
+                        class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-100 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-900"
+                        @input="emit('change-selected-date', $event.target.value)"
+                    >
+
+                    <button
+                        type="button"
+                        class="inline-flex items-center justify-center rounded-2xl border border-slate-700 bg-slate-800 p-3 text-slate-200 shadow-sm transition hover:bg-slate-700"
+                        @click="changeDay(1)"
+                    >
+                        <ChevronRightIcon class="h-5 w-5" />
+                    </button>
+                </div>
+
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 shadow-sm transition hover:bg-slate-700"
+                    @click="emit('change-selected-date', todayString())"
+                >
+                    <CalendarDaysIcon class="h-5 w-5" />
+                    Vandaag
+                </button>
             </div>
         </div>
     </div>
@@ -94,8 +135,15 @@
 
 <script setup>
 import RegistrationFiltersMenu from './RegistrationFiltersMenu.vue'
+import {
+    PlusIcon,
+    FunnelIcon,
+    ChevronLeftIcon,
+    ChevronRightIcon,
+    CalendarDaysIcon,
+} from '@heroicons/vue/24/outline'
 
-defineProps({
+const props = defineProps({
     search: {
         type: String,
         required: true,
@@ -103,6 +151,10 @@ defineProps({
     viewMode: {
         type: String,
         required: true,
+    },
+    selectedDate: {
+        type: String,
+        default: '',
     },
     showFilters: {
         type: Boolean,
@@ -118,13 +170,36 @@ defineProps({
     },
 })
 
-defineEmits([
+const emit = defineEmits([
     'new',
     'search',
     'change-view-mode',
+    'change-selected-date',
     'toggle-filters',
     'toggle-status-filter',
     'reset-filters',
     'close-filters',
 ])
+
+function todayString() {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+
+    return `${year}-${month}-${day}`
+}
+
+function changeDay(offset) {
+    const base = props.selectedDate || todayString()
+    const date = new Date(`${base}T12:00:00`)
+
+    date.setDate(date.getDate() + offset)
+
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+
+    emit('change-selected-date', `${year}-${month}-${day}`)
+}
 </script>

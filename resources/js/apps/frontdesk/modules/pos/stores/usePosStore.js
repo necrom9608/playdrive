@@ -9,6 +9,15 @@ function generateLineId() {
     return `line_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 }
 
+function todayString() {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+
+    return `${year}-${month}-${day}`
+}
+
 function createEmptyOrder(context = 'walk_in', reservationId = null) {
     return {
         id: null,
@@ -48,6 +57,7 @@ export const usePosStore = defineStore('pos', {
         selectedReservationId: null,
         reservationSearch: '',
         reservationViewMode: 'today',
+        reservationSelectedDate: todayString(),
         reservationStatusFilters: {
             new: true,
             confirmed: true,
@@ -118,6 +128,18 @@ export const usePosStore = defineStore('pos', {
         filteredReservations(state) {
             let items = [...state.reservations]
 
+            if (state.reservationViewMode === 'today') {
+                const today = todayString()
+
+                items = items.filter(reservation => reservation.event_date === today)
+            }
+
+            if (state.reservationViewMode === 'date') {
+                const selectedDate = state.reservationSelectedDate || todayString()
+
+                items = items.filter(reservation => reservation.event_date === selectedDate)
+            }
+
             const activeStatuses = Object.entries(state.reservationStatusFilters)
                 .filter(([, enabled]) => enabled)
                 .map(([status]) => status)
@@ -142,28 +164,65 @@ export const usePosStore = defineStore('pos', {
             })
         },
 
-        reservationStats(state) {
-            const totalReservations = state.reservations.length
-            const totalPersons = state.reservations.reduce((sum, r) => sum + Number(r.total_count ?? 0), 0)
+        statsReservations(state) {
+            let items = [...state.reservations]
 
-            const confirmed = state.reservations.filter(r => r.status === 'confirmed')
-            const checkedIn = state.reservations.filter(r => r.status === 'checked_in')
-            const checkedOut = state.reservations.filter(r => r.status === 'checked_out')
-            const noShow = state.reservations.filter(r => r.status === 'no_show')
+            if (state.reservationViewMode === 'today') {
+                const today = todayString()
 
-            const sumPersons = (items) => items.reduce((sum, r) => sum + Number(r.total_count ?? 0), 0)
+                items = items.filter(reservation => reservation.event_date === today)
+            }
+
+            if (state.reservationViewMode === 'date') {
+                const selectedDate = state.reservationSelectedDate || todayString()
+
+                items = items.filter(reservation => reservation.event_date === selectedDate)
+            }
+
+            if (state.reservationViewMode === 'open') {
+                items = items.filter(reservation =>
+                    ['new', 'confirmed'].includes(reservation.status)
+                )
+            }
+
+            return items
+        },
+
+        reservationStats() {
+            const items = this.statsReservations
+
+            const totalReservations = items.length
+            const totalPersons = items.reduce((sum, r) => sum + Number(r.total_count ?? 0), 0)
+
+            const newItems = items.filter(r => r.status === 'new')
+            const confirmed = items.filter(r => r.status === 'confirmed')
+            const checkedIn = items.filter(r => r.status === 'checked_in')
+            const checkedOut = items.filter(r => r.status === 'checked_out')
+            const paid = items.filter(r => r.status === 'paid')
+            const cancelled = items.filter(r => r.status === 'cancelled')
+            const noShow = items.filter(r => r.status === 'no_show')
+
+            const sumPersons = (rows) => rows.reduce((sum, r) => sum + Number(r.total_count ?? 0), 0)
 
             return {
                 totalReservations,
                 totalPersons,
+                newReservations: newItems.length,
+                newPersons: sumPersons(newItems),
                 confirmedReservations: confirmed.length,
                 confirmedPersons: sumPersons(confirmed),
                 checkedInReservations: checkedIn.length,
                 checkedInPersons: sumPersons(checkedIn),
                 checkedOutReservations: checkedOut.length,
                 checkedOutPersons: sumPersons(checkedOut),
+                paidReservations: paid.length,
+                paidPersons: sumPersons(paid),
+                cancelledReservations: cancelled.length,
+                cancelledPersons: sumPersons(cancelled),
                 noShowReservations: noShow.length,
                 noShowPersons: sumPersons(noShow),
+                openReservations: newItems.length + confirmed.length,
+                openPersons: sumPersons(newItems) + sumPersons(confirmed),
             }
         },
     },
@@ -361,15 +420,20 @@ export const usePosStore = defineStore('pos', {
             this.reservationSearch = value
         },
 
+        setReservationSelectedDate(value) {
+            this.reservationSelectedDate = value
+        },
+
         setReservationViewMode(mode) {
             this.reservationViewMode = mode
 
-            if (mode === 'open') {
-                this.applyOpenReservationFilters()
+            if (mode === 'today') {
+                this.reservationSelectedDate = todayString()
+                this.resetReservationStatusFilters()
             }
 
-            if (mode === 'today') {
-                this.resetReservationStatusFilters()
+            if (mode === 'open') {
+                this.applyOpenReservationFilters()
             }
 
             if (mode === 'date') {
