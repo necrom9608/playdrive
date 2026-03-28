@@ -493,15 +493,22 @@ export const usePosStore = defineStore('pos', {
                     const response = await axios.post(`/api/frontdesk/registrations/${this.selectedReservationId}/check-out`)
 
                     const registration = response.data?.data ?? null
+                    const syncedOrder = response.data?.order ?? null
 
                     if (registration) {
                         this.updateReservation(registration)
+                    }
+
+                    if (syncedOrder) {
+                        this.replaceReservationOrder(this.selectedReservationId, syncedOrder)
                     }
 
                     this.lastCheckoutSummary = {
                         mode: 'registration_check_out',
                         registration_id: this.selectedReservationId,
                         registration,
+                        order: syncedOrder,
+                        pricing_debug: response.data?.pricing_debug ?? null,
                     }
 
                     return this.lastCheckoutSummary

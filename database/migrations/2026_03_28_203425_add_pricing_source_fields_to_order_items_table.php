@@ -9,18 +9,28 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('order_items', function (Blueprint $table) {
-            $table->string('source', 50)->default('manual');
-            $table->string('source_reference', 100)->nullable();
+            if (! Schema::hasColumn('order_items', 'source')) {
+                $table->string('source', 32)->default('manual');
+            }
 
-            $table->index(['source', 'source_reference'], 'order_items_source_reference_index');
+            if (! Schema::hasColumn('order_items', 'source_reference')) {
+                $table->string('source_reference', 64)->nullable();
+            }
+
+            // Geen index toevoegen: niet nodig voor nu, en vermijdt MySQL key length issues.
         });
     }
 
     public function down(): void
     {
         Schema::table('order_items', function (Blueprint $table) {
-            $table->dropIndex('order_items_source_reference_index');
-            $table->dropColumn(['source', 'source_reference']);
+            if (Schema::hasColumn('order_items', 'source_reference')) {
+                $table->dropColumn('source_reference');
+            }
+
+            if (Schema::hasColumn('order_items', 'source')) {
+                $table->dropColumn('source');
+            }
         });
     }
 };

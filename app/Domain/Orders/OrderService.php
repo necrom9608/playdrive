@@ -2,6 +2,9 @@
 
 namespace App\Domain\Orders;
 
+use App\Domain\Pricing\PricingContext;
+use App\Domain\Pricing\PricingEvaluationResult;
+use App\Domain\Pricing\PricingEvaluator;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Registration;
@@ -13,6 +16,11 @@ use InvalidArgumentException;
 
 class OrderService
 {
+    public function __construct(
+        protected PricingEvaluator $pricingEvaluator,
+    ) {
+    }
+
     public function checkout(array $payload, CurrentTenant $currentTenant): Order
     {
         if (! $currentTenant->exists()) {
@@ -24,7 +32,13 @@ class OrderService
             ->values();
 
         $registrationId = Arr::get($payload, 'reservation_id');
-        $registration = $registrationId ? Registration::query()->findOrFail($registrationId) : null;
+        $registration = null;
+
+        if ($registrationId) {
+            $registration = Registration::query()
+                ->where('tenant_id', $currentTenant->id())
+                ->findOrFail($registrationId);
+        }
 
         if ($itemsPayload->isEmpty()) {
             throw new InvalidArgumentException('Er zijn geen geldige orderlijnen om af te rekenen.');
@@ -84,6 +98,8 @@ class OrderService
                     'line_vat' => $lineVat,
                     'line_total_incl_vat' => $lineTotalInclVat,
                     'sort_order' => $index + 1,
+                    'source' => 'manual',
+                    'source_reference' => null,
                 ];
             }
 
@@ -116,5 +132,125 @@ class OrderService
 
             return $order->load('items', 'registration');
         });
+    }
+
+    public function syncPricingForRegistration(Registration $registration, CurrentTenant $currentTenant): array
+    {
+        if (! $currentTenant->exists()) {
+            throw new InvalidArgumentException('Geen tenant gevonden voor deze actie.');
+        }
+
+        if ((int) $registration->tenant_id !== (int) $currentTenant->id()) {
+            throw new InvalidArgumentException('Registratie hoort niet bij de huidige tenant.');
+        }
+
+        $pricingResult = $this->pricingEvaluator->evaluate(PricingContext::fromRegistration($registration));
+        $productIds = $pricingResult->lines
+            ->map(fn ($line) => (int) $line->productId)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values();
+
+        $products = Product::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->whereIn('id', $productIds)
+            ->get()
+            ->keyBy('id');
+
+        if ($products->count() !== $productIds->count()) {
+            throw new InvalidArgumentException('Niet alle producten uit de prijsregels zijn geldig voor de huidige tenant.');
+        }
+
+        $order = DB::transaction(function () use ($registration, $currentTenant, $pricingResult, $products) {
+            $order = Order::query()
+                ->where('tenant_id', $currentTenant->id())
+                ->where('registration_id', $registration->id)
+                ->where('status', Order::STATUS_OPEN)
+                ->latest('id')
+                ->first();
+
+            if (! $order) {
+                $order = Order::create([
+                    'tenant_id' => $currentTenant->id(),
+                    'registration_id' => $registration->id,
+                    'status' => Order::STATUS_OPEN,
+                    'source' => Order::SOURCE_RESERVATION,
+                    'subtotal_excl_vat' => 0,
+                    'total_vat' => 0,
+                    'total_incl_vat' => 0,
+                    'invoice_requested' => (bool) $registration->invoice_requested,
+                    'created_by' => Auth::id(),
+                ]);
+            }
+
+            $sourceReference = 'registration:' . $registration->id;
+
+            $order->items()
+                ->where('source', 'pricing_engine')
+                ->where('source_reference', $sourceReference)
+                ->delete();
+
+            $nextSortOrder = (int) ($order->items()->max('sort_order') ?? 0);
+
+            foreach ($pricingResult->lines->values() as $index => $line) {
+                /** @var Product|null $product */
+                $product = $products->get((int) $line->productId);
+
+                if (! $product) {
+                    continue;
+                }
+
+                $quantity = max(1, (int) $line->quantity);
+                $unitPriceExclVat = round((float) $product->price_excl_vat, 2);
+                $unitPriceInclVat = round((float) $product->price_incl_vat, 2);
+                $vatRate = round((float) $product->vat_rate, 2);
+                $lineSubtotalExclVat = round($unitPriceExclVat * $quantity, 2);
+                $lineTotalInclVat = round($unitPriceInclVat * $quantity, 2);
+                $lineVat = round($lineTotalInclVat - $lineSubtotalExclVat, 2);
+
+                $order->items()->create([
+                    'product_id' => $product->id,
+                    'name' => $product->name,
+                    'quantity' => $quantity,
+                    'unit_price_excl_vat' => $unitPriceExclVat,
+                    'unit_price_incl_vat' => $unitPriceInclVat,
+                    'vat_rate' => $vatRate,
+                    'line_subtotal_excl_vat' => $lineSubtotalExclVat,
+                    'line_vat' => $lineVat,
+                    'line_total_incl_vat' => $lineTotalInclVat,
+                    'sort_order' => $nextSortOrder + $index + 1,
+                    'source' => 'pricing_engine',
+                    'source_reference' => $sourceReference,
+                ]);
+            }
+
+            $this->recalculateOrderTotals($order);
+
+            $registration->update([
+                'bill_total_cents' => (int) round(((float) $order->total_incl_vat) * 100),
+            ]);
+
+            return $order->load(['items.product', 'registration']);
+        });
+
+        return [
+            'order' => $order,
+            'pricing_result' => $pricingResult,
+        ];
+    }
+
+    protected function recalculateOrderTotals(Order $order): void
+    {
+        $items = $order->items()->get();
+
+        $subtotalExclVat = round((float) $items->sum(fn ($item) => (float) $item->line_subtotal_excl_vat), 2);
+        $totalVat = round((float) $items->sum(fn ($item) => (float) $item->line_vat), 2);
+        $totalInclVat = round((float) $items->sum(fn ($item) => (float) $item->line_total_incl_vat), 2);
+
+        $order->update([
+            'subtotal_excl_vat' => $subtotalExclVat,
+            'total_vat' => $totalVat,
+            'total_incl_vat' => $totalInclVat,
+        ]);
     }
 }

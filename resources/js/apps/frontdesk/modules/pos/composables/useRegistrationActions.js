@@ -79,7 +79,24 @@ export function useRegistrationActions(store) {
                 `/api/frontdesk/registrations/${reservationId}/check-out`
             )
 
-            store.updateReservation(response.data.data)
+            const registration = response.data?.data ?? null
+            const syncedOrder = response.data?.order ?? null
+
+            if (registration) {
+                store.updateReservation(registration)
+            }
+
+            if (syncedOrder && typeof store.replaceReservationOrder === 'function') {
+                store.replaceReservationOrder(reservationId, syncedOrder)
+            }
+
+            store.lastCheckoutSummary = {
+                mode: 'registration_check_out',
+                registration_id: reservationId,
+                registration,
+                order: syncedOrder,
+                pricing_debug: response.data?.pricing_debug ?? null,
+            }
 
             if (typeof store.fetchReservations === 'function') {
                 await store.fetchReservations()
