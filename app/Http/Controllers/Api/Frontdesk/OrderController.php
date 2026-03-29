@@ -17,6 +17,53 @@ class OrderController extends Controller
     ) {
     }
 
+
+    public function index(CurrentTenant $currentTenant): JsonResponse
+    {
+        if (! $currentTenant->exists()) {
+            return response()->json([
+                'data' => [],
+            ]);
+        }
+
+        $orders = Order::query()
+            ->with(['items.product'])
+            ->where('tenant_id', $currentTenant->id())
+            ->where('status', Order::STATUS_OPEN)
+            ->latest('id')
+            ->get()
+            ->map(function (Order $order) {
+                return [
+                    'id' => $order->id,
+                    'status' => $order->status,
+                    'context' => $order->source === Order::SOURCE_RESERVATION ? 'reservation' : 'walk_in',
+                    'reservation_id' => $order->registration_id,
+                    'subtotal_excl_vat' => (float) $order->subtotal_excl_vat,
+                    'total_vat' => (float) $order->total_vat,
+                    'total_incl_vat' => (float) $order->total_incl_vat,
+                    'items' => $order->items
+                        ->sortBy('sort_order')
+                        ->map(fn ($item) => [
+                            'id' => $item->id,
+                            'line_id' => 'order-item-' . $item->id,
+                            'product_id' => $item->product_id,
+                            'name' => $item->name,
+                            'price_incl_vat' => (float) $item->unit_price_incl_vat,
+                            'quantity' => (int) $item->quantity,
+                            'source' => $item->source,
+                            'source_reference' => $item->source_reference,
+                        ])
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'data' => $orders,
+        ]);
+    }
+
     public function checkout(Request $request, CurrentTenant $currentTenant): JsonResponse
     {
         $validated = $request->validate([

@@ -70,14 +70,28 @@
                                     v-for="method in paymentMethods"
                                     :key="method.value"
                                     type="button"
-                                    class="rounded-2xl border px-4 py-4 text-left transition"
+                                    class="overflow-hidden rounded-2xl border transition"
                                     :class="form.payment_method === method.value
-                                        ? 'border-blue-500 bg-blue-500/10 text-white'
-                                        : 'border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700'"
+                                        ? 'border-blue-500 bg-blue-500/10 ring-2 ring-blue-500/30'
+                                        : 'border-slate-700 bg-slate-800 hover:border-slate-500 hover:bg-slate-700'"
                                     @click="form.payment_method = method.value"
                                 >
-                                    <div class="text-sm font-semibold">{{ method.label }}</div>
-                                    <div class="mt-1 text-xs text-slate-400">{{ method.description }}</div>
+                                    <div class="aspect-square bg-white p-3">
+                                        <img
+                                            :src="method.image"
+                                            :alt="method.label"
+                                            class="h-full w-full object-contain"
+                                        >
+                                    </div>
+
+                                    <div class="border-t border-slate-700 px-3 py-3 text-left">
+                                        <div class="text-sm font-semibold text-white">
+                                            {{ method.label }}
+                                        </div>
+                                        <div class="mt-1 text-xs text-slate-400">
+                                            {{ method.description }}
+                                        </div>
+                                    </div>
                                 </button>
                             </div>
                         </div>
@@ -117,8 +131,11 @@
                             {{ store.checkoutError }}
                         </div>
 
-                        <div v-if="store.lastCheckoutSummary" class="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-                            Checkout geslaagd. Order #{{ store.lastCheckoutSummary.id }} werd opgeslagen.
+                        <div
+                            v-if="store.lastCheckoutSummary"
+                            class="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200"
+                        >
+                            Checkout geslaagd.
                         </div>
                     </div>
 
@@ -185,8 +202,18 @@ const emit = defineEmits(['close'])
 const store = usePosStore()
 
 const paymentMethods = [
-    { value: 'cash', label: 'Cash', description: 'Contante betaling aan de kassa' },
-    { value: 'bancontact', label: 'Bancontact', description: 'Elektronische betaling' },
+    {
+        value: 'cash',
+        label: 'Cash',
+        description: 'Contante betaling aan de kassa',
+        image: '/images/payments/cash.png',
+    },
+    {
+        value: 'bancontact',
+        label: 'Bancontact',
+        description: 'Elektronische betaling',
+        image: '/images/payments/bancontact.png',
+    },
 ]
 
 const form = reactive({

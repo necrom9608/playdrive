@@ -11,7 +11,11 @@ import { usePosStore } from '../stores/usePosStore'
 
 const store = usePosStore()
 
-onMounted(() => {
-    store.loadCatalog()
+onMounted(async () => {
+    await Promise.all([
+        store.loadCatalog(),
+        store.fetchReservations(),
+        store.fetchOrders(),
+    ])
 })
 </script>

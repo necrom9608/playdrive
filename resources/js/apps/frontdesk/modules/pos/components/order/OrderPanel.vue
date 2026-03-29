@@ -55,7 +55,10 @@
                 v-if="store.lastCheckoutSummary"
                 class="mt-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200"
             >
-                Checkout geslaagd. Order #{{ store.lastCheckoutSummary.id }} werd opgeslagen.
+                Checkout geslaagd.
+                <span v-if="store.lastCheckoutSummary.order?.id">
+        Order #{{ store.lastCheckoutSummary.order.id }} werd bijgewerkt.
+    </span>
             </div>
 
             <div class="mt-4 grid grid-cols-2 gap-2">

@@ -300,6 +300,9 @@ export const usePosStore = defineStore('pos', {
                 const response = await axios.get('/api/frontdesk/orders')
                 const orders = response.data?.data ?? []
 
+                this.reservationOrders = {}
+                this.walkInOrder = createEmptyOrder('walk_in', null)
+
                 orders.forEach(order => {
                     if (order.context === 'reservation' && order.reservation_id) {
                         this.reservationOrders[order.reservation_id] = cloneOrder(order)
@@ -307,6 +310,13 @@ export const usePosStore = defineStore('pos', {
                         this.walkInOrder = cloneOrder(order)
                     }
                 })
+
+                if (this.selectedReservationId) {
+                    const selectedReservationOrder = this.reservationOrders[this.selectedReservationId] ?? null
+                    this.selectedOrderId = selectedReservationOrder?.id ?? null
+                } else {
+                    this.selectedOrderId = this.walkInOrder?.id ?? null
+                }
             } catch (error) {
                 console.error('Failed to fetch orders', error)
             }

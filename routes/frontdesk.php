@@ -31,6 +31,7 @@ Route::prefix('api/frontdesk')->group(function () {
     Route::post('/registrations/{registration}/no-show', [RegistrationController::class, 'noShow']);
     Route::delete('/registrations/{registration}', [RegistrationController::class, 'destroy']);
 
+    Route::get('/orders', [OrderController::class, 'index']);
     Route::post('/orders/checkout', [OrderController::class, 'checkout']);
 
     Route::get('/sales', [SalesController::class, 'index']);
