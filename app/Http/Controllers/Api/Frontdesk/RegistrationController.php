@@ -20,16 +20,22 @@ class RegistrationController extends Controller
     ) {
     }
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, CurrentTenant $currentTenant): JsonResponse
     {
-        $registrations = Registration::query()
+        $query = Registration::query()
             ->with([
                 'eventType:id,name,code,emoji',
                 'stayOption:id,name,code,duration_minutes',
                 'cateringOption:id,name,code,emoji',
             ])
             ->latest('id')
-            ->limit(100)
+            ->limit(100);
+
+        if ($currentTenant->exists()) {
+            $query->where('tenant_id', $currentTenant->id());
+        }
+
+        $registrations = $query
             ->get()
             ->map(fn (Registration $registration) => $this->transformRegistration($registration));
 
@@ -38,9 +44,13 @@ class RegistrationController extends Controller
         ]);
     }
 
-    public function store(StoreRegistrationRequest $request): JsonResponse
+    public function store(StoreRegistrationRequest $request, CurrentTenant $currentTenant): JsonResponse
     {
         $data = $request->validated();
+
+        if ($currentTenant->exists()) {
+            $data['tenant_id'] = $currentTenant->id();
+        }
 
         if (($data['status'] ?? null) === Registration::STATUS_CHECKED_IN && empty($data['checked_in_at'])) {
             $data['checked_in_at'] = now();
@@ -60,8 +70,10 @@ class RegistrationController extends Controller
         ], 201);
     }
 
-    public function checkIn(Registration $registration): JsonResponse
+    public function checkIn(Registration $registration, CurrentTenant $currentTenant): JsonResponse
     {
+        abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
+
         $registration->status = Registration::STATUS_CHECKED_IN;
         $registration->checked_in_at = now();
         $registration->save();
@@ -104,18 +116,19 @@ class RegistrationController extends Controller
             'cateringOption:id,name,code,emoji',
         ]);
 
-        $synced = $this->orderService->syncPricingForRegistration($registration, $currentTenant);
+        $order = $this->orderService->syncPricingForRegistration($registration, $currentTenant);
 
         return response()->json([
             'message' => 'Registratie uitgecheckt.',
             'data' => $this->transformRegistration($registration),
-            'order' => $this->transformOrderForPos($synced['order']),
-            'pricing_debug' => $synced['pricing_result']->toArray(),
+            'order' => $this->transformOrderForPos($order),
         ]);
     }
 
-    public function cancel(Registration $registration): JsonResponse
+    public function cancel(Registration $registration, CurrentTenant $currentTenant): JsonResponse
     {
+        abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
+
         $registration->status = Registration::STATUS_CANCELLED;
         $registration->save();
 
@@ -131,8 +144,10 @@ class RegistrationController extends Controller
         ]);
     }
 
-    public function noShow(Registration $registration): JsonResponse
+    public function noShow(Registration $registration, CurrentTenant $currentTenant): JsonResponse
     {
+        abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
+
         $registration->status = Registration::STATUS_NO_SHOW;
         $registration->save();
 
@@ -148,12 +163,41 @@ class RegistrationController extends Controller
         ]);
     }
 
-    public function destroy(Registration $registration): JsonResponse
+    public function destroy(Registration $registration, CurrentTenant $currentTenant): JsonResponse
     {
+        abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
+
         $registration->delete();
 
         return response()->json([
             'message' => 'Registratie verwijderd.',
+        ]);
+    }
+
+    public function update(
+        StoreRegistrationRequest $request,
+        Registration $registration,
+        CurrentTenant $currentTenant
+    ): JsonResponse {
+        abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
+
+        $data = $request->validated();
+
+        if (($data['status'] ?? null) === Registration::STATUS_CHECKED_IN && ! $registration->checked_in_at) {
+            $data['checked_in_at'] = now();
+        }
+
+        $registration->update($data);
+
+        $registration->load([
+            'eventType:id,name,code,emoji',
+            'stayOption:id,name,code,duration_minutes',
+            'cateringOption:id,name,code,emoji',
+        ]);
+
+        return response()->json([
+            'message' => 'Registratie bijgewerkt.',
+            'data' => $this->transformRegistration($registration),
         ]);
     }
 
@@ -204,6 +248,8 @@ class RegistrationController extends Controller
 
     protected function transformOrderForPos(Order $order): array
     {
+        $order->loadMissing('items.product');
+
         return [
             'id' => $order->id,
             'status' => $order->status,
@@ -212,38 +258,20 @@ class RegistrationController extends Controller
             'subtotal_excl_vat' => (float) $order->subtotal_excl_vat,
             'total_vat' => (float) $order->total_vat,
             'total_incl_vat' => (float) $order->total_incl_vat,
-            'items' => $order->items->map(fn (OrderItem $item) => [
-                'id' => $item->id,
-                'line_id' => 'order-item-' . $item->id,
-                'product_id' => $item->product_id,
-                'name' => $item->name,
-                'price_incl_vat' => (float) $item->unit_price_incl_vat,
-                'quantity' => (int) $item->quantity,
-                'source' => $item->source,
-                'source_reference' => $item->source_reference,
-            ])->values()->all(),
+            'items' => $order->items
+                ->sortBy('sort_order')
+                ->map(fn (OrderItem $item) => [
+                    'id' => $item->id,
+                    'line_id' => 'order-item-' . $item->id,
+                    'product_id' => $item->product_id,
+                    'name' => $item->name,
+                    'price_incl_vat' => (float) $item->unit_price_incl_vat,
+                    'quantity' => (int) $item->quantity,
+                    'source' => $item->source,
+                    'source_reference' => $item->source_reference,
+                ])
+                ->values()
+                ->all(),
         ];
-    }
-
-    public function update(StoreRegistrationRequest $request, Registration $registration): JsonResponse
-    {
-        $data = $request->validated();
-
-        if (($data['status'] ?? null) === Registration::STATUS_CHECKED_IN && ! $registration->checked_in_at) {
-            $data['checked_in_at'] = now();
-        }
-
-        $registration->update($data);
-
-        $registration->load([
-            'eventType:id,name,code,emoji',
-            'stayOption:id,name,code,duration_minutes',
-            'cateringOption:id,name,code,emoji',
-        ]);
-
-        return response()->json([
-            'message' => 'Registratie bijgewerkt.',
-            'data' => $this->transformRegistration($registration),
-        ]);
     }
 }

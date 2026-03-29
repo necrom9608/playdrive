@@ -73,6 +73,7 @@ export function useRegistrationActions(store) {
         if (!store.selectedReservationId) return
 
         const reservationId = store.selectedReservationId
+        store.checkoutError = null
 
         try {
             const response = await axios.post(
@@ -86,8 +87,12 @@ export function useRegistrationActions(store) {
                 store.updateReservation(registration)
             }
 
-            if (syncedOrder && typeof store.replaceReservationOrder === 'function') {
-                store.replaceReservationOrder(reservationId, syncedOrder)
+            if (syncedOrder) {
+                if (typeof store.upsertOrder === 'function') {
+                    store.upsertOrder(syncedOrder)
+                } else if (typeof store.replaceReservationOrder === 'function') {
+                    store.replaceReservationOrder(reservationId, syncedOrder)
+                }
             }
 
             store.lastCheckoutSummary = {
@@ -95,7 +100,6 @@ export function useRegistrationActions(store) {
                 registration_id: reservationId,
                 registration,
                 order: syncedOrder,
-                pricing_debug: response.data?.pricing_debug ?? null,
             }
 
             if (typeof store.fetchReservations === 'function') {
@@ -106,11 +110,28 @@ export function useRegistrationActions(store) {
                 await store.fetchOrders()
             }
 
+            if (syncedOrder?.id) {
+                if (typeof store.setSelectedOrderId === 'function') {
+                    store.setSelectedOrderId(syncedOrder.id)
+                } else if ('selectedOrderId' in store) {
+                    store.selectedOrderId = syncedOrder.id
+                }
+            }
+
             if (typeof store.selectReservation === 'function') {
                 store.selectReservation(reservationId)
+            } else if ('selectedReservationId' in store) {
+                store.selectedReservationId = reservationId
             }
         } catch (error) {
             console.error(error)
+
+            const message =
+                error?.response?.data?.message
+                ?? error?.message
+                ?? 'Uitchecken mislukt.'
+
+            store.checkoutError = message
         }
     }
 

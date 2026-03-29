@@ -24,6 +24,9 @@ function createEmptyOrder(context = 'walk_in', reservationId = null) {
         context,
         reservation_id: reservationId,
         items: [],
+        subtotal_excl_vat: 0,
+        total_vat: 0,
+        total_incl_vat: 0,
     }
 }
 
@@ -32,13 +35,19 @@ function cloneOrder(order) {
         id: order?.id ?? null,
         context: order?.context ?? 'walk_in',
         reservation_id: order?.reservation_id ?? null,
+        subtotal_excl_vat: Number(order?.subtotal_excl_vat ?? 0),
+        total_vat: Number(order?.total_vat ?? 0),
+        total_incl_vat: Number(order?.total_incl_vat ?? 0),
         items: Array.isArray(order?.items)
             ? order.items.map(item => ({
+                id: item.id ?? null,
                 line_id: item.line_id ?? generateLineId(),
                 product_id: item.product_id ?? item.id,
                 name: item.name,
                 price_incl_vat: Number(item.price_incl_vat ?? item.price ?? 0),
                 quantity: Number(item.quantity ?? 0),
+                source: item.source ?? 'manual',
+                source_reference: item.source_reference ?? null,
             }))
             : [],
     }
@@ -55,6 +64,8 @@ export const usePosStore = defineStore('pos', {
         loadingReservations: false,
 
         selectedReservationId: null,
+        selectedOrderId: null,
+
         reservationSearch: '',
         reservationViewMode: 'today',
         reservationSelectedDate: todayString(),
@@ -92,10 +103,35 @@ export const usePosStore = defineStore('pos', {
             return state.reservations.find(r => r.id === state.selectedReservationId) ?? null
         },
 
+        selectedOrder(state) {
+            if (!state.selectedOrderId) {
+                return null
+            }
+
+            if (state.selectedReservationId && state.reservationOrders[state.selectedReservationId]) {
+                const reservationOrder = state.reservationOrders[state.selectedReservationId]
+
+                if (reservationOrder.id === state.selectedOrderId) {
+                    return reservationOrder
+                }
+            }
+
+            if (state.walkInOrder?.id === state.selectedOrderId) {
+                return state.walkInOrder
+            }
+
+            return null
+        },
+
         currentOrder(state) {
             if (state.selectedReservationId) {
-                return state.reservationOrders[state.selectedReservationId]
-                    ?? createEmptyOrder('reservation', state.selectedReservationId)
+                const reservationOrder = state.reservationOrders[state.selectedReservationId]
+
+                if (reservationOrder) {
+                    return reservationOrder
+                }
+
+                return createEmptyOrder('reservation', state.selectedReservationId)
             }
 
             return state.walkInOrder
@@ -106,6 +142,12 @@ export const usePosStore = defineStore('pos', {
         },
 
         orderSubtotal() {
+            const backendTotal = Number(this.currentOrder?.total_incl_vat ?? 0)
+
+            if (backendTotal > 0) {
+                return backendTotal
+            }
+
             return this.currentOrder.items.reduce((sum, item) => {
                 return sum + (Number(item.price_incl_vat) * Number(item.quantity))
             }, 0)
@@ -130,13 +172,11 @@ export const usePosStore = defineStore('pos', {
 
             if (state.reservationViewMode === 'today') {
                 const today = todayString()
-
                 items = items.filter(reservation => reservation.event_date === today)
             }
 
             if (state.reservationViewMode === 'date') {
                 const selectedDate = state.reservationSelectedDate || todayString()
-
                 items = items.filter(reservation => reservation.event_date === selectedDate)
             }
 
@@ -169,13 +209,11 @@ export const usePosStore = defineStore('pos', {
 
             if (state.reservationViewMode === 'today') {
                 const today = todayString()
-
                 items = items.filter(reservation => reservation.event_date === today)
             }
 
             if (state.reservationViewMode === 'date') {
                 const selectedDate = state.reservationSelectedDate || todayString()
-
                 items = items.filter(reservation => reservation.event_date === selectedDate)
             }
 
@@ -257,6 +295,23 @@ export const usePosStore = defineStore('pos', {
             }
         },
 
+        async fetchOrders() {
+            try {
+                const response = await axios.get('/api/frontdesk/orders')
+                const orders = response.data?.data ?? []
+
+                orders.forEach(order => {
+                    if (order.context === 'reservation' && order.reservation_id) {
+                        this.reservationOrders[order.reservation_id] = cloneOrder(order)
+                    } else if (order.context === 'walk_in') {
+                        this.walkInOrder = cloneOrder(order)
+                    }
+                })
+            } catch (error) {
+                console.error('Failed to fetch orders', error)
+            }
+        },
+
         addReservation(reservation) {
             this.reservations.unshift(reservation)
         },
@@ -277,6 +332,7 @@ export const usePosStore = defineStore('pos', {
 
             if (this.selectedReservationId === id) {
                 this.selectedReservationId = null
+                this.selectedOrderId = null
             }
 
             if (this.reservationOrders[id]) {
@@ -308,12 +364,27 @@ export const usePosStore = defineStore('pos', {
             return this.walkInOrder
         },
 
+        upsertOrder(order) {
+            const normalized = cloneOrder(order)
+
+            if (normalized.context === 'reservation' && normalized.reservation_id) {
+                this.reservationOrders[normalized.reservation_id] = normalized
+                return
+            }
+
+            this.walkInOrder = normalized
+        },
+
+        setSelectedOrderId(id) {
+            this.selectedOrderId = id
+        },
+
         addProduct(product) {
             const order = this.getMutableCurrentOrder()
             const items = order.items
             const lastItem = items.length ? items[items.length - 1] : null
 
-            if (lastItem && Number(lastItem.product_id) === Number(product.id)) {
+            if (lastItem && Number(lastItem.product_id) === Number(product.id) && (lastItem.source ?? 'manual') === 'manual') {
                 lastItem.quantity += 1
                 this.lastAddedLineId = lastItem.line_id
                 return
@@ -325,6 +396,8 @@ export const usePosStore = defineStore('pos', {
                 name: product.name,
                 price_incl_vat: Number(product.price_incl_vat ?? product.price ?? 0),
                 quantity: 1,
+                source: 'manual',
+                source_reference: null,
             }
 
             items.push(newLine)
@@ -377,10 +450,12 @@ export const usePosStore = defineStore('pos', {
                     'reservation',
                     this.selectedReservationId
                 )
+                this.selectedOrderId = null
                 return
             }
 
             this.walkInOrder = createEmptyOrder('walk_in', null)
+            this.selectedOrderId = null
         },
 
         replaceWalkInOrder(order) {
@@ -389,6 +464,10 @@ export const usePosStore = defineStore('pos', {
                 context: 'walk_in',
                 reservation_id: null,
             })
+
+            if (this.walkInOrder.id) {
+                this.selectedOrderId = this.walkInOrder.id
+            }
         },
 
         replaceReservationOrder(reservationId, order) {
@@ -397,13 +476,25 @@ export const usePosStore = defineStore('pos', {
                 context: 'reservation',
                 reservation_id: reservationId,
             })
+
+            if (this.reservationOrders[reservationId]?.id) {
+                this.selectedOrderId = this.reservationOrders[reservationId].id
+            }
         },
 
         selectReservation(id) {
             this.selectedReservationId = id
 
             if (id) {
-                this.ensureReservationOrder(id)
+                const order = this.ensureReservationOrder(id)
+
+                if (order?.id) {
+                    this.selectedOrderId = order.id
+                } else {
+                    this.selectedOrderId = null
+                }
+            } else {
+                this.selectedOrderId = this.walkInOrder?.id ?? null
             }
 
             this.lastAddedLineId = null
@@ -412,6 +503,7 @@ export const usePosStore = defineStore('pos', {
 
         clearReservationSelection() {
             this.selectedReservationId = null
+            this.selectedOrderId = this.walkInOrder?.id ?? null
             this.lastAddedLineId = null
             this.checkoutError = null
         },
@@ -495,7 +587,8 @@ export const usePosStore = defineStore('pos', {
                     items,
                 })
 
-                this.lastCheckoutSummary = response.data?.data ?? null
+                const checkoutData = response.data?.data ?? null
+                this.lastCheckoutSummary = checkoutData
 
                 if (this.selectedReservationId && this.selectedReservation) {
                     this.updateReservation({
@@ -504,9 +597,19 @@ export const usePosStore = defineStore('pos', {
                     })
                 }
 
-                this.clearOrder()
-                this.lastCheckoutSummary = response.data?.data ?? null
-                return response.data?.data ?? null
+                if (this.selectedReservationId) {
+                    this.reservationOrders[this.selectedReservationId] = createEmptyOrder(
+                        'reservation',
+                        this.selectedReservationId
+                    )
+                    this.selectedOrderId = null
+                } else {
+                    this.walkInOrder = createEmptyOrder('walk_in', null)
+                    this.selectedOrderId = null
+                }
+
+                this.lastAddedLineId = null
+                return checkoutData
             } catch (error) {
                 this.checkoutError = error?.response?.data?.message ?? 'Afrekenen mislukt.'
                 return null

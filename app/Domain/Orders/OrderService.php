@@ -3,7 +3,6 @@
 namespace App\Domain\Orders;
 
 use App\Domain\Pricing\PricingContext;
-use App\Domain\Pricing\PricingEvaluationResult;
 use App\Domain\Pricing\PricingEvaluator;
 use App\Models\Order;
 use App\Models\Product;
@@ -130,11 +129,11 @@ class OrderService
                 ]);
             }
 
-            return $order->load('items', 'registration');
+            return $order->load(['items.product', 'registration']);
         });
     }
 
-    public function syncPricingForRegistration(Registration $registration, CurrentTenant $currentTenant): array
+    public function syncPricingForRegistration(Registration $registration, CurrentTenant $currentTenant): Order
     {
         if (! $currentTenant->exists()) {
             throw new InvalidArgumentException('Geen tenant gevonden voor deze actie.');
@@ -144,9 +143,12 @@ class OrderService
             throw new InvalidArgumentException('Registratie hoort niet bij de huidige tenant.');
         }
 
-        $pricingResult = $this->pricingEvaluator->evaluate(PricingContext::fromRegistration($registration));
-        $productIds = $pricingResult->lines
-            ->map(fn ($line) => (int) $line->productId)
+        $pricingResult = $this->pricingEvaluator->evaluate(
+            PricingContext::fromRegistration($registration)
+        );
+
+        $productIds = collect($pricingResult->lines ?? [])
+            ->map(fn ($line) => (int) ($line->productId ?? 0))
             ->filter(fn (int $id) => $id > 0)
             ->unique()
             ->values();
@@ -161,7 +163,7 @@ class OrderService
             throw new InvalidArgumentException('Niet alle producten uit de prijsregels zijn geldig voor de huidige tenant.');
         }
 
-        $order = DB::transaction(function () use ($registration, $currentTenant, $pricingResult, $products) {
+        return DB::transaction(function () use ($registration, $currentTenant, $pricingResult, $products) {
             $order = Order::query()
                 ->where('tenant_id', $currentTenant->id())
                 ->where('registration_id', $registration->id)
@@ -178,8 +180,11 @@ class OrderService
                     'subtotal_excl_vat' => 0,
                     'total_vat' => 0,
                     'total_incl_vat' => 0,
-                    'invoice_requested' => (bool) $registration->invoice_requested,
+                    'payment_method' => null,
+                    'paid_at' => null,
                     'created_by' => Auth::id(),
+                    'notes' => null,
+                    'invoice_requested' => (bool) $registration->invoice_requested,
                 ]);
             }
 
@@ -192,15 +197,15 @@ class OrderService
 
             $nextSortOrder = (int) ($order->items()->max('sort_order') ?? 0);
 
-            foreach ($pricingResult->lines->values() as $index => $line) {
+            foreach (collect($pricingResult->lines ?? [])->values() as $index => $line) {
                 /** @var Product|null $product */
-                $product = $products->get((int) $line->productId);
+                $product = $products->get((int) ($line->productId ?? 0));
 
                 if (! $product) {
                     continue;
                 }
 
-                $quantity = max(1, (int) $line->quantity);
+                $quantity = max(1, (int) ($line->quantity ?? 1));
                 $unitPriceExclVat = round((float) $product->price_excl_vat, 2);
                 $unitPriceInclVat = round((float) $product->price_incl_vat, 2);
                 $vatRate = round((float) $product->vat_rate, 2);
@@ -232,11 +237,6 @@ class OrderService
 
             return $order->load(['items.product', 'registration']);
         });
-
-        return [
-            'order' => $order,
-            'pricing_result' => $pricingResult,
-        ];
     }
 
     protected function recalculateOrderTotals(Order $order): void
