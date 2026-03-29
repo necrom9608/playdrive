@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Frontdesk\RegistrationController;
 use App\Http\Controllers\Api\Frontdesk\OrderController;
 use App\Http\Controllers\Api\Frontdesk\SalesController;
 use App\Http\Controllers\Api\Frontdesk\AgendaController;
+use App\Http\Controllers\Api\Frontdesk\MemberController;
 
 Route::view('/', 'frontdesk.app');
 Route::view('/pos', 'frontdesk.app');
@@ -36,6 +37,13 @@ Route::prefix('api/frontdesk')->group(function () {
 
     Route::get('/sales', [SalesController::class, 'index']);
     Route::get('/agenda', AgendaController::class);
+
+    Route::get('/members', [MemberController::class, 'index']);
+    Route::post('/members', [MemberController::class, 'store']);
+    Route::put('/members/{member}', [MemberController::class, 'update']);
+    Route::post('/members/{member}/renew', [MemberController::class, 'renew']);
+    Route::post('/members/{member}/send-email', [MemberController::class, 'sendEmail']);
+
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel']);
     Route::post('/orders/{order}/refund', [OrderController::class, 'refund']);
 });
