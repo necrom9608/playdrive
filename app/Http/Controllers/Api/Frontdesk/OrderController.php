@@ -5,10 +5,10 @@ namespace App\Http\Controllers\Api\Frontdesk;
 use App\Domain\Orders\OrderService;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\User;
 use App\Support\CurrentTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class OrderController extends Controller
 {
@@ -16,7 +16,6 @@ class OrderController extends Controller
         protected OrderService $orderService
     ) {
     }
-
 
     public function index(CurrentTenant $currentTenant): JsonResponse
     {
@@ -27,7 +26,16 @@ class OrderController extends Controller
         }
 
         $orders = Order::query()
-            ->with(['items.product'])
+            ->with([
+                'items.product',
+                'creator:id,name',
+                'updater:id,name',
+                'payer:id,name',
+                'canceller:id,name',
+                'refunder:id,name',
+                'items.creator:id,name',
+                'items.updater:id,name',
+            ])
             ->where('tenant_id', $currentTenant->id())
             ->where('status', Order::STATUS_OPEN)
             ->latest('id')
@@ -41,6 +49,11 @@ class OrderController extends Controller
                     'subtotal_excl_vat' => (float) $order->subtotal_excl_vat,
                     'total_vat' => (float) $order->total_vat,
                     'total_incl_vat' => (float) $order->total_incl_vat,
+                    'created_by' => $this->transformActor($order->creator),
+                    'updated_by' => $this->transformActor($order->updater),
+                    'paid_by' => $this->transformActor($order->payer),
+                    'cancelled_by' => $this->transformActor($order->canceller),
+                    'refunded_by' => $this->transformActor($order->refunder),
                     'items' => $order->items
                         ->sortBy('sort_order')
                         ->map(fn ($item) => [
@@ -52,6 +65,8 @@ class OrderController extends Controller
                             'quantity' => (int) $item->quantity,
                             'source' => $item->source,
                             'source_reference' => $item->source_reference,
+                            'created_by' => $this->transformActor($item->creator),
+                            'updated_by' => $this->transformActor($item->updater),
                         ])
                         ->values()
                         ->all(),
@@ -116,7 +131,8 @@ class OrderController extends Controller
         $order->update([
             'status' => Order::STATUS_CANCELLED,
             'cancelled_at' => now(),
-            'cancelled_by' => Auth::id(),
+            'cancelled_by' => $this->frontdeskUserId($request),
+            'updated_by' => $this->frontdeskUserId($request),
             'cancellation_reason' => filled($validated['reason'] ?? null) ? $validated['reason'] : null,
         ]);
 
@@ -163,7 +179,8 @@ class OrderController extends Controller
 
         $order->update([
             'refunded_at' => now(),
-            'refunded_by' => Auth::id(),
+            'refunded_by' => $this->frontdeskUserId($request),
+            'updated_by' => $this->frontdeskUserId($request),
             'refund_amount' => $order->total_incl_vat,
             'refund_method' => $validated['refund_method'],
             'refund_reason' => filled($validated['reason'] ?? null) ? $validated['reason'] : null,
@@ -178,5 +195,22 @@ class OrderController extends Controller
                 'refund_method' => $order->refund_method,
             ],
         ]);
+    }
+
+    protected function frontdeskUserId(Request $request): ?int
+    {
+        return $request->attributes->get('frontdesk_user')?->id;
+    }
+
+    protected function transformActor(?User $user): ?array
+    {
+        if (! $user) {
+            return null;
+        }
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+        ];
     }
 }

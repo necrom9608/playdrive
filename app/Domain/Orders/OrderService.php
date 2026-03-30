@@ -9,7 +9,6 @@ use App\Models\Product;
 use App\Models\Registration;
 use App\Support\CurrentTenant;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -46,6 +45,7 @@ class OrderService
         $paymentMethod = (string) Arr::get($payload, 'payment_method', 'cash');
         $notes = Arr::get($payload, 'notes');
         $source = $registration ? Order::SOURCE_RESERVATION : Order::SOURCE_WALK_IN;
+        $actorUserId = $this->frontdeskUserId();
 
         $productIds = $itemsPayload
             ->pluck('product_id')
@@ -63,7 +63,7 @@ class OrderService
             throw new InvalidArgumentException('Niet alle producten van deze bestelling zijn geldig voor de huidige tenant.');
         }
 
-        return DB::transaction(function () use ($payload, $currentTenant, $registration, $paymentMethod, $notes, $source, $itemsPayload, $products) {
+        return DB::transaction(function () use ($payload, $currentTenant, $registration, $paymentMethod, $notes, $source, $itemsPayload, $products, $actorUserId) {
             $calculatedItems = [];
             $subtotalExclVat = 0.0;
             $totalVat = 0.0;
@@ -99,6 +99,8 @@ class OrderService
                     'sort_order' => $index + 1,
                     'source' => 'manual',
                     'source_reference' => null,
+                    'created_by' => $actorUserId,
+                    'updated_by' => $actorUserId,
                 ];
             }
 
@@ -112,7 +114,9 @@ class OrderService
                 'total_incl_vat' => round($totalInclVat, 2),
                 'payment_method' => $paymentMethod,
                 'paid_at' => now(),
-                'created_by' => Auth::id(),
+                'created_by' => $actorUserId,
+                'updated_by' => $actorUserId,
+                'paid_by' => $actorUserId,
                 'notes' => filled($notes) ? (string) $notes : null,
                 'invoice_requested' => (bool) ($payload['invoice_requested'] ?? false),
             ]);
@@ -126,6 +130,7 @@ class OrderService
                 $registration->update([
                     'status' => Registration::STATUS_PAID,
                     'bill_total_cents' => (int) round($newTotal * 100),
+                    'updated_by' => $actorUserId,
                 ]);
             }
 
@@ -163,7 +168,9 @@ class OrderService
             throw new InvalidArgumentException('Niet alle producten uit de prijsregels zijn geldig voor de huidige tenant.');
         }
 
-        return DB::transaction(function () use ($registration, $currentTenant, $pricingResult, $products) {
+        $actorUserId = $this->frontdeskUserId();
+
+        return DB::transaction(function () use ($registration, $currentTenant, $pricingResult, $products, $actorUserId) {
             $order = Order::query()
                 ->where('tenant_id', $currentTenant->id())
                 ->where('registration_id', $registration->id)
@@ -182,7 +189,9 @@ class OrderService
                     'total_incl_vat' => 0,
                     'payment_method' => null,
                     'paid_at' => null,
-                    'created_by' => Auth::id(),
+                    'created_by' => $actorUserId,
+                    'updated_by' => $actorUserId,
+                    'paid_by' => null,
                     'notes' => null,
                     'invoice_requested' => (bool) $registration->invoice_requested,
                 ]);
@@ -226,6 +235,8 @@ class OrderService
                     'sort_order' => $nextSortOrder + $index + 1,
                     'source' => 'pricing_engine',
                     'source_reference' => $sourceReference,
+                    'created_by' => $actorUserId,
+                    'updated_by' => $actorUserId,
                 ]);
             }
 
@@ -233,6 +244,7 @@ class OrderService
 
             $registration->update([
                 'bill_total_cents' => (int) round(((float) $order->total_incl_vat) * 100),
+                'updated_by' => $actorUserId,
             ]);
 
             return $order->load(['items.product', 'registration']);
@@ -251,6 +263,12 @@ class OrderService
             'subtotal_excl_vat' => $subtotalExclVat,
             'total_vat' => $totalVat,
             'total_incl_vat' => $totalInclVat,
+            'updated_by' => $this->frontdeskUserId(),
         ]);
+    }
+
+    protected function frontdeskUserId(): ?int
+    {
+        return request()?->attributes?->get('frontdesk_user')?->id;
     }
 }

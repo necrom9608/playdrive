@@ -32,10 +32,14 @@ class SalesController extends Controller
         $query = Order::query()
             ->with([
                 'registration:id,name,invoice_requested,invoice_company_name',
-                'items:id,order_id,name,quantity,line_total_incl_vat',
+                'items:id,order_id,name,quantity,line_total_incl_vat,source,source_reference,created_by,updated_by',
                 'creator:id,name',
+                'updater:id,name',
+                'payer:id,name',
                 'canceller:id,name',
                 'refunder:id,name',
+                'items.creator:id,name',
+                'items.updater:id,name',
             ])
             ->where('tenant_id', $currentTenant->id())
             ->whereDate('paid_at', $day->toDateString())
@@ -114,14 +118,27 @@ class SalesController extends Controller
                 ] : null,
 
                 'creator' => $order->creator ? [
+                    'id' => $order->creator->id,
                     'name' => $order->creator->name,
                 ] : null,
 
+                'updater' => $order->updater ? [
+                    'id' => $order->updater->id,
+                    'name' => $order->updater->name,
+                ] : null,
+
+                'payer' => $order->payer ? [
+                    'id' => $order->payer->id,
+                    'name' => $order->payer->name,
+                ] : null,
+
                 'canceller' => $order->canceller ? [
+                    'id' => $order->canceller->id,
                     'name' => $order->canceller->name,
                 ] : null,
 
                 'refunder' => $order->refunder ? [
+                    'id' => $order->refunder->id,
                     'name' => $order->refunder->name,
                 ] : null,
 
@@ -130,6 +147,16 @@ class SalesController extends Controller
                     'name' => $item->name,
                     'quantity' => (int) $item->quantity,
                     'line_total_incl_vat' => (float) $item->line_total_incl_vat,
+                    'source' => $item->source,
+                    'source_reference' => $item->source_reference,
+                    'creator' => $item->creator ? [
+                        'id' => $item->creator->id,
+                        'name' => $item->creator->name,
+                    ] : null,
+                    'updater' => $item->updater ? [
+                        'id' => $item->updater->id,
+                        'name' => $item->updater->name,
+                    ] : null,
                 ])->values(),
             ];
         })->values();

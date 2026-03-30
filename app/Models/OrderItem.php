@@ -21,6 +21,8 @@ class OrderItem extends Model
         'sort_order',
         'source',
         'source_reference',
+        'created_by',
+        'updated_by',
     ];
 
     protected $casts = [
@@ -43,4 +45,15 @@ class OrderItem extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
 }
+

@@ -8,6 +8,7 @@ use App\Http\Requests\Backoffice\StoreRegistrationRequest;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Registration;
+use App\Models\User;
 use App\Support\CurrentTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,6 +28,12 @@ class RegistrationController extends Controller
                 'eventType:id,name,code,emoji',
                 'stayOption:id,name,code,duration_minutes',
                 'cateringOption:id,name,code,emoji',
+                'createdBy:id,name',
+                'updatedBy:id,name',
+                'checkedInBy:id,name',
+                'checkedOutBy:id,name',
+                'cancelledBy:id,name',
+                'noShowBy:id,name',
             ])
             ->latest('id')
             ->limit(100);
@@ -47,13 +54,28 @@ class RegistrationController extends Controller
     public function store(StoreRegistrationRequest $request, CurrentTenant $currentTenant): JsonResponse
     {
         $data = $request->validated();
+        $actorUserId = $this->frontdeskUserId($request);
 
         if ($currentTenant->exists()) {
             $data['tenant_id'] = $currentTenant->id();
         }
 
+        $data['created_by'] = $actorUserId;
+        $data['updated_by'] = $actorUserId;
+
         if (($data['status'] ?? null) === Registration::STATUS_CHECKED_IN && empty($data['checked_in_at'])) {
             $data['checked_in_at'] = now();
+            $data['checked_in_by'] = $actorUserId;
+        }
+
+        if (($data['status'] ?? null) === Registration::STATUS_CANCELLED && empty($data['cancelled_at'])) {
+            $data['cancelled_at'] = now();
+            $data['cancelled_by'] = $actorUserId;
+        }
+
+        if (($data['status'] ?? null) === Registration::STATUS_NO_SHOW && empty($data['no_show_at'])) {
+            $data['no_show_at'] = now();
+            $data['no_show_by'] = $actorUserId;
         }
 
         $registration = Registration::create($data);
@@ -62,6 +84,12 @@ class RegistrationController extends Controller
             'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
             'cateringOption:id,name,code,emoji',
+            'createdBy:id,name',
+            'updatedBy:id,name',
+            'checkedInBy:id,name',
+            'checkedOutBy:id,name',
+            'cancelledBy:id,name',
+            'noShowBy:id,name',
         ]);
 
         return response()->json([
@@ -70,18 +98,28 @@ class RegistrationController extends Controller
         ], 201);
     }
 
-    public function checkIn(Registration $registration, CurrentTenant $currentTenant): JsonResponse
+    public function checkIn(Request $request, Registration $registration, CurrentTenant $currentTenant): JsonResponse
     {
         abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
 
+        $actorUserId = $this->frontdeskUserId($request);
+
         $registration->status = Registration::STATUS_CHECKED_IN;
         $registration->checked_in_at = now();
+        $registration->checked_in_by = $actorUserId;
+        $registration->updated_by = $actorUserId;
         $registration->save();
 
         $registration->load([
             'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
             'cateringOption:id,name,code,emoji',
+            'createdBy:id,name',
+            'updatedBy:id,name',
+            'checkedInBy:id,name',
+            'checkedOutBy:id,name',
+            'cancelledBy:id,name',
+            'noShowBy:id,name',
         ]);
 
         return response()->json([
@@ -91,14 +129,19 @@ class RegistrationController extends Controller
     }
 
     public function checkOut(
+        Request $request,
         Registration $registration,
         CurrentTenant $currentTenant
     ): JsonResponse {
         abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
 
-        DB::transaction(function () use ($registration) {
+        $actorUserId = $this->frontdeskUserId($request);
+
+        DB::transaction(function () use ($registration, $actorUserId) {
             $registration->status = Registration::STATUS_CHECKED_OUT;
             $registration->checked_out_at = now();
+            $registration->checked_out_by = $actorUserId;
+            $registration->updated_by = $actorUserId;
 
             if ($registration->checked_in_at) {
                 $registration->played_minutes = max(
@@ -114,6 +157,12 @@ class RegistrationController extends Controller
             'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
             'cateringOption:id,name,code,emoji',
+            'createdBy:id,name',
+            'updatedBy:id,name',
+            'checkedInBy:id,name',
+            'checkedOutBy:id,name',
+            'cancelledBy:id,name',
+            'noShowBy:id,name',
         ]);
 
         $order = $this->orderService->syncPricingForRegistration($registration, $currentTenant);
@@ -125,17 +174,28 @@ class RegistrationController extends Controller
         ]);
     }
 
-    public function cancel(Registration $registration, CurrentTenant $currentTenant): JsonResponse
+    public function cancel(Request $request, Registration $registration, CurrentTenant $currentTenant): JsonResponse
     {
         abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
 
+        $actorUserId = $this->frontdeskUserId($request);
+
         $registration->status = Registration::STATUS_CANCELLED;
+        $registration->cancelled_at = now();
+        $registration->cancelled_by = $actorUserId;
+        $registration->updated_by = $actorUserId;
         $registration->save();
 
         $registration->load([
             'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
             'cateringOption:id,name,code,emoji',
+            'createdBy:id,name',
+            'updatedBy:id,name',
+            'checkedInBy:id,name',
+            'checkedOutBy:id,name',
+            'cancelledBy:id,name',
+            'noShowBy:id,name',
         ]);
 
         return response()->json([
@@ -144,17 +204,28 @@ class RegistrationController extends Controller
         ]);
     }
 
-    public function noShow(Registration $registration, CurrentTenant $currentTenant): JsonResponse
+    public function noShow(Request $request, Registration $registration, CurrentTenant $currentTenant): JsonResponse
     {
         abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
 
+        $actorUserId = $this->frontdeskUserId($request);
+
         $registration->status = Registration::STATUS_NO_SHOW;
+        $registration->no_show_at = now();
+        $registration->no_show_by = $actorUserId;
+        $registration->updated_by = $actorUserId;
         $registration->save();
 
         $registration->load([
             'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
             'cateringOption:id,name,code,emoji',
+            'createdBy:id,name',
+            'updatedBy:id,name',
+            'checkedInBy:id,name',
+            'checkedOutBy:id,name',
+            'cancelledBy:id,name',
+            'noShowBy:id,name',
         ]);
 
         return response()->json([
@@ -182,9 +253,28 @@ class RegistrationController extends Controller
         abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
 
         $data = $request->validated();
+        $actorUserId = $this->frontdeskUserId($request);
+
+        $data['updated_by'] = $actorUserId;
 
         if (($data['status'] ?? null) === Registration::STATUS_CHECKED_IN && ! $registration->checked_in_at) {
             $data['checked_in_at'] = now();
+            $data['checked_in_by'] = $registration->checked_in_by ?: $actorUserId;
+        }
+
+        if (($data['status'] ?? null) === Registration::STATUS_CHECKED_OUT && ! $registration->checked_out_at) {
+            $data['checked_out_at'] = now();
+            $data['checked_out_by'] = $registration->checked_out_by ?: $actorUserId;
+        }
+
+        if (($data['status'] ?? null) === Registration::STATUS_CANCELLED && ! $registration->cancelled_at) {
+            $data['cancelled_at'] = now();
+            $data['cancelled_by'] = $registration->cancelled_by ?: $actorUserId;
+        }
+
+        if (($data['status'] ?? null) === Registration::STATUS_NO_SHOW && ! $registration->no_show_at) {
+            $data['no_show_at'] = now();
+            $data['no_show_by'] = $registration->no_show_by ?: $actorUserId;
         }
 
         $registration->update($data);
@@ -193,6 +283,12 @@ class RegistrationController extends Controller
             'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
             'cateringOption:id,name,code,emoji',
+            'createdBy:id,name',
+            'updatedBy:id,name',
+            'checkedInBy:id,name',
+            'checkedOutBy:id,name',
+            'cancelledBy:id,name',
+            'noShowBy:id,name',
         ]);
 
         return response()->json([
@@ -230,9 +326,17 @@ class RegistrationController extends Controller
             'invoice_postal_code' => $registration->invoice_postal_code,
             'invoice_city' => $registration->invoice_city,
             'checked_in_at' => optional($registration->checked_in_at)?->toIso8601String(),
+            'checked_in_by' => $this->transformActor($registration->checkedInBy),
             'checked_out_at' => optional($registration->checked_out_at)?->toIso8601String(),
+            'checked_out_by' => $this->transformActor($registration->checkedOutBy),
+            'cancelled_at' => optional($registration->cancelled_at)?->toIso8601String(),
+            'cancelled_by' => $this->transformActor($registration->cancelledBy),
+            'no_show_at' => optional($registration->no_show_at)?->toIso8601String(),
+            'no_show_by' => $this->transformActor($registration->noShowBy),
             'created_at' => optional($registration->created_at)?->toIso8601String(),
             'updated_at' => optional($registration->updated_at)?->toIso8601String(),
+            'created_by' => $this->transformActor($registration->createdBy),
+            'updated_by' => $this->transformActor($registration->updatedBy),
             'played_minutes' => $registration->played_minutes,
             'outside_opening_hours' => $registration->outside_opening_hours,
             'duration_label' => $registration->stayOption?->name,
@@ -248,7 +352,16 @@ class RegistrationController extends Controller
 
     protected function transformOrderForPos(Order $order): array
     {
-        $order->loadMissing('items.product');
+        $order->loadMissing([
+            'items.product',
+            'creator:id,name',
+            'updater:id,name',
+            'payer:id,name',
+            'canceller:id,name',
+            'refunder:id,name',
+            'items.creator:id,name',
+            'items.updater:id,name',
+        ]);
 
         return [
             'id' => $order->id,
@@ -258,6 +371,11 @@ class RegistrationController extends Controller
             'subtotal_excl_vat' => (float) $order->subtotal_excl_vat,
             'total_vat' => (float) $order->total_vat,
             'total_incl_vat' => (float) $order->total_incl_vat,
+            'created_by' => $this->transformActor($order->creator),
+            'updated_by' => $this->transformActor($order->updater),
+            'paid_by' => $this->transformActor($order->payer),
+            'cancelled_by' => $this->transformActor($order->canceller),
+            'refunded_by' => $this->transformActor($order->refunder),
             'items' => $order->items
                 ->sortBy('sort_order')
                 ->map(fn (OrderItem $item) => [
@@ -269,9 +387,28 @@ class RegistrationController extends Controller
                     'quantity' => (int) $item->quantity,
                     'source' => $item->source,
                     'source_reference' => $item->source_reference,
+                    'created_by' => $this->transformActor($item->creator),
+                    'updated_by' => $this->transformActor($item->updater),
                 ])
                 ->values()
                 ->all(),
+        ];
+    }
+
+    protected function frontdeskUserId(Request $request): ?int
+    {
+        return $request->attributes->get('frontdesk_user')?->id;
+    }
+
+    protected function transformActor(?User $user): ?array
+    {
+        if (! $user) {
+            return null;
+        }
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
         ];
     }
 }

@@ -36,6 +36,8 @@ class Order extends Model
         'refund_method',
         'refund_reason',
         'created_by',
+        'updated_by',
+        'paid_by',
         'notes',
     ];
 
@@ -69,6 +71,16 @@ class Order extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function payer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'paid_by');
     }
 
     public function canceller(): BelongsTo

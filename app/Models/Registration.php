@@ -45,7 +45,15 @@ class Registration extends Model
         'invoice_postal_code',
         'invoice_city',
         'checked_in_at',
+        'checked_in_by',
         'checked_out_at',
+        'checked_out_by',
+        'cancelled_at',
+        'cancelled_by',
+        'no_show_at',
+        'no_show_by',
+        'created_by',
+        'updated_by',
         'played_minutes',
         'bill_total_cents',
         'outside_opening_hours',
@@ -58,6 +66,8 @@ class Registration extends Model
         'outside_opening_hours' => 'boolean',
         'checked_in_at' => 'datetime',
         'checked_out_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+        'no_show_at' => 'datetime',
         'participants_children' => 'integer',
         'participants_adults' => 'integer',
         'participants_supervisors' => 'integer',
@@ -111,6 +121,36 @@ class Registration extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class)->latest('id');
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function checkedInBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'checked_in_by');
+    }
+
+    public function checkedOutBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'checked_out_by');
+    }
+
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    public function noShowBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'no_show_by');
     }
 
     public function getTotalParticipantsAttribute(): int
