@@ -7,7 +7,7 @@ export const useMembersStore = defineStore('members', {
         saving: false,
         error: null,
         search: '',
-        statusFilter: 'all',
+        selectedStatuses: [],
         summary: {
             total: 0,
             active: 0,
@@ -33,11 +33,17 @@ export const useMembersStore = defineStore('members', {
                 const response = await axios.get('/api/frontdesk/members', {
                     params: {
                         search: this.search || undefined,
-                        status: this.statusFilter,
+                        selected_statuses: this.selectedStatuses.length ? this.selectedStatuses : undefined,
                     },
                 })
 
-                this.summary = response.data?.data?.summary ?? this.summary
+                this.summary = response.data?.data?.summary ?? {
+                    total: 0,
+                    active: 0,
+                    expiring_soon: 0,
+                    expired: 0,
+                }
+
                 this.members = response.data?.data?.members ?? []
 
                 if (this.selectedMemberId) {
@@ -60,9 +66,9 @@ export const useMembersStore = defineStore('members', {
             this.search = value
         },
 
-        setStatusFilter(value) {
-            this.statusFilter = value
-            return this.fetchMembers()
+        async setSelectedStatuses(value) {
+            this.selectedStatuses = Array.isArray(value) ? value : []
+            await this.fetchMembers()
         },
 
         selectMember(id) {
@@ -81,6 +87,11 @@ export const useMembersStore = defineStore('members', {
                 }
 
                 await this.fetchMembers()
+
+                if (payload.id) {
+                    this.selectedMemberId = payload.id
+                }
+
                 return true
             } catch (error) {
                 console.error('Failed to save member', error)
@@ -97,6 +108,7 @@ export const useMembersStore = defineStore('members', {
             try {
                 await axios.post(`/api/frontdesk/members/${memberId}/renew`)
                 await this.fetchMembers()
+                this.selectedMemberId = memberId
                 return true
             } catch (error) {
                 console.error('Failed to renew member', error)
@@ -111,6 +123,7 @@ export const useMembersStore = defineStore('members', {
             try {
                 await axios.post(`/api/frontdesk/members/${memberId}/send-email`, { type })
                 await this.fetchMembers()
+                this.selectedMemberId = memberId
                 return true
             } catch (error) {
                 console.error('Failed to send member email', error)

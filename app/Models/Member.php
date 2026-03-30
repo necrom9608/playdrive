@@ -13,23 +13,23 @@ class Member extends Model
         'tenant_id',
         'first_name',
         'last_name',
-        'username',
+        'membership_type',
+        'login',
         'email',
         'password',
         'street',
         'house_number',
-        'bus',
+        'box',
         'postal_code',
         'city',
+        'country',
         'rfid_uid',
         'comment',
-        'membership_started_at',
-        'membership_expires_at',
-        'is_active',
+        'membership_starts_at',
+        'membership_ends_at',
         'confirmation_mail_sent_at',
         'expiry_warning_mail_sent_at',
         'expired_mail_sent_at',
-        'sort_order',
     ];
 
     protected $hidden = [
@@ -39,9 +39,8 @@ class Member extends Model
     protected function casts(): array
     {
         return [
-            'membership_started_at' => 'date',
-            'membership_expires_at' => 'date',
-            'is_active' => 'boolean',
+            'membership_starts_at' => 'date',
+            'membership_ends_at' => 'date',
             'confirmation_mail_sent_at' => 'datetime',
             'expiry_warning_mail_sent_at' => 'datetime',
             'expired_mail_sent_at' => 'datetime',

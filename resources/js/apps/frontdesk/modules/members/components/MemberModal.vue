@@ -34,13 +34,22 @@
                     </label>
 
                     <label class="space-y-2 text-sm text-slate-300">
+                        <span>Type abonnement</span>
+                        <select v-model="form.membership_type" :class="fieldClass">
+                            <option value="child">Kind</option>
+                            <option value="adult">Volwassen</option>
+                            <option value="family">Familie</option>
+                        </select>
+                    </label>
+
+                    <label class="space-y-2 text-sm text-slate-300">
                         <span>E-mail</span>
                         <input v-model="form.email" type="email" :class="fieldClass">
                     </label>
 
                     <label class="space-y-2 text-sm text-slate-300">
                         <span>Login</span>
-                        <input v-model="form.username" type="text" :class="fieldClass">
+                        <input v-model="form.login" type="text" :class="fieldClass">
                     </label>
 
                     <label class="space-y-2 text-sm text-slate-300">
@@ -73,8 +82,8 @@
                     </label>
 
                     <label class="space-y-2 text-sm text-slate-300">
-                        <span>Bus</span>
-                        <input v-model="form.bus" type="text" :class="fieldClass">
+                        <span>Box</span>
+                        <input v-model="form.box" type="text" :class="fieldClass">
                     </label>
 
                     <label class="space-y-2 text-sm text-slate-300">
@@ -88,13 +97,18 @@
                     </label>
 
                     <label class="space-y-2 text-sm text-slate-300">
+                        <span>Land</span>
+                        <input v-model="form.country" type="text" :class="fieldClass">
+                    </label>
+
+                    <label class="space-y-2 text-sm text-slate-300">
                         <span>Geldig van</span>
-                        <input v-model="form.membership_started_at" type="date" :class="fieldClass">
+                        <input v-model="form.membership_starts_at" type="date" :class="fieldClass">
                     </label>
 
                     <label class="space-y-2 text-sm text-slate-300">
                         <span>Geldig tot</span>
-                        <input v-model="form.membership_expires_at" type="date" :class="fieldClass">
+                        <input v-model="form.membership_ends_at" type="date" :class="fieldClass">
                     </label>
 
                     <label class="space-y-2 text-sm text-slate-300 lg:col-span-2">
@@ -103,7 +117,11 @@
                     </label>
 
                     <label class="inline-flex items-center gap-3 text-sm text-slate-300 lg:col-span-2">
-                        <input v-model="form.is_active" type="checkbox" class="h-4 w-4 rounded border-slate-700 bg-slate-900 text-blue-600">
+                        <input
+                            v-model="form.is_active"
+                            type="checkbox"
+                            class="h-4 w-4 rounded border-slate-700 bg-slate-900 text-blue-600"
+                        >
                         <span>Abonnement actief</span>
                     </label>
                 </div>
@@ -148,11 +166,12 @@ const rfidInput = ref(null)
 function defaultDates() {
     const now = new Date()
     const start = now.toISOString().slice(0, 10)
-    const expires = new Date(now)
-    expires.setFullYear(expires.getFullYear() + 1)
+    const ends = new Date(now)
+    ends.setFullYear(ends.getFullYear() + 1)
+
     return {
-        membership_started_at: start,
-        membership_expires_at: expires.toISOString().slice(0, 10),
+        membership_starts_at: start,
+        membership_ends_at: ends.toISOString().slice(0, 10),
     }
 }
 
@@ -160,18 +179,20 @@ const form = ref({
     id: null,
     first_name: '',
     last_name: '',
+    membership_type: 'adult',
     email: '',
-    username: '',
+    login: '',
     password: '',
     street: '',
     house_number: '',
-    bus: '',
+    box: '',
     postal_code: '',
     city: '',
+    country: '',
     rfid_uid: '',
     comment: '',
-    membership_started_at: defaultDates().membership_started_at,
-    membership_expires_at: defaultDates().membership_expires_at,
+    membership_starts_at: defaultDates().membership_starts_at,
+    membership_ends_at: defaultDates().membership_ends_at,
     is_active: true,
 })
 
@@ -181,22 +202,25 @@ watch(
     () => [props.open, normalizedMember.value],
     () => {
         const dates = defaultDates()
+
         form.value = {
             id: normalizedMember.value.id ?? null,
             first_name: normalizedMember.value.first_name ?? '',
             last_name: normalizedMember.value.last_name ?? '',
+            membership_type: normalizedMember.value.membership_type ?? 'adult',
             email: normalizedMember.value.email ?? '',
-            username: normalizedMember.value.username ?? '',
+            login: normalizedMember.value.login ?? '',
             password: '',
             street: normalizedMember.value.street ?? '',
             house_number: normalizedMember.value.house_number ?? '',
-            bus: normalizedMember.value.bus ?? '',
+            box: normalizedMember.value.box ?? '',
             postal_code: normalizedMember.value.postal_code ?? '',
             city: normalizedMember.value.city ?? '',
+            country: normalizedMember.value.country ?? '',
             rfid_uid: normalizedMember.value.rfid_uid ?? '',
             comment: normalizedMember.value.comment ?? '',
-            membership_started_at: normalizedMember.value.membership_started_at ?? dates.membership_started_at,
-            membership_expires_at: normalizedMember.value.membership_expires_at ?? dates.membership_expires_at,
+            membership_starts_at: normalizedMember.value.membership_starts_at ?? dates.membership_starts_at,
+            membership_ends_at: normalizedMember.value.membership_ends_at ?? dates.membership_ends_at,
             is_active: normalizedMember.value.is_active ?? true,
         }
     },
@@ -210,7 +234,6 @@ function focusRfid() {
 function submitForm() {
     emit('submit', { ...form.value })
 }
-
 
 const fieldClass = 'w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-blue-500'
 </script>

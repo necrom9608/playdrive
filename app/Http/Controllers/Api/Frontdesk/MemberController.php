@@ -9,6 +9,7 @@ use App\Mail\MemberLifecycleMail;
 use App\Models\Member;
 use App\Support\CurrentTenant;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -17,52 +18,54 @@ class MemberController extends Controller
 {
     public function index(Request $request, CurrentTenant $currentTenant): JsonResponse
     {
-        $search = trim((string) $request->string('search'));
+        $search = trim((string) $request->input('search', ''));
         $status = (string) $request->input('status', 'all');
         $days = max(1, (int) $request->input('expiring_within_days', 30));
+
         $today = now()->startOfDay();
-        $soonDate = now()->startOfDay()->addDays($days);
+        $soonDate = now()->copy()->startOfDay()->addDays($days);
 
         $query = Member::query()
             ->where('tenant_id', $currentTenant->id());
 
         if ($search !== '') {
-            $query->where(function ($subQuery) use ($search) {
+            $query->where(function (Builder $subQuery) use ($search) {
                 $subQuery
                     ->where('first_name', 'like', '%' . $search . '%')
                     ->orWhere('last_name', 'like', '%' . $search . '%')
                     ->orWhereRaw("concat(first_name, ' ', last_name) like ?", ['%' . $search . '%'])
                     ->orWhere('email', 'like', '%' . $search . '%')
-                    ->orWhere('username', 'like', '%' . $search . '%')
+                    ->orWhere('login', 'like', '%' . $search . '%')
                     ->orWhere('rfid_uid', 'like', '%' . $search . '%');
             });
         }
 
-        $query = $this->applyStatusFilter($query, $status, $today, $soonDate);
+        $this->applyStatusFilter($query, $status, $today, $soonDate);
 
         $members = $query
-            ->orderBy('membership_expires_at')
-            ->orderBy('last_name')
-            ->orderBy('first_name')
+            ->orderBy('membership_ends_at', 'asc')
+            ->orderBy('last_name', 'asc')
+            ->orderBy('first_name', 'asc')
             ->get();
 
-        $baseQuery = Member::query()->where('tenant_id', $currentTenant->id());
+        $baseQuery = Member::query()
+            ->where('tenant_id', $currentTenant->id());
 
         $summary = [
             'total' => (clone $baseQuery)->count(),
             'active' => (clone $baseQuery)
                 ->where('is_active', true)
-                ->whereDate('membership_expires_at', '>=', $today)
+                ->whereDate('membership_ends_at', '>=', $today)
                 ->count(),
             'expiring_soon' => (clone $baseQuery)
                 ->where('is_active', true)
-                ->whereDate('membership_expires_at', '>=', $today)
-                ->whereDate('membership_expires_at', '<=', $soonDate)
+                ->whereDate('membership_ends_at', '>=', $today)
+                ->whereDate('membership_ends_at', '<=', $soonDate)
                 ->count(),
             'expired' => (clone $baseQuery)
-                ->where(function ($query) use ($today) {
+                ->where(function (Builder $query) use ($today) {
                     $query->where('is_active', false)
-                        ->orWhereDate('membership_expires_at', '<', $today);
+                        ->orWhereDate('membership_ends_at', '<', $today);
                 })
                 ->count(),
         ];
@@ -78,35 +81,37 @@ class MemberController extends Controller
     public function store(StoreMemberRequest $request, CurrentTenant $currentTenant): JsonResponse
     {
         $data = $request->validated();
-        $startDate = !empty($data['membership_started_at']) ? Carbon::parse($data['membership_started_at']) : now()->startOfDay();
-        $expiresDate = !empty($data['membership_expires_at']) ? Carbon::parse($data['membership_expires_at']) : $startDate->copy()->addYear();
 
-        $nextSortOrder = (int) Member::query()
-            ->where('tenant_id', $currentTenant->id())
-            ->max('sort_order');
+        $startDate = !empty($data['membership_starts_at'])
+            ? Carbon::parse($data['membership_starts_at'])->startOfDay()
+            : now()->startOfDay();
+
+        $endsDate = !empty($data['membership_ends_at'])
+            ? Carbon::parse($data['membership_ends_at'])->startOfDay()
+            : $startDate->copy()->addYear();
 
         $member = Member::query()->create([
             'tenant_id' => $currentTenant->id(),
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
-            'username' => $this->nullableValue($data['username'] ?? null),
-            'email' => $this->nullableValue($data['email'] ?? null),
-            'password' => $this->nullableValue($data['password'] ?? null),
             'street' => $this->nullableValue($data['street'] ?? null),
             'house_number' => $this->nullableValue($data['house_number'] ?? null),
-            'bus' => $this->nullableValue($data['bus'] ?? null),
+            'box' => $this->nullableValue($data['box'] ?? null),
             'postal_code' => $this->nullableValue($data['postal_code'] ?? null),
             'city' => $this->nullableValue($data['city'] ?? null),
+            'country' => $this->nullableValue($data['country'] ?? null),
+            'email' => $this->nullableValue($data['email'] ?? null),
+            'login' => $this->nullableValue($data['login'] ?? null),
+            'password' => $this->nullableValue($data['password'] ?? null),
             'rfid_uid' => $this->nullableValue($data['rfid_uid'] ?? null),
             'comment' => $this->nullableValue($data['comment'] ?? null),
-            'membership_started_at' => $startDate->toDateString(),
-            'membership_expires_at' => $expiresDate->toDateString(),
+            'membership_starts_at' => $startDate->toDateString(),
+            'membership_ends_at' => $endsDate->toDateString(),
             'is_active' => (bool) ($data['is_active'] ?? true),
-            'sort_order' => $nextSortOrder + 1,
         ]);
 
         return response()->json([
-            'data' => $this->mapMember($member),
+            'data' => $this->mapMember($member->fresh()),
         ], 201);
     }
 
@@ -115,27 +120,34 @@ class MemberController extends Controller
         abort_unless((int) $member->tenant_id === (int) $currentTenant->id(), 404);
 
         $data = $request->validated();
-        $startDate = !empty($data['membership_started_at']) ? Carbon::parse($data['membership_started_at']) : $member->membership_started_at?->copy() ?? now()->startOfDay();
-        $expiresDate = !empty($data['membership_expires_at']) ? Carbon::parse($data['membership_expires_at']) : $member->membership_expires_at?->copy() ?? $startDate->copy()->addYear();
+
+        $startDate = !empty($data['membership_starts_at'])
+            ? Carbon::parse($data['membership_starts_at'])->startOfDay()
+            : ($member->membership_starts_at?->copy()->startOfDay() ?? now()->startOfDay());
+
+        $endsDate = !empty($data['membership_ends_at'])
+            ? Carbon::parse($data['membership_ends_at'])->startOfDay()
+            : ($member->membership_ends_at?->copy()->startOfDay() ?? $startDate->copy()->addYear());
 
         $member->fill([
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
-            'username' => $this->nullableValue($data['username'] ?? null),
-            'email' => $this->nullableValue($data['email'] ?? null),
             'street' => $this->nullableValue($data['street'] ?? null),
             'house_number' => $this->nullableValue($data['house_number'] ?? null),
-            'bus' => $this->nullableValue($data['bus'] ?? null),
+            'box' => $this->nullableValue($data['box'] ?? null),
             'postal_code' => $this->nullableValue($data['postal_code'] ?? null),
             'city' => $this->nullableValue($data['city'] ?? null),
+            'country' => $this->nullableValue($data['country'] ?? null),
+            'email' => $this->nullableValue($data['email'] ?? null),
+            'login' => $this->nullableValue($data['login'] ?? null),
             'rfid_uid' => $this->nullableValue($data['rfid_uid'] ?? null),
             'comment' => $this->nullableValue($data['comment'] ?? null),
-            'membership_started_at' => $startDate->toDateString(),
-            'membership_expires_at' => $expiresDate->toDateString(),
+            'membership_starts_at' => $startDate->toDateString(),
+            'membership_ends_at' => $endsDate->toDateString(),
             'is_active' => (bool) ($data['is_active'] ?? true),
         ]);
 
-        if (! empty($data['password'])) {
+        if (!empty($data['password'])) {
             $member->password = $data['password'];
         }
 
@@ -151,12 +163,13 @@ class MemberController extends Controller
         abort_unless((int) $member->tenant_id === (int) $currentTenant->id(), 404);
 
         $today = now()->startOfDay();
-        $newStart = $member->membership_expires_at && $member->membership_expires_at->greaterThanOrEqualTo($today)
-            ? $member->membership_expires_at->copy()->addDay()
-            : $today;
 
-        $member->membership_started_at = $newStart;
-        $member->membership_expires_at = $newStart->copy()->addYear();
+        $newStart = $member->membership_ends_at && $member->membership_ends_at->greaterThanOrEqualTo($today)
+            ? $member->membership_ends_at->copy()->addDay()
+            : $today->copy();
+
+        $member->membership_starts_at = $newStart->toDateString();
+        $member->membership_ends_at = $newStart->copy()->addYear()->toDateString();
         $member->is_active = true;
         $member->save();
 
@@ -196,39 +209,46 @@ class MemberController extends Controller
         ]);
     }
 
-    private function applyStatusFilter($query, string $status, Carbon $today, Carbon $soonDate)
+    private function applyStatusFilter(Builder $query, string $status, Carbon $today, Carbon $soonDate): void
     {
-        return match ($status) {
-            'active' => $query->where('is_active', true)->whereDate('membership_expires_at', '>=', $today),
-            'expiring' => $query->where('is_active', true)
-                ->whereDate('membership_expires_at', '>=', $today)
-                ->whereDate('membership_expires_at', '<=', $soonDate),
-            'expired' => $query->where(function ($subQuery) use ($today) {
+        match ($status) {
+            'active' => $query
+                ->where('is_active', true)
+                ->whereDate('membership_ends_at', '>=', $today),
+
+            'expiring' => $query
+                ->where('is_active', true)
+                ->whereDate('membership_ends_at', '>=', $today)
+                ->whereDate('membership_ends_at', '<=', $soonDate),
+
+            'expired' => $query->where(function (Builder $subQuery) use ($today) {
                 $subQuery->where('is_active', false)
-                    ->orWhereDate('membership_expires_at', '<', $today);
+                    ->orWhereDate('membership_ends_at', '<', $today);
             }),
+
             'inactive' => $query->where('is_active', false),
-            default => $query,
+
+            default => null,
         };
     }
 
     private function mapMember(Member $member): array
     {
         $today = now()->startOfDay();
-        $expiresAt = $member->membership_expires_at?->copy()->startOfDay();
-        $daysUntilExpiry = $expiresAt ? (int) $today->diffInDays($expiresAt, false) : null;
+        $endsAt = $member->membership_ends_at?->copy()->startOfDay();
+        $daysUntilExpiry = $endsAt ? (int) $today->diffInDays($endsAt, false) : null;
 
         $status = 'inactive';
 
         if ((bool) $member->is_active) {
-            if ($expiresAt && $expiresAt->lt($today)) {
+            if ($endsAt && $endsAt->lt($today)) {
                 $status = 'expired';
             } elseif ($daysUntilExpiry !== null && $daysUntilExpiry <= 30) {
                 $status = 'expiring';
             } else {
                 $status = 'active';
             }
-        } elseif ($expiresAt && $expiresAt->lt($today)) {
+        } elseif ($endsAt && $endsAt->lt($today)) {
             $status = 'expired';
         }
 
@@ -237,20 +257,21 @@ class MemberController extends Controller
             'first_name' => $member->first_name,
             'last_name' => $member->last_name,
             'full_name' => trim($member->first_name . ' ' . $member->last_name),
-            'username' => $member->username,
+            'login' => $member->login,
             'email' => $member->email,
             'street' => $member->street,
             'house_number' => $member->house_number,
-            'bus' => $member->bus,
+            'box' => $member->box,
             'postal_code' => $member->postal_code,
             'city' => $member->city,
+            'country' => $member->country,
             'full_address' => $this->formatAddress($member),
             'rfid_uid' => $member->rfid_uid,
             'comment' => $member->comment,
-            'membership_started_at' => optional($member->membership_started_at)->format('Y-m-d'),
-            'membership_expires_at' => optional($member->membership_expires_at)->format('Y-m-d'),
-            'membership_started_label' => optional($member->membership_started_at)->format('d/m/Y'),
-            'membership_expires_label' => optional($member->membership_expires_at)->format('d/m/Y'),
+            'membership_starts_at' => optional($member->membership_starts_at)->format('Y-m-d'),
+            'membership_ends_at' => optional($member->membership_ends_at)->format('Y-m-d'),
+            'membership_started_label' => optional($member->membership_starts_at)->format('d/m/Y'),
+            'membership_expires_label' => optional($member->membership_ends_at)->format('d/m/Y'),
             'days_until_expiry' => $daysUntilExpiry,
             'status' => $status,
             'is_active' => (bool) $member->is_active,
@@ -267,8 +288,8 @@ class MemberController extends Controller
             $member->house_number,
         ])));
 
-        if (! empty($member->bus)) {
-            $line1 = trim($line1 . ' bus ' . $member->bus);
+        if (!empty($member->box)) {
+            $line1 = trim($line1 . ' box ' . $member->box);
         }
 
         $line2 = trim(implode(' ', array_filter([
@@ -276,7 +297,11 @@ class MemberController extends Controller
             $member->city,
         ])));
 
-        $parts = array_values(array_filter([$line1, $line2]));
+        $parts = array_values(array_filter([
+            $line1,
+            $line2,
+            $member->country,
+        ]));
 
         return empty($parts) ? null : implode(', ', $parts);
     }
