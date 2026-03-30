@@ -32,6 +32,11 @@ export async function apiFetch(url, options = {}) {
         const error = new Error(data?.message || `API request failed with status ${response.status}`)
         error.status = response.status
         error.data = data
+
+        if (response.status === 401) {
+            window.dispatchEvent(new CustomEvent('frontdesk-auth-required'))
+        }
+
         throw error
     }
 

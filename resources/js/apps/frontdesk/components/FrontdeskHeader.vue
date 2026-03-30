@@ -17,6 +17,23 @@
                     <div class="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-300">
                         Tenant: <span class="font-semibold text-white">Game-INN</span>
                     </div>
+
+                    <div
+                        v-if="auth.user"
+                        class="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-300"
+                    >
+                        Ingelogd als:
+                        <span class="font-semibold text-white">{{ auth.user.name }}</span>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-200 shadow-sm transition hover:bg-red-500/20"
+                        @click="handleLogout"
+                    >
+                        <ArrowLeftOnRectangleIcon class="h-5 w-5" />
+                        <span>Uitloggen</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -24,7 +41,11 @@
 </template>
 
 <script setup>
+import { ArrowLeftOnRectangleIcon } from '@heroicons/vue/24/outline'
 import FrontdeskNav from './FrontdeskNav.vue'
+import { useAuthStore } from '../stores/authStore'
+
+const auth = useAuthStore()
 
 const navigation = [
     { label: 'Dashboard', to: '/', icon: 'home' },
@@ -36,4 +57,8 @@ const navigation = [
     { label: 'Abonnementen', to: '/members', icon: 'identification' },
     { label: 'Personeel', to: '/staff', icon: 'users' },
 ]
+
+async function handleLogout() {
+    await auth.logout()
+}
 </script>
