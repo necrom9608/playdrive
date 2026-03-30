@@ -18,10 +18,12 @@ class StoreProductRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'price_excl_vat' => ['required', 'numeric', 'min:0'],
+            'price_excl_vat' => ['nullable', 'numeric', 'min:0'],
+            'price_incl_vat' => ['required_without:price_excl_vat', 'nullable', 'numeric', 'min:0'],
             'vat_rate' => ['required', 'numeric', 'min:0'],
             'sort_order' => ['nullable', 'integer'],
             'is_active' => ['nullable', 'boolean'],
+            'image' => ['nullable', 'image', 'max:5120'],
         ];
     }
 }

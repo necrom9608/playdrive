@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Support\CurrentTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
@@ -29,6 +30,8 @@ class ProductController extends Controller
                     'name' => $product->name,
                     'slug' => $product->slug,
                     'description' => $product->description,
+                    'image_path' => $product->image_path,
+                    'image_url' => $product->image_url,
                     'price_excl_vat' => $product->price_excl_vat,
                     'vat_rate' => $product->vat_rate,
                     'price_incl_vat' => $product->price_incl_vat,
@@ -55,7 +58,8 @@ class ProductController extends Controller
                 ? $slugService->makeSlug($request->string('slug')->toString())
                 : $slugService->makeSlug($request->string('name')->toString()),
             'description' => $request->input('description'),
-            'price_excl_vat' => $request->input('price_excl_vat'),
+            'image_path' => $this->storeUploadedImage($request),
+            'price_excl_vat' => $this->resolvePriceExclVat($request),
             'vat_rate' => $request->input('vat_rate'),
             'is_active' => $request->boolean('is_active', true),
             'sort_order' => $request->integer('sort_order', 0),
@@ -72,6 +76,16 @@ class ProductController extends Controller
     ): JsonResponse {
         abort_if($product->tenant_id !== $currentTenant->id(), 404);
 
+        $imagePath = $product->image_path;
+
+        if ($request->hasFile('image')) {
+            if ($imagePath) {
+                Storage::disk('public')->delete($imagePath);
+            }
+
+            $imagePath = $this->storeUploadedImage($request);
+        }
+
         $product->update([
             'product_category_id' => $request->input('product_category_id'),
             'name' => $request->string('name')->toString(),
@@ -79,7 +93,8 @@ class ProductController extends Controller
                 ? $slugService->makeSlug($request->string('slug')->toString())
                 : $slugService->makeSlug($request->string('name')->toString()),
             'description' => $request->input('description'),
-            'price_excl_vat' => $request->input('price_excl_vat'),
+            'image_path' => $imagePath,
+            'price_excl_vat' => $this->resolvePriceExclVat($request),
             'vat_rate' => $request->input('vat_rate'),
             'is_active' => $request->boolean('is_active', true),
         ]);
@@ -90,6 +105,10 @@ class ProductController extends Controller
     public function destroy(Product $product, CurrentTenant $currentTenant): JsonResponse
     {
         abort_if($product->tenant_id !== $currentTenant->id(), 404);
+
+        if ($product->image_path) {
+            Storage::disk('public')->delete($product->image_path);
+        }
 
         $product->delete();
 
@@ -110,5 +129,30 @@ class ProductController extends Controller
         }
 
         return response()->json(['success' => true]);
+    }
+
+    protected function resolvePriceExclVat(Request $request): float
+    {
+        if ($request->filled('price_excl_vat')) {
+            return round((float) $request->input('price_excl_vat'), 2);
+        }
+
+        $priceInclVat = (float) $request->input('price_incl_vat', 0);
+        $vatRate = (float) $request->input('vat_rate', 0);
+
+        if ($vatRate <= 0) {
+            return round($priceInclVat, 2);
+        }
+
+        return round($priceInclVat / (1 + ($vatRate / 100)), 2);
+    }
+
+    protected function storeUploadedImage(Request $request): ?string
+    {
+        if (! $request->hasFile('image')) {
+            return null;
+        }
+
+        return $request->file('image')->store('products', 'public');
     }
 }

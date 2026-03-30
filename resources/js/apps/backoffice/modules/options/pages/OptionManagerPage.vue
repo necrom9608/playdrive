@@ -58,7 +58,7 @@
             </div>
         </div>
 
-        <ModalDialog :open="modalOpen" :title="editingId ? 'Item bewerken' : 'Nieuw item'" :description="modalDescription">
+        <ModalDialog :open="modalOpen" :title="editingId ? 'Item bewerken' : 'Nieuw item'" :description="modalDescription" @close="closeModal">
             <form class="space-y-4" @submit.prevent="submit">
                 <div>
                     <label class="mb-1 block text-sm font-medium text-slate-300">Naam</label>
@@ -148,7 +148,7 @@ async function loadItems() {
     try {
         items.value = await fetchOptions(props.type)
     } catch (err) {
-        error.value = 'Kon gegevens niet laden.'
+        error.value = err?.data?.message ?? 'Kon gegevens niet laden.'
         console.error(err)
     } finally {
         loading.value = false
@@ -174,7 +174,7 @@ async function submit() {
         closeModal()
         await loadItems()
     } catch (err) {
-        error.value = 'Kon item niet opslaan.'
+        error.value = err?.data?.message ?? 'Kon item niet opslaan.'
         console.error(err)
     } finally {
         saving.value = false
@@ -187,7 +187,7 @@ async function removeItem(item) {
         await deleteOption(props.type, item.id)
         await loadItems()
     } catch (err) {
-        error.value = 'Kon item niet verwijderen.'
+        error.value = err?.data?.message ?? 'Kon item niet verwijderen.'
         console.error(err)
     }
 }
@@ -209,7 +209,7 @@ async function onDrop(targetId) {
         await reorderOptions(props.type, items.value.map((item) => ({ id: item.id })))
         await loadItems()
     } catch (err) {
-        error.value = 'Kon volgorde niet opslaan.'
+        error.value = err?.data?.message ?? 'Kon volgorde niet opslaan.'
         console.error(err)
     }
 }

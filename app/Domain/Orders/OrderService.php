@@ -5,6 +5,7 @@ namespace App\Domain\Orders;
 use App\Domain\Pricing\PricingContext;
 use App\Domain\Pricing\PricingEvaluator;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Registration;
 use App\Support\CurrentTenant;
@@ -19,122 +20,262 @@ class OrderService
     ) {
     }
 
+    public function addManualItem(array $payload, CurrentTenant $currentTenant): Order
+    {
+        if (! $currentTenant->exists()) {
+            throw new InvalidArgumentException('Geen tenant gevonden voor deze actie.');
+        }
+
+        $product = Product::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->findOrFail((int) $payload['product_id']);
+
+        $quantity = max(1, (int) ($payload['quantity'] ?? 1));
+        $registration = $this->resolveRegistration(Arr::get($payload, 'reservation_id'), $currentTenant);
+        $source = $registration ? Order::SOURCE_RESERVATION : Order::SOURCE_WALK_IN;
+        $actorUserId = $this->frontdeskUserId();
+
+        return DB::transaction(function () use ($currentTenant, $registration, $source, $product, $quantity, $actorUserId) {
+            $order = $this->findOrCreateOpenOrder($currentTenant, $registration, $source, $actorUserId);
+
+            $existingItem = $order->items()
+                ->where('product_id', $product->id)
+                ->where('source', 'manual')
+                ->whereNull('source_reference')
+                ->orderByDesc('sort_order')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($existingItem) {
+                $this->applyQuantityToItem($existingItem, (int) $existingItem->quantity + $quantity, $actorUserId);
+            } else {
+                $this->createOrderItem(
+                    $order,
+                    $product,
+                    $quantity,
+                    'manual',
+                    null,
+                    $actorUserId,
+                    ((int) $order->items()->max('sort_order')) + 1,
+                );
+            }
+
+            $this->recalculateOrderTotals($order, $actorUserId);
+            $this->syncRegistrationBillTotal($order, $actorUserId);
+
+            return $this->freshOrder($order);
+        });
+    }
+
+    public function updateOrderItemQuantity(Order $order, OrderItem $item, int $quantity, CurrentTenant $currentTenant): Order
+    {
+        $this->assertMutableOrderItem($order, $item, $currentTenant);
+        $actorUserId = $this->frontdeskUserId();
+
+        return DB::transaction(function () use ($order, $item, $quantity, $actorUserId) {
+            $this->applyQuantityToItem($item, max(1, $quantity), $actorUserId);
+            $this->recalculateOrderTotals($order, $actorUserId);
+            $this->syncRegistrationBillTotal($order, $actorUserId);
+
+            return $this->freshOrder($order);
+        });
+    }
+
+    public function removeOrderItem(Order $order, OrderItem $item, CurrentTenant $currentTenant): Order
+    {
+        $this->assertMutableOrderItem($order, $item, $currentTenant);
+        $actorUserId = $this->frontdeskUserId();
+
+        return DB::transaction(function () use ($order, $item, $actorUserId) {
+            $item->delete();
+            $this->normalizeSortOrders($order);
+            $this->recalculateOrderTotals($order, $actorUserId);
+            $this->syncRegistrationBillTotal($order, $actorUserId);
+
+            return $this->freshOrder($order);
+        });
+    }
+
     public function checkout(array $payload, CurrentTenant $currentTenant): Order
     {
         if (! $currentTenant->exists()) {
             throw new InvalidArgumentException('Geen tenant gevonden voor deze checkout.');
         }
 
-        $itemsPayload = collect(Arr::get($payload, 'items', []))
-            ->filter(fn ($item) => filled($item['product_id'] ?? null) && (int) ($item['quantity'] ?? 0) > 0)
-            ->values();
+        $actorUserId = $this->frontdeskUserId();
+        $registration = $this->resolveRegistration(Arr::get($payload, 'reservation_id'), $currentTenant);
+        $source = $registration ? Order::SOURCE_RESERVATION : Order::SOURCE_WALK_IN;
 
-        $registrationId = Arr::get($payload, 'reservation_id');
-        $registration = null;
+        $order = null;
+        $orderId = Arr::get($payload, 'order_id');
 
-        if ($registrationId) {
-            $registration = Registration::query()
+        if ($orderId) {
+            $order = Order::query()
                 ->where('tenant_id', $currentTenant->id())
-                ->findOrFail($registrationId);
+                ->where('status', Order::STATUS_OPEN)
+                ->findOrFail((int) $orderId);
+        } elseif ($registration) {
+            $order = Order::query()
+                ->where('tenant_id', $currentTenant->id())
+                ->where('registration_id', $registration->id)
+                ->where('status', Order::STATUS_OPEN)
+                ->latest('id')
+                ->first();
+        } else {
+            $order = Order::query()
+                ->where('tenant_id', $currentTenant->id())
+                ->whereNull('registration_id')
+                ->where('source', Order::SOURCE_WALK_IN)
+                ->where('status', Order::STATUS_OPEN)
+                ->latest('id')
+                ->first();
         }
 
-        if ($itemsPayload->isEmpty()) {
+        if (! $order) {
+            $itemsPayload = collect(Arr::get($payload, 'items', []))
+                ->filter(fn ($item) => filled($item['product_id'] ?? null) && (int) ($item['quantity'] ?? 0) > 0)
+                ->values();
+
+            if ($itemsPayload->isEmpty()) {
+                throw new InvalidArgumentException('Er zijn geen geldige orderlijnen om af te rekenen.');
+            }
+
+            $productIds = $itemsPayload
+                ->pluck('product_id')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values();
+
+            $products = Product::query()
+                ->where('tenant_id', $currentTenant->id())
+                ->whereIn('id', $productIds)
+                ->get()
+                ->keyBy('id');
+
+            if ($products->count() !== $productIds->count()) {
+                throw new InvalidArgumentException('Niet alle producten van deze bestelling zijn geldig voor de huidige tenant.');
+            }
+
+            $paymentMethod = (string) Arr::get($payload, 'payment_method', 'cash');
+            $notes = Arr::get($payload, 'notes');
+
+            return DB::transaction(function () use ($payload, $currentTenant, $registration, $paymentMethod, $notes, $source, $itemsPayload, $products, $actorUserId) {
+                $calculatedItems = [];
+                $subtotalExclVat = 0.0;
+                $totalVat = 0.0;
+                $totalInclVat = 0.0;
+
+                foreach ($itemsPayload->values() as $index => $itemPayload) {
+                    /** @var Product $product */
+                    $product = $products->get((int) $itemPayload['product_id']);
+                    $quantity = max(1, (int) ($itemPayload['quantity'] ?? 1));
+
+                    $unitPriceExclVat = round((float) $product->price_excl_vat, 2);
+                    $unitPriceInclVat = round((float) $product->price_incl_vat, 2);
+                    $vatRate = round((float) $product->vat_rate, 2);
+
+                    $lineSubtotalExclVat = round($unitPriceExclVat * $quantity, 2);
+                    $lineTotalInclVat = round($unitPriceInclVat * $quantity, 2);
+                    $lineVat = round($lineTotalInclVat - $lineSubtotalExclVat, 2);
+
+                    $subtotalExclVat += $lineSubtotalExclVat;
+                    $totalVat += $lineVat;
+                    $totalInclVat += $lineTotalInclVat;
+
+                    $calculatedItems[] = [
+                        'product_id' => $product->id,
+                        'name' => $product->name,
+                        'quantity' => $quantity,
+                        'unit_price_excl_vat' => $unitPriceExclVat,
+                        'unit_price_incl_vat' => $unitPriceInclVat,
+                        'vat_rate' => $vatRate,
+                        'line_subtotal_excl_vat' => $lineSubtotalExclVat,
+                        'line_vat' => $lineVat,
+                        'line_total_incl_vat' => $lineTotalInclVat,
+                        'sort_order' => $index + 1,
+                        'source' => 'manual',
+                        'source_reference' => null,
+                        'created_by' => $actorUserId,
+                        'updated_by' => $actorUserId,
+                    ];
+                }
+
+                $order = Order::create([
+                    'tenant_id' => $currentTenant->id(),
+                    'registration_id' => $registration?->id,
+                    'status' => Order::STATUS_PAID,
+                    'source' => $source,
+                    'subtotal_excl_vat' => round($subtotalExclVat, 2),
+                    'total_vat' => round($totalVat, 2),
+                    'total_incl_vat' => round($totalInclVat, 2),
+                    'payment_method' => $paymentMethod,
+                    'paid_at' => now(),
+                    'created_by' => $actorUserId,
+                    'updated_by' => $actorUserId,
+                    'paid_by' => $actorUserId,
+                    'notes' => filled($notes) ? (string) $notes : null,
+                    'invoice_requested' => (bool) ($payload['invoice_requested'] ?? false),
+                ]);
+
+                $order->items()->createMany($calculatedItems);
+
+                if ($registration) {
+                    $existingTotal = round(((int) $registration->bill_total_cents) / 100, 2);
+                    $newTotal = round($existingTotal + (float) $order->total_incl_vat, 2);
+
+                    $registration->update([
+                        'status' => Registration::STATUS_PAID,
+                        'bill_total_cents' => (int) round($newTotal * 100),
+                        'updated_by' => $actorUserId,
+                    ]);
+                }
+
+                return $order->load(['items.product', 'registration']);
+            });
+        }
+
+        if ((int) $order->tenant_id !== (int) $currentTenant->id()) {
+            throw new InvalidArgumentException('Order hoort niet bij de huidige tenant.');
+        }
+
+        if ($order->status !== Order::STATUS_OPEN) {
+            throw new InvalidArgumentException('Alleen open orders kunnen afgerekend worden.');
+        }
+
+        if ($registration && (int) $order->registration_id !== (int) $registration->id) {
+            throw new InvalidArgumentException('Order hoort niet bij de geselecteerde reservatie.');
+        }
+
+        if (! $registration && $order->registration_id) {
+            throw new InvalidArgumentException('Dit order hoort bij een reservatie en kan niet als losse verkoop afgerekend worden.');
+        }
+
+        if (! $order->items()->exists()) {
             throw new InvalidArgumentException('Er zijn geen geldige orderlijnen om af te rekenen.');
         }
 
-        $paymentMethod = (string) Arr::get($payload, 'payment_method', 'cash');
-        $notes = Arr::get($payload, 'notes');
-        $source = $registration ? Order::SOURCE_RESERVATION : Order::SOURCE_WALK_IN;
-        $actorUserId = $this->frontdeskUserId();
+        return DB::transaction(function () use ($order, $payload, $registration, $actorUserId) {
+            $this->recalculateOrderTotals($order, $actorUserId);
 
-        $productIds = $itemsPayload
-            ->pluck('product_id')
-            ->map(fn ($id) => (int) $id)
-            ->unique()
-            ->values();
-
-        $products = Product::query()
-            ->where('tenant_id', $currentTenant->id())
-            ->whereIn('id', $productIds)
-            ->get()
-            ->keyBy('id');
-
-        if ($products->count() !== $productIds->count()) {
-            throw new InvalidArgumentException('Niet alle producten van deze bestelling zijn geldig voor de huidige tenant.');
-        }
-
-        return DB::transaction(function () use ($payload, $currentTenant, $registration, $paymentMethod, $notes, $source, $itemsPayload, $products, $actorUserId) {
-            $calculatedItems = [];
-            $subtotalExclVat = 0.0;
-            $totalVat = 0.0;
-            $totalInclVat = 0.0;
-
-            foreach ($itemsPayload->values() as $index => $itemPayload) {
-                /** @var Product $product */
-                $product = $products->get((int) $itemPayload['product_id']);
-                $quantity = max(1, (int) ($itemPayload['quantity'] ?? 1));
-
-                $unitPriceExclVat = round((float) $product->price_excl_vat, 2);
-                $unitPriceInclVat = round((float) $product->price_incl_vat, 2);
-                $vatRate = round((float) $product->vat_rate, 2);
-
-                $lineSubtotalExclVat = round($unitPriceExclVat * $quantity, 2);
-                $lineTotalInclVat = round($unitPriceInclVat * $quantity, 2);
-                $lineVat = round($lineTotalInclVat - $lineSubtotalExclVat, 2);
-
-                $subtotalExclVat += $lineSubtotalExclVat;
-                $totalVat += $lineVat;
-                $totalInclVat += $lineTotalInclVat;
-
-                $calculatedItems[] = [
-                    'product_id' => $product->id,
-                    'name' => $product->name,
-                    'quantity' => $quantity,
-                    'unit_price_excl_vat' => $unitPriceExclVat,
-                    'unit_price_incl_vat' => $unitPriceInclVat,
-                    'vat_rate' => $vatRate,
-                    'line_subtotal_excl_vat' => $lineSubtotalExclVat,
-                    'line_vat' => $lineVat,
-                    'line_total_incl_vat' => $lineTotalInclVat,
-                    'sort_order' => $index + 1,
-                    'source' => 'manual',
-                    'source_reference' => null,
-                    'created_by' => $actorUserId,
-                    'updated_by' => $actorUserId,
-                ];
-            }
-
-            $order = Order::create([
-                'tenant_id' => $currentTenant->id(),
-                'registration_id' => $registration?->id,
+            $order->update([
                 'status' => Order::STATUS_PAID,
-                'source' => $source,
-                'subtotal_excl_vat' => round($subtotalExclVat, 2),
-                'total_vat' => round($totalVat, 2),
-                'total_incl_vat' => round($totalInclVat, 2),
-                'payment_method' => $paymentMethod,
+                'payment_method' => (string) Arr::get($payload, 'payment_method', 'cash'),
                 'paid_at' => now(),
-                'created_by' => $actorUserId,
-                'updated_by' => $actorUserId,
                 'paid_by' => $actorUserId,
-                'notes' => filled($notes) ? (string) $notes : null,
-                'invoice_requested' => (bool) ($payload['invoice_requested'] ?? false),
+                'updated_by' => $actorUserId,
+                'notes' => filled(Arr::get($payload, 'notes')) ? (string) Arr::get($payload, 'notes') : null,
+                'invoice_requested' => (bool) Arr::get($payload, 'invoice_requested', false),
             ]);
 
-            $order->items()->createMany($calculatedItems);
-
             if ($registration) {
-                $existingTotal = round(((int) $registration->bill_total_cents) / 100, 2);
-                $newTotal = round($existingTotal + (float) $order->total_incl_vat, 2);
-
                 $registration->update([
                     'status' => Registration::STATUS_PAID,
-                    'bill_total_cents' => (int) round($newTotal * 100),
+                    'bill_total_cents' => (int) round(((float) $order->fresh()->total_incl_vat) * 100),
                     'updated_by' => $actorUserId,
                 ]);
             }
 
-            return $order->load(['items.product', 'registration']);
+            return $order->fresh(['items.product', 'registration']);
         });
     }
 
@@ -214,33 +355,18 @@ class OrderService
                     continue;
                 }
 
-                $quantity = max(1, (int) ($line->quantity ?? 1));
-                $unitPriceExclVat = round((float) $product->price_excl_vat, 2);
-                $unitPriceInclVat = round((float) $product->price_incl_vat, 2);
-                $vatRate = round((float) $product->vat_rate, 2);
-                $lineSubtotalExclVat = round($unitPriceExclVat * $quantity, 2);
-                $lineTotalInclVat = round($unitPriceInclVat * $quantity, 2);
-                $lineVat = round($lineTotalInclVat - $lineSubtotalExclVat, 2);
-
-                $order->items()->create([
-                    'product_id' => $product->id,
-                    'name' => $product->name,
-                    'quantity' => $quantity,
-                    'unit_price_excl_vat' => $unitPriceExclVat,
-                    'unit_price_incl_vat' => $unitPriceInclVat,
-                    'vat_rate' => $vatRate,
-                    'line_subtotal_excl_vat' => $lineSubtotalExclVat,
-                    'line_vat' => $lineVat,
-                    'line_total_incl_vat' => $lineTotalInclVat,
-                    'sort_order' => $nextSortOrder + $index + 1,
-                    'source' => 'pricing_engine',
-                    'source_reference' => $sourceReference,
-                    'created_by' => $actorUserId,
-                    'updated_by' => $actorUserId,
-                ]);
+                $this->createOrderItem(
+                    $order,
+                    $product,
+                    max(1, (int) ($line->quantity ?? 1)),
+                    'pricing_engine',
+                    $sourceReference,
+                    $actorUserId,
+                    $nextSortOrder + $index + 1,
+                );
             }
 
-            $this->recalculateOrderTotals($order);
+            $this->recalculateOrderTotals($order, $actorUserId);
 
             $registration->update([
                 'bill_total_cents' => (int) round(((float) $order->total_incl_vat) * 100),
@@ -251,7 +377,130 @@ class OrderService
         });
     }
 
-    protected function recalculateOrderTotals(Order $order): void
+    protected function resolveRegistration(mixed $registrationId, CurrentTenant $currentTenant): ?Registration
+    {
+        if (! $registrationId) {
+            return null;
+        }
+
+        return Registration::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->findOrFail((int) $registrationId);
+    }
+
+    protected function findOrCreateOpenOrder(CurrentTenant $currentTenant, ?Registration $registration, string $source, ?int $actorUserId): Order
+    {
+        $query = Order::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->where('status', Order::STATUS_OPEN);
+
+        if ($registration) {
+            $query->where('registration_id', $registration->id);
+        } else {
+            $query->whereNull('registration_id')
+                ->where('source', Order::SOURCE_WALK_IN);
+        }
+
+        $order = $query->latest('id')->first();
+
+        if ($order) {
+            return $order;
+        }
+
+        return Order::create([
+            'tenant_id' => $currentTenant->id(),
+            'registration_id' => $registration?->id,
+            'status' => Order::STATUS_OPEN,
+            'source' => $source,
+            'subtotal_excl_vat' => 0,
+            'total_vat' => 0,
+            'total_incl_vat' => 0,
+            'payment_method' => null,
+            'invoice_requested' => (bool) ($registration?->invoice_requested ?? false),
+            'paid_at' => null,
+            'created_by' => $actorUserId,
+            'updated_by' => $actorUserId,
+            'paid_by' => null,
+            'notes' => null,
+        ]);
+    }
+
+    protected function assertMutableOrderItem(Order $order, OrderItem $item, CurrentTenant $currentTenant): void
+    {
+        if (! $currentTenant->exists() || (int) $order->tenant_id !== (int) $currentTenant->id()) {
+            throw new InvalidArgumentException('Order hoort niet bij de huidige tenant.');
+        }
+
+        if ((int) $item->order_id !== (int) $order->id) {
+            throw new InvalidArgumentException('Orderlijn hoort niet bij dit order.');
+        }
+
+        if ($order->status !== Order::STATUS_OPEN) {
+            throw new InvalidArgumentException('Alleen open orders kunnen aangepast worden.');
+        }
+    }
+
+    protected function createOrderItem(Order $order, Product $product, int $quantity, string $source, ?string $sourceReference, ?int $actorUserId, int $sortOrder): OrderItem
+    {
+        $quantity = max(1, $quantity);
+        $unitPriceExclVat = round((float) $product->price_excl_vat, 2);
+        $unitPriceInclVat = round((float) $product->price_incl_vat, 2);
+        $vatRate = round((float) $product->vat_rate, 2);
+        $lineSubtotalExclVat = round($unitPriceExclVat * $quantity, 2);
+        $lineTotalInclVat = round($unitPriceInclVat * $quantity, 2);
+        $lineVat = round($lineTotalInclVat - $lineSubtotalExclVat, 2);
+
+        return $order->items()->create([
+            'product_id' => $product->id,
+            'name' => $product->name,
+            'quantity' => $quantity,
+            'unit_price_excl_vat' => $unitPriceExclVat,
+            'unit_price_incl_vat' => $unitPriceInclVat,
+            'vat_rate' => $vatRate,
+            'line_subtotal_excl_vat' => $lineSubtotalExclVat,
+            'line_vat' => $lineVat,
+            'line_total_incl_vat' => $lineTotalInclVat,
+            'sort_order' => $sortOrder,
+            'source' => $source,
+            'source_reference' => $sourceReference,
+            'created_by' => $actorUserId,
+            'updated_by' => $actorUserId,
+        ]);
+    }
+
+    protected function applyQuantityToItem(OrderItem $item, int $quantity, ?int $actorUserId): void
+    {
+        $quantity = max(1, $quantity);
+        $unitPriceExclVat = round((float) $item->unit_price_excl_vat, 2);
+        $unitPriceInclVat = round((float) $item->unit_price_incl_vat, 2);
+        $lineSubtotalExclVat = round($unitPriceExclVat * $quantity, 2);
+        $lineTotalInclVat = round($unitPriceInclVat * $quantity, 2);
+        $lineVat = round($lineTotalInclVat - $lineSubtotalExclVat, 2);
+
+        $item->update([
+            'quantity' => $quantity,
+            'line_subtotal_excl_vat' => $lineSubtotalExclVat,
+            'line_total_incl_vat' => $lineTotalInclVat,
+            'line_vat' => $lineVat,
+            'updated_by' => $actorUserId,
+        ]);
+    }
+
+    protected function normalizeSortOrders(Order $order): void
+    {
+        $order->items()
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->values()
+            ->each(function (OrderItem $item, int $index) {
+                $item->update([
+                    'sort_order' => $index + 1,
+                ]);
+            });
+    }
+
+    protected function recalculateOrderTotals(Order $order, ?int $actorUserId = null): void
     {
         $items = $order->items()->get();
 
@@ -263,7 +512,40 @@ class OrderService
             'subtotal_excl_vat' => $subtotalExclVat,
             'total_vat' => $totalVat,
             'total_incl_vat' => $totalInclVat,
-            'updated_by' => $this->frontdeskUserId(),
+            'updated_by' => $actorUserId ?? $this->frontdeskUserId(),
+        ]);
+    }
+
+    protected function syncRegistrationBillTotal(Order $order, ?int $actorUserId = null): void
+    {
+        if (! $order->registration_id) {
+            return;
+        }
+
+        $registration = $order->registration()->first();
+
+        if (! $registration) {
+            return;
+        }
+
+        $registration->update([
+            'bill_total_cents' => (int) round(((float) $order->fresh()->total_incl_vat) * 100),
+            'updated_by' => $actorUserId ?? $this->frontdeskUserId(),
+        ]);
+    }
+
+    protected function freshOrder(Order $order): Order
+    {
+        return $order->fresh([
+            'items.product',
+            'creator:id,name',
+            'updater:id,name',
+            'payer:id,name',
+            'canceller:id,name',
+            'refunder:id,name',
+            'items.creator:id,name',
+            'items.updater:id,name',
+            'registration',
         ]);
     }
 

@@ -40,6 +40,9 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::delete('/registrations/{registration}', [RegistrationController::class, 'destroy']);
 
         Route::get('/orders', [OrderController::class, 'index']);
+        Route::post('/orders/items', [OrderController::class, 'addItem']);
+        Route::patch('/orders/{order}/items/{item}', [OrderController::class, 'updateItem']);
+        Route::delete('/orders/{order}/items/{item}', [OrderController::class, 'deleteItem']);
         Route::post('/orders/checkout', [OrderController::class, 'checkout']);
 
         Route::get('/sales', [SalesController::class, 'index']);

@@ -4,17 +4,23 @@ function getCsrfToken() {
 
 export async function apiFetch(url, options = {}) {
     const csrfToken = getCsrfToken()
+    const isFormData = options.body instanceof FormData
+
+    const headers = {
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+        ...(options.headers || {}),
+    }
+
+    if (!isFormData) {
+        headers['Content-Type'] = headers['Content-Type'] || 'application/json'
+    }
 
     const response = await fetch(url, {
         credentials: 'same-origin',
-        headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
-            ...(options.headers || {}),
-        },
         ...options,
+        headers,
     })
 
     const contentType = response.headers.get('content-type') || ''

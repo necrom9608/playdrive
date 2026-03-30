@@ -2,7 +2,8 @@
     <div class="space-y-6">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
-                <h1 class="text-3xl font-bold text-white">Pricing Engine</h1>
+                <h1 v-if="!embedded" class="text-3xl font-bold text-white">Automatische prijsregels</h1>
+                <h2 v-else class="text-2xl font-bold text-white">Automatische prijsregels</h2>
                 <p class="mt-2 max-w-4xl text-slate-400">
                     Flexibele prijsregels voor tickets, extra blokken en automatische productkoppelingen.
                     De regels zijn bewust generiek opgezet zodat ze later ook voor andere concepten dan Game-INN bruikbaar blijven.
@@ -189,7 +190,7 @@
             </section>
         </div>
 
-        <ModalDialog :open="profileModalOpen" :title="editingProfile ? 'Profiel bewerken' : 'Nieuw prijsprofiel'" description="Een profiel groepeert alle regels voor één prijsstrategie.">
+        <ModalDialog :open="profileModalOpen" :title="editingProfile ? 'Profiel bewerken' : 'Nieuw prijsprofiel'" description="Een profiel groepeert alle regels voor één prijsstrategie." @close="closeProfileModal">
             <form class="space-y-4" @submit.prevent="submitProfile">
                 <AlertError :message="formError" />
                 <div>
@@ -223,7 +224,7 @@
             </form>
         </ModalDialog>
 
-        <ModalDialog :open="ruleModalOpen" :title="editingRule ? 'Regel bewerken' : 'Nieuwe prijsregel'" description="Regels zijn bewust generiek opgebouwd met voorwaarden en acties.">
+        <ModalDialog :open="ruleModalOpen" :title="editingRule ? 'Regel bewerken' : 'Nieuwe prijsregel'" description="Regels zijn bewust generiek opgebouwd met voorwaarden en acties." @close="closeRuleModal">
             <form class="space-y-4" @submit.prevent="submitRule">
                 <AlertError :message="formError" />
                 <div class="grid grid-cols-2 gap-4">
@@ -375,6 +376,13 @@ const error = ref('')
 const formError = ref('')
 
 const profiles = ref([])
+const props = defineProps({
+    embedded: {
+        type: Boolean,
+        default: false,
+    },
+})
+
 const products = ref([])
 const cateringOptions = ref([])
 const selectedProfileId = ref(null)

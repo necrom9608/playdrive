@@ -5,6 +5,8 @@ use App\Http\Controllers\Api\Backoffice\CateringOptionController;
 use App\Http\Controllers\Api\Backoffice\CateringOptionProductController;
 
 Route::view('/', 'backoffice.app');
+Route::view('/product-management', 'backoffice.app');
+Route::view('/product-categories', 'backoffice.app');
 Route::view('/products', 'backoffice.app');
 Route::view('/catering-options', 'backoffice.app');
 Route::view('/event-types', 'backoffice.app');

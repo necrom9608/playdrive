@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Frontdesk;
 use App\Domain\Orders\OrderService;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\User;
 use App\Support\CurrentTenant;
 use Illuminate\Http\JsonResponse;
@@ -40,38 +41,7 @@ class OrderController extends Controller
             ->where('status', Order::STATUS_OPEN)
             ->latest('id')
             ->get()
-            ->map(function (Order $order) {
-                return [
-                    'id' => $order->id,
-                    'status' => $order->status,
-                    'context' => $order->source === Order::SOURCE_RESERVATION ? 'reservation' : 'walk_in',
-                    'reservation_id' => $order->registration_id,
-                    'subtotal_excl_vat' => (float) $order->subtotal_excl_vat,
-                    'total_vat' => (float) $order->total_vat,
-                    'total_incl_vat' => (float) $order->total_incl_vat,
-                    'created_by' => $this->transformActor($order->creator),
-                    'updated_by' => $this->transformActor($order->updater),
-                    'paid_by' => $this->transformActor($order->payer),
-                    'cancelled_by' => $this->transformActor($order->canceller),
-                    'refunded_by' => $this->transformActor($order->refunder),
-                    'items' => $order->items
-                        ->sortBy('sort_order')
-                        ->map(fn ($item) => [
-                            'id' => $item->id,
-                            'line_id' => 'order-item-' . $item->id,
-                            'product_id' => $item->product_id,
-                            'name' => $item->name,
-                            'price_incl_vat' => (float) $item->unit_price_incl_vat,
-                            'quantity' => (int) $item->quantity,
-                            'source' => $item->source,
-                            'source_reference' => $item->source_reference,
-                            'created_by' => $this->transformActor($item->creator),
-                            'updated_by' => $this->transformActor($item->updater),
-                        ])
-                        ->values()
-                        ->all(),
-                ];
-            })
+            ->map(fn (Order $order) => $this->transformOrder($order))
             ->values();
 
         return response()->json([
@@ -79,16 +49,59 @@ class OrderController extends Controller
         ]);
     }
 
+    public function addItem(Request $request, CurrentTenant $currentTenant): JsonResponse
+    {
+        $validated = $request->validate([
+            'reservation_id' => ['nullable', 'integer'],
+            'product_id' => ['required', 'integer'],
+            'quantity' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $order = $this->orderService->addManualItem($validated, $currentTenant);
+
+        return response()->json([
+            'data' => $this->transformOrder($order),
+        ]);
+    }
+
+    public function updateItem(Request $request, CurrentTenant $currentTenant, Order $order, OrderItem $item): JsonResponse
+    {
+        $validated = $request->validate([
+            'quantity' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $updatedOrder = $this->orderService->updateOrderItemQuantity(
+            $order,
+            $item,
+            (int) $validated['quantity'],
+            $currentTenant,
+        );
+
+        return response()->json([
+            'data' => $this->transformOrder($updatedOrder),
+        ]);
+    }
+
+    public function deleteItem(CurrentTenant $currentTenant, Order $order, OrderItem $item): JsonResponse
+    {
+        $updatedOrder = $this->orderService->removeOrderItem($order, $item, $currentTenant);
+
+        return response()->json([
+            'data' => $this->transformOrder($updatedOrder),
+        ]);
+    }
+
     public function checkout(Request $request, CurrentTenant $currentTenant): JsonResponse
     {
         $validated = $request->validate([
+            'order_id' => ['nullable', 'integer'],
             'reservation_id' => ['nullable', 'integer'],
             'payment_method' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string'],
             'invoice_requested' => ['nullable', 'boolean'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'integer'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items' => ['nullable', 'array'],
+            'items.*.product_id' => ['required_with:items', 'integer'],
+            'items.*.quantity' => ['required_with:items', 'integer', 'min:1'],
         ]);
 
         $order = $this->orderService->checkout($validated, $currentTenant);
@@ -211,6 +224,40 @@ class OrderController extends Controller
         return [
             'id' => $user->id,
             'name' => $user->name,
+        ];
+    }
+
+    protected function transformOrder(Order $order): array
+    {
+        return [
+            'id' => $order->id,
+            'status' => $order->status,
+            'context' => $order->source === Order::SOURCE_RESERVATION ? 'reservation' : 'walk_in',
+            'reservation_id' => $order->registration_id,
+            'subtotal_excl_vat' => (float) $order->subtotal_excl_vat,
+            'total_vat' => (float) $order->total_vat,
+            'total_incl_vat' => (float) $order->total_incl_vat,
+            'created_by' => $this->transformActor($order->creator),
+            'updated_by' => $this->transformActor($order->updater),
+            'paid_by' => $this->transformActor($order->payer),
+            'cancelled_by' => $this->transformActor($order->canceller),
+            'refunded_by' => $this->transformActor($order->refunder),
+            'items' => $order->items
+                ->sortBy('sort_order')
+                ->map(fn ($item) => [
+                    'id' => $item->id,
+                    'line_id' => 'order-item-' . $item->id,
+                    'product_id' => $item->product_id,
+                    'name' => $item->name,
+                    'price_incl_vat' => (float) $item->unit_price_incl_vat,
+                    'quantity' => (int) $item->quantity,
+                    'source' => $item->source,
+                    'source_reference' => $item->source_reference,
+                    'created_by' => $this->transformActor($item->creator),
+                    'updated_by' => $this->transformActor($item->updater),
+                ])
+                ->values()
+                ->all(),
         ];
     }
 }

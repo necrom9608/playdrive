@@ -1,9 +1,21 @@
 <template>
     <div class="space-y-6">
-        <div class="flex flex-wrap items-start justify-between gap-4">
+        <div v-if="!embedded" class="flex flex-wrap items-start justify-between gap-4">
             <div>
-                <h1 class="text-3xl font-bold text-white">Product Categories</h1>
+                <h1 class="text-3xl font-bold text-white">Productcategorieën</h1>
                 <p class="mt-2 text-slate-400">Beheer hier de productcategorieën. Versleep rijen om de volgorde aan te passen.</p>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="button" @click="loadCategories" :disabled="loading" class="rounded-xl border border-slate-700 px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 disabled:opacity-60">Vernieuwen</button>
+                <button type="button" @click="openCreateModal" class="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500">Nieuwe categorie</button>
+            </div>
+        </div>
+
+        <div v-else class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+                <h2 class="text-2xl font-bold text-white">Categorieën</h2>
+                <p class="mt-2 text-slate-400">Versleep rijen om de volgorde aan te passen.</p>
             </div>
 
             <div class="flex gap-3">
@@ -57,7 +69,7 @@
             </div>
         </div>
 
-        <ModalDialog :open="modalOpen" :title="editingId ? 'Categorie bewerken' : 'Nieuwe categorie'" description="Toevoegen en bewerken gebeurt hier via een modal.">
+        <ModalDialog :open="modalOpen" :title="editingId ? 'Categorie bewerken' : 'Nieuwe categorie'" description="Toevoegen en bewerken gebeurt hier via een modal." @close="closeModal">
             <form class="space-y-4" @submit.prevent="submit">
                 <div>
                     <label class="mb-1 block text-sm font-medium text-slate-300">Naam</label>
@@ -84,6 +96,13 @@
 import { onMounted, reactive, ref } from 'vue'
 import ModalDialog from '../../../components/ModalDialog.vue'
 import { createProductCategory, deleteProductCategory, fetchProductCategories, reorderProductCategories, updateProductCategory } from '../services/productCategoryApi'
+
+const props = defineProps({
+    embedded: {
+        type: Boolean,
+        default: false,
+    },
+})
 
 const categories = ref([])
 const loading = ref(false)
@@ -126,7 +145,7 @@ async function loadCategories() {
     try {
         categories.value = await fetchProductCategories()
     } catch (err) {
-        error.value = 'Kon categorieën niet laden.'
+        error.value = err?.data?.message ?? 'Kon categorieën niet laden.'
         console.error(err)
     } finally {
         loading.value = false
@@ -146,7 +165,7 @@ async function submit() {
         closeModal()
         await loadCategories()
     } catch (err) {
-        error.value = 'Kon categorie niet opslaan.'
+        error.value = err?.data?.message ?? 'Kon categorie niet opslaan.'
         console.error(err)
     } finally {
         saving.value = false
@@ -159,7 +178,7 @@ async function removeCategory(category) {
         await deleteProductCategory(category.id)
         await loadCategories()
     } catch (err) {
-        error.value = 'Kon categorie niet verwijderen.'
+        error.value = err?.data?.message ?? 'Kon categorie niet verwijderen.'
         console.error(err)
     }
 }
@@ -176,13 +195,12 @@ async function onDrop(targetId) {
     const [movedItem] = reordered.splice(fromIndex, 1)
     reordered.splice(toIndex, 0, movedItem)
     categories.value = reordered.map((item, index) => ({ ...item, sort_order: index + 1 }))
-    const moved = categories.value.map((item) => ({ id: item.id }))
     draggingId.value = null
     try {
-        await reorderProductCategories(moved)
+        await reorderProductCategories(categories.value.map((item) => ({ id: item.id })))
         await loadCategories()
     } catch (err) {
-        error.value = 'Kon volgorde niet opslaan.'
+        error.value = err?.data?.message ?? 'Kon volgorde niet opslaan.'
         console.error(err)
     }
 }

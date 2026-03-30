@@ -277,6 +277,14 @@ export const usePosStore = defineStore('pos', {
 
                 this.categories = categoriesResponse.data
                 this.products = productsResponse.data
+
+                if (
+                    this.selectedCategoryId === null &&
+                    Array.isArray(this.categories) &&
+                    this.categories.length > 0
+                ) {
+                    this.selectedCategoryId = this.categories[0].id
+                }
             } finally {
                 this.loadingCatalog = false
             }
@@ -379,93 +387,173 @@ export const usePosStore = defineStore('pos', {
 
             if (normalized.context === 'reservation' && normalized.reservation_id) {
                 this.reservationOrders[normalized.reservation_id] = normalized
+
+                if (this.selectedReservationId === normalized.reservation_id) {
+                    this.selectedOrderId = normalized.id ?? null
+                }
+
                 return
             }
 
             this.walkInOrder = normalized
+
+            if (!this.selectedReservationId) {
+                this.selectedOrderId = normalized.id ?? null
+            }
         },
 
         setSelectedOrderId(id) {
             this.selectedOrderId = id
         },
 
-        addProduct(product) {
-            const order = this.getMutableCurrentOrder()
-            const items = order.items
-            const lastItem = items.length ? items[items.length - 1] : null
-
-            if (lastItem && Number(lastItem.product_id) === Number(product.id) && (lastItem.source ?? 'manual') === 'manual') {
-                lastItem.quantity += 1
-                this.lastAddedLineId = lastItem.line_id
-                return
-            }
-
-            const newLine = {
-                line_id: generateLineId(),
-                product_id: product.id,
-                name: product.name,
-                price_incl_vat: Number(product.price_incl_vat ?? product.price ?? 0),
+        async persistAddProduct(product) {
+            const response = await axios.post('/api/frontdesk/orders/items', {
+                reservation_id: this.selectedReservationId,
+                product_id: Number(product.id),
                 quantity: 1,
-                source: 'manual',
-                source_reference: null,
+            })
+
+            const savedOrder = response.data?.data ?? null
+
+            if (!savedOrder) {
+                return null
             }
 
-            items.push(newLine)
-            this.lastAddedLineId = newLine.line_id
+            this.upsertOrder(savedOrder)
+
+            const savedItems = savedOrder.items ?? []
+            const matchingItems = savedItems.filter(item => Number(item.product_id) === Number(product.id) && (item.source ?? 'manual') === 'manual')
+            const lastItem = matchingItems.length ? matchingItems[matchingItems.length - 1] : savedItems[savedItems.length - 1] ?? null
+            this.lastAddedLineId = lastItem?.line_id ?? null
+
+            return savedOrder
         },
 
-        increaseItem(lineId) {
-            const order = this.getMutableCurrentOrder()
-            const item = order.items.find(entry => entry.line_id === lineId)
-
-            if (item) {
-                item.quantity += 1
-                this.lastAddedLineId = item.line_id
-            }
-        },
-
-        decreaseItem(lineId) {
-            const order = this.getMutableCurrentOrder()
-            const item = order.items.find(entry => entry.line_id === lineId)
-
-            if (!item) {
-                return
-            }
-
-            item.quantity -= 1
-            this.lastAddedLineId = item.line_id
-
-            if (item.quantity <= 0) {
-                this.removeItem(lineId)
-            }
-        },
-
-        removeItem(lineId) {
-            const order = this.getMutableCurrentOrder()
-            order.items = order.items.filter(item => item.line_id !== lineId)
-
-            if (this.lastAddedLineId === lineId) {
-                this.lastAddedLineId = order.items.length
-                    ? order.items[order.items.length - 1].line_id
-                    : null
-            }
-        },
-
-        clearOrder() {
-            this.lastAddedLineId = null
+        async addProduct(product) {
             this.checkoutError = null
 
-            if (this.selectedReservationId) {
-                this.reservationOrders[this.selectedReservationId] = createEmptyOrder(
-                    'reservation',
-                    this.selectedReservationId
-                )
-                this.selectedOrderId = null
+            try {
+                await this.persistAddProduct(product)
+            } catch (error) {
+                console.error('Failed to add product to order', error)
+                this.checkoutError = error?.response?.data?.message ?? 'Product toevoegen mislukt.'
+            }
+        },
+
+        async increaseItem(lineId) {
+            const order = this.getMutableCurrentOrder()
+            const item = order.items.find(entry => entry.line_id === lineId)
+
+            if (!item || !order?.id || !item?.id) {
                 return
             }
 
-            this.walkInOrder = createEmptyOrder('walk_in', null)
-            this.selectedOrderId = null
+            this.checkoutError = null
+
+            try {
+                const response = await axios.patch(`/api/frontdesk/orders/${order.id}/items/${item.id}`, {
+                    quantity: Number(item.quantity) + 1,
+                })
+
+                const savedOrder = response.data?.data ?? null
+
+                if (!savedOrder) {
+                    return
+                }
+
+                this.upsertOrder(savedOrder)
+                this.lastAddedLineId = lineId
+            } catch (error) {
+                console.error('Failed to increase order item', error)
+                this.checkoutError = error?.response?.data?.message ?? 'Aantal verhogen mislukt.'
+            }
+        },
+
+        async decreaseItem(lineId) {
+            const order = this.getMutableCurrentOrder()
+            const item = order.items.find(entry => entry.line_id === lineId)
+
+            if (!item || !order?.id || !item?.id) {
+                return
+            }
+
+            this.checkoutError = null
+
+            if (Number(item.quantity) <= 1) {
+                await this.removeItem(lineId)
+                return
+            }
+
+            try {
+                const response = await axios.patch(`/api/frontdesk/orders/${order.id}/items/${item.id}`, {
+                    quantity: Number(item.quantity) - 1,
+                })
+
+                const savedOrder = response.data?.data ?? null
+
+                if (!savedOrder) {
+                    return
+                }
+
+                this.upsertOrder(savedOrder)
+                this.lastAddedLineId = lineId
+            } catch (error) {
+                console.error('Failed to decrease order item', error)
+                this.checkoutError = error?.response?.data?.message ?? 'Aantal verlagen mislukt.'
+            }
+        },
+
+        async removeItem(lineId) {
+            const order = this.getMutableCurrentOrder()
+            const item = order.items.find(entry => entry.line_id === lineId)
+
+            if (!item || !order?.id || !item?.id) {
+                return
+            }
+
+            this.checkoutError = null
+
+            try {
+                const response = await axios.delete(`/api/frontdesk/orders/${order.id}/items/${item.id}`)
+                const savedOrder = response.data?.data ?? null
+
+                if (!savedOrder) {
+                    return
+                }
+
+                this.upsertOrder(savedOrder)
+
+                if (this.lastAddedLineId === lineId) {
+                    const currentItems = savedOrder.items ?? []
+                    this.lastAddedLineId = currentItems.length
+                        ? currentItems[currentItems.length - 1].line_id
+                        : null
+                }
+            } catch (error) {
+                console.error('Failed to remove order item', error)
+                this.checkoutError = error?.response?.data?.message ?? 'Item verwijderen mislukt.'
+            }
+        },
+
+        async clearOrder() {
+            const order = this.currentOrder
+            const items = [...(order?.items ?? [])]
+
+            this.checkoutError = null
+            this.lastAddedLineId = null
+
+            if (!items.length) {
+                return
+            }
+
+            for (const item of items) {
+                if (!item?.line_id) {
+                    continue
+                }
+
+                // eslint-disable-next-line no-await-in-loop
+                await this.removeItem(item.line_id)
+            }
         },
 
         replaceWalkInOrder(order) {
@@ -590,6 +678,7 @@ export const usePosStore = defineStore('pos', {
 
             try {
                 const response = await axios.post('/api/frontdesk/orders/checkout', {
+                    order_id: order?.id ?? null,
                     reservation_id: this.selectedReservationId,
                     payment_method: payload.payment_method ?? 'cash',
                     notes: payload.notes ?? null,
