@@ -7,11 +7,13 @@ use App\Http\Requests\Frontdesk\StoreMemberRequest;
 use App\Http\Requests\Frontdesk\UpdateMemberRequest;
 use App\Mail\MemberLifecycleMail;
 use App\Models\Member;
+use App\Models\Registration;
 use App\Support\CurrentTenant;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
 class MemberController extends Controller
@@ -175,6 +177,150 @@ class MemberController extends Controller
 
         return response()->json([
             'data' => $this->mapMember($member->fresh()),
+        ]);
+    }
+
+
+    public function toggleAttendance(Request $request, CurrentTenant $currentTenant): JsonResponse
+    {
+        $data = $request->validate([
+            'member_id' => ['nullable', 'integer'],
+            'query' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $member = null;
+
+        if (!empty($data['member_id'])) {
+            $member = Member::query()
+                ->where('tenant_id', $currentTenant->id())
+                ->find($data['member_id']);
+        }
+
+        if (!$member && !empty($data['query'])) {
+            $search = trim((string) $data['query']);
+
+            $member = Member::query()
+                ->where('tenant_id', $currentTenant->id())
+                ->where(function (Builder $query) use ($search) {
+                    $query
+                        ->where('first_name', 'like', '%' . $search . '%')
+                        ->orWhere('last_name', 'like', '%' . $search . '%')
+                        ->orWhereRaw("concat(first_name, ' ', last_name) like ?", ['%' . $search . '%'])
+                        ->orWhere('login', 'like', '%' . $search . '%')
+                        ->orWhere('rfid_uid', 'like', '%' . $search . '%')
+                        ->orWhere('email', 'like', '%' . $search . '%');
+                })
+                ->orderBy('last_name')
+                ->orderBy('first_name')
+                ->first();
+        }
+
+        if (!$member) {
+            return response()->json([
+                'message' => 'Geen lid gevonden.',
+            ], 404);
+        }
+
+        $today = now()->startOfDay();
+        $endsAt = $member->membership_ends_at?->copy()->startOfDay();
+
+        if (!(bool) $member->is_active || ($endsAt && $endsAt->lt($today))) {
+            return response()->json([
+                'message' => 'Dit lid heeft geen actief abonnement.',
+                'member' => $this->mapMember($member),
+            ], 422);
+        }
+
+        $actorUserId = $request->attributes->get('frontdesk_user')?->id;
+
+        $openRegistration = Registration::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->where('is_member', true)
+            ->where('member_id', $member->id)
+            ->where('status', Registration::STATUS_CHECKED_IN)
+            ->latest('id')
+            ->first();
+
+        $registration = DB::transaction(function () use ($member, $currentTenant, $actorUserId, $openRegistration) {
+            if ($openRegistration) {
+                $openRegistration->status = Registration::STATUS_CHECKED_OUT;
+                $openRegistration->checked_out_at = now();
+                $openRegistration->checked_out_by = $actorUserId;
+                $openRegistration->updated_by = $actorUserId;
+
+                if ($openRegistration->checked_in_at) {
+                    $openRegistration->played_minutes = max(
+                        0,
+                        $openRegistration->checked_in_at->diffInMinutes($openRegistration->checked_out_at)
+                    );
+                }
+
+                $openRegistration->save();
+
+                return $openRegistration->fresh();
+            }
+
+            [$children, $adults] = match ((string) $member->membership_type) {
+                'child' => [1, 0],
+                default => [0, 1],
+            };
+
+            return Registration::query()->create([
+                'tenant_id' => $currentTenant->id(),
+                'name' => trim($member->first_name . ' ' . $member->last_name),
+                'phone' => null,
+                'email' => $this->nullableValue($member->email),
+                'postal_code' => $this->nullableValue($member->postal_code),
+                'municipality' => $this->nullableValue($member->city),
+                'event_type_id' => null,
+                'event_date' => now()->toDateString(),
+                'event_time' => now()->format('H:i'),
+                'stay_option_id' => null,
+                'catering_option_id' => null,
+                'participants_children' => $children,
+                'participants_adults' => $adults,
+                'participants_supervisors' => 0,
+                'comment' => 'Lidbezoek',
+                'stats' => [],
+                'status' => Registration::STATUS_CHECKED_IN,
+                'invoice_requested' => false,
+                'invoice_company_name' => null,
+                'invoice_vat_number' => null,
+                'invoice_email' => null,
+                'invoice_address' => null,
+                'invoice_postal_code' => null,
+                'invoice_city' => null,
+                'checked_in_at' => now(),
+                'checked_in_by' => $actorUserId,
+                'checked_out_at' => null,
+                'checked_out_by' => null,
+                'cancelled_at' => null,
+                'cancelled_by' => null,
+                'no_show_at' => null,
+                'no_show_by' => null,
+                'created_by' => $actorUserId,
+                'updated_by' => $actorUserId,
+                'played_minutes' => null,
+                'bill_total_cents' => 0,
+                'outside_opening_hours' => false,
+                'is_member' => true,
+                'member_id' => $member->id,
+            ]);
+        });
+
+        return response()->json([
+            'message' => $openRegistration ? 'Lid uitgecheckt.' : 'Lid ingecheckt.',
+            'action' => $openRegistration ? 'checked_out' : 'checked_in',
+            'member' => $this->mapMember($member->fresh()),
+            'registration' => [
+                'id' => $registration->id,
+                'status' => $registration->status,
+                'checked_in_at' => optional($registration->checked_in_at)?->toIso8601String(),
+                'checked_out_at' => optional($registration->checked_out_at)?->toIso8601String(),
+                'played_minutes' => $registration->played_minutes,
+                'is_member' => (bool) $registration->is_member,
+                'member_id' => $registration->member_id,
+            ],
         ]);
     }
 

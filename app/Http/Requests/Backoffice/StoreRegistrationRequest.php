@@ -56,6 +56,8 @@ class StoreRegistrationRequest extends FormRequest
             'invoice_city' => ['nullable', 'string', 'max:255'],
 
             'outside_opening_hours' => ['required', 'boolean'],
+            'is_member' => ['sometimes', 'boolean'],
+            'member_id' => ['nullable', 'integer', 'exists:members,id'],
         ];
     }
 
@@ -67,6 +69,7 @@ class StoreRegistrationRequest extends FormRequest
             'participants_children' => (int) $this->input('participants_children', 0),
             'participants_adults' => (int) $this->input('participants_adults', 0),
             'participants_supervisors' => (int) $this->input('participants_supervisors', 0),
+            'is_member' => filter_var($this->input('is_member', false), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
         ]);
     }
 }

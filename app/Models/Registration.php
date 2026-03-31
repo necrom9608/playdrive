@@ -57,6 +57,8 @@ class Registration extends Model
         'played_minutes',
         'bill_total_cents',
         'outside_opening_hours',
+        'is_member',
+        'member_id',
     ];
     protected $casts = [
         'event_date' => 'date',
@@ -64,6 +66,7 @@ class Registration extends Model
         'stats' => 'array',
         'invoice_requested' => 'boolean',
         'outside_opening_hours' => 'boolean',
+        'is_member' => 'boolean',
         'checked_in_at' => 'datetime',
         'checked_out_at' => 'datetime',
         'cancelled_at' => 'datetime',
@@ -100,6 +103,11 @@ class Registration extends Model
             self::STATUS_NO_SHOW => 'No-show',
             default => 'Onbekend',
         };
+    }
+
+    public function member(): BelongsTo
+    {
+        return $this->belongsTo(Member::class);
     }
 
     public function eventType(): BelongsTo

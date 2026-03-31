@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Frontdesk;
 use App\Domain\Orders\OrderService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backoffice\StoreRegistrationRequest;
+use App\Models\Member;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Registration;
@@ -28,6 +29,7 @@ class RegistrationController extends Controller
                 'eventType:id,name,code,emoji',
                 'stayOption:id,name,code,duration_minutes',
                 'cateringOption:id,name,code,emoji',
+                'member:id,first_name,last_name,login,rfid_uid,membership_type',
                 'createdBy:id,name',
                 'updatedBy:id,name',
                 'checkedInBy:id,name',
@@ -84,6 +86,7 @@ class RegistrationController extends Controller
             'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
             'cateringOption:id,name,code,emoji',
+                'member:id,first_name,last_name,login,rfid_uid,membership_type',
             'createdBy:id,name',
             'updatedBy:id,name',
             'checkedInBy:id,name',
@@ -114,6 +117,7 @@ class RegistrationController extends Controller
             'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
             'cateringOption:id,name,code,emoji',
+                'member:id,first_name,last_name,login,rfid_uid,membership_type',
             'createdBy:id,name',
             'updatedBy:id,name',
             'checkedInBy:id,name',
@@ -157,6 +161,7 @@ class RegistrationController extends Controller
             'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
             'cateringOption:id,name,code,emoji',
+                'member:id,first_name,last_name,login,rfid_uid,membership_type',
             'createdBy:id,name',
             'updatedBy:id,name',
             'checkedInBy:id,name',
@@ -165,12 +170,16 @@ class RegistrationController extends Controller
             'noShowBy:id,name',
         ]);
 
-        $order = $this->orderService->syncPricingForRegistration($registration, $currentTenant);
+        $order = null;
+
+        if (! $registration->is_member) {
+            $order = $this->orderService->syncPricingForRegistration($registration, $currentTenant);
+        }
 
         return response()->json([
             'message' => 'Registratie uitgecheckt.',
             'data' => $this->transformRegistration($registration),
-            'order' => $this->transformOrderForPos($order),
+            'order' => $order ? $this->transformOrderForPos($order) : null,
         ]);
     }
 
@@ -190,6 +199,7 @@ class RegistrationController extends Controller
             'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
             'cateringOption:id,name,code,emoji',
+                'member:id,first_name,last_name,login,rfid_uid,membership_type',
             'createdBy:id,name',
             'updatedBy:id,name',
             'checkedInBy:id,name',
@@ -220,6 +230,7 @@ class RegistrationController extends Controller
             'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
             'cateringOption:id,name,code,emoji',
+                'member:id,first_name,last_name,login,rfid_uid,membership_type',
             'createdBy:id,name',
             'updatedBy:id,name',
             'checkedInBy:id,name',
@@ -283,6 +294,7 @@ class RegistrationController extends Controller
             'eventType:id,name,code,emoji',
             'stayOption:id,name,code,duration_minutes',
             'cateringOption:id,name,code,emoji',
+                'member:id,first_name,last_name,login,rfid_uid,membership_type',
             'createdBy:id,name',
             'updatedBy:id,name',
             'checkedInBy:id,name',
@@ -339,6 +351,9 @@ class RegistrationController extends Controller
             'updated_by' => $this->transformActor($registration->updatedBy),
             'played_minutes' => $registration->played_minutes,
             'outside_opening_hours' => $registration->outside_opening_hours,
+            'is_member' => (bool) $registration->is_member,
+            'member_id' => $registration->member_id,
+            'member' => $registration->member ? $this->transformMember($registration->member) : null,
             'duration_label' => $registration->stayOption?->name,
             'event_type' => $registration->eventType?->name,
             'catering_option' => $registration->cateringOption?->name,
@@ -392,6 +407,17 @@ class RegistrationController extends Controller
                 ])
                 ->values()
                 ->all(),
+        ];
+    }
+
+    protected function transformMember(Member $member): array
+    {
+        return [
+            'id' => $member->id,
+            'full_name' => trim($member->first_name . ' ' . $member->last_name),
+            'login' => $member->login,
+            'rfid_uid' => $member->rfid_uid,
+            'membership_type' => $member->membership_type,
         ];
     }
 
