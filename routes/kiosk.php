@@ -2,4 +2,4 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'kiosk.app');
+Route::view('/{any?}', 'kiosk.app')->where('any', '.*');

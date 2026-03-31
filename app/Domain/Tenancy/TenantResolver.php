@@ -13,15 +13,47 @@ class TenantResolver
             return null;
         }
 
+        $normalizedHost = strtolower($host);
+
         $domain = TenantDomain::query()
             ->with('tenant')
-            ->where('domain', $host)
+            ->whereRaw('lower(domain) = ?', [$normalizedHost])
             ->first();
 
-        if (! $domain || ! $domain->tenant || ! $domain->tenant->is_active) {
+        if ($domain?->tenant?->is_active) {
+            return $domain->tenant;
+        }
+
+        $slug = $this->extractTenantSlug($normalizedHost);
+
+        if (! $slug) {
             return null;
         }
 
-        return $domain->tenant;
+        return Tenant::query()
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->first();
+    }
+
+    private function extractTenantSlug(string $host): ?string
+    {
+        $segments = explode('.', $host);
+
+        if (count($segments) < 3) {
+            return null;
+        }
+
+        $slug = $segments[0] ?? null;
+
+        if (! $slug) {
+            return null;
+        }
+
+        if (in_array($slug, ['frontdesk', 'backoffice', 'client', 'kiosk', 'www'], true)) {
+            return null;
+        }
+
+        return $slug;
     }
 }

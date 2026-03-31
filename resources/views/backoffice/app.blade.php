@@ -6,6 +6,14 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>PlayDrive Backoffice</title>
     @vite(['resources/css/app.css', 'resources/js/apps/backoffice/app.js'])
+
+    <script>
+        window.PlayDrive = {
+            tenantName: @js($currentTenant?->name ?? null),
+            tenantSlug: @js($currentTenant?->slug ?? null),
+            host: @js(request()->getHost()),
+        };
+    </script>
 </head>
 <body class="bg-slate-950">
 <div id="app"></div>

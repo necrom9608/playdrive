@@ -15,7 +15,7 @@
 
                 <div class="hidden items-center gap-3 xl:flex">
                     <div class="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-300">
-                        Tenant: <span class="font-semibold text-white">Game-INN</span>
+                        Tenant: <span class="font-semibold text-white">{{ tenantName }}</span>
                     </div>
 
                     <div
@@ -46,6 +46,8 @@ import FrontdeskNav from './FrontdeskNav.vue'
 import { useAuthStore } from '../stores/authStore'
 
 const auth = useAuthStore()
+
+const tenantName = window.PlayDrive?.tenantName || 'Onbekende tenant'
 
 const navigation = [
     { label: 'Dashboard', to: '/', icon: 'home' },
