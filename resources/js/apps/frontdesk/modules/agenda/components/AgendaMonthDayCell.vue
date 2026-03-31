@@ -22,7 +22,7 @@
         </div>
 
         <div class="mt-1 text-[10px] leading-none text-slate-500">
-            {{ day.totals.reservations }} res.
+            {{ day.totals.reservations }} res. · {{ day.totals.tasks || 0 }} taken
         </div>
 
         <div class="mt-2 flex flex-wrap content-start gap-1.5">
@@ -99,7 +99,9 @@ const visibleTags = computed(() => {
         .filter(tag => tag.value > 0)
         .filter(tag => !isEmptyCatering(tag.normalizedLabel))
 
-    return [...statusTags, ...cateringTags].slice(0, 4)
+    const taskTags = (props.day?.task_totals ?? []).map((task) => ({ id: `task-${task.key}`, label: task.label, shortLabel: `Taak ${shortStatusLabel(task.label)}`, value: Number(task.count ?? 0), badge: task.colors?.badge ?? 'bg-pink-500/15 text-pink-300 ring-pink-500/30', accent: task.colors?.accent ?? 'bg-pink-500' })).filter(tag => tag.value > 0)
+
+    return [...statusTags, ...taskTags, ...cateringTags].slice(0, 4)
 })
 
 function shortStatusLabel(label) {

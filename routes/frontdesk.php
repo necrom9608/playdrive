@@ -6,9 +6,12 @@ use App\Http\Controllers\Api\Frontdesk\AuthController;
 use App\Http\Controllers\Api\Frontdesk\FormOptionsController;
 use App\Http\Controllers\Api\Frontdesk\LocationSearchController;
 use App\Http\Controllers\Api\Frontdesk\MemberController;
+use App\Http\Controllers\Api\Frontdesk\TaskController;
+use App\Http\Controllers\Api\Frontdesk\GiftVoucherController;
 use App\Http\Controllers\Api\Frontdesk\OrderController;
 use App\Http\Controllers\Api\Frontdesk\RegistrationController;
 use App\Http\Controllers\Api\Frontdesk\SalesController;
+use App\Http\Controllers\Api\Frontdesk\StaffAttendanceController;
 
 Route::view('/', 'frontdesk.app');
 Route::view('/pos', 'frontdesk.app');
@@ -44,6 +47,7 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::patch('/orders/{order}/items/{item}', [OrderController::class, 'updateItem']);
         Route::delete('/orders/{order}/items/{item}', [OrderController::class, 'deleteItem']);
         Route::post('/orders/checkout', [OrderController::class, 'checkout']);
+        Route::post('/vouchers/validate', [GiftVoucherController::class, 'validateForPos']);
 
         Route::get('/sales', [SalesController::class, 'index']);
         Route::get('/agenda', AgendaController::class);
@@ -53,6 +57,17 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::put('/members/{member}', [MemberController::class, 'update']);
         Route::post('/members/{member}/renew', [MemberController::class, 'renew']);
         Route::post('/members/{member}/send-email', [MemberController::class, 'sendEmail']);
+
+        Route::get('/tasks', [TaskController::class, 'index']);
+        Route::post('/tasks', [TaskController::class, 'store']);
+        Route::put('/tasks/{task}', [TaskController::class, 'update']);
+
+        Route::get('/vouchers', [GiftVoucherController::class, 'index']);
+        Route::post('/vouchers', [GiftVoucherController::class, 'store']);
+        Route::put('/vouchers/{voucher}', [GiftVoucherController::class, 'update']);
+
+        Route::get('/staff-attendance', [StaffAttendanceController::class, 'index']);
+        Route::post('/staff-attendance/scan', [StaffAttendanceController::class, 'scan']);
 
         Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel']);
         Route::post('/orders/{order}/refund', [OrderController::class, 'refund']);

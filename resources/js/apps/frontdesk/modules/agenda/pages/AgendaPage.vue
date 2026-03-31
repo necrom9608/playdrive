@@ -5,7 +5,7 @@
                 <div>
                     <h1 class="text-xl font-semibold text-white">Agenda</h1>
                     <p class="mt-1 text-sm text-slate-400">
-                        Overzicht van alle reservaties per dag, week en maand.
+                        Overzicht van alle reservaties en taken per dag, week en maand.
                     </p>
                 </div>
 
@@ -54,6 +54,11 @@
                             <span class="font-semibold">{{ status.count }}</span>
                         </div>
                     </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2 text-xs text-slate-400">
+                    <span class="rounded-full border border-slate-700 bg-slate-950 px-3 py-1">{{ store.summary.reservations || 0 }} reservaties</span>
+                    <span class="rounded-full border border-pink-500/30 bg-pink-500/10 px-3 py-1 text-pink-200">{{ store.summary.tasks || 0 }} taken</span>
                 </div>
 
                 <div class="inline-flex rounded-2xl border border-slate-800 bg-slate-950 p-1">

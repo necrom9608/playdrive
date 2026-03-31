@@ -227,7 +227,7 @@ class OrderController extends Controller
         ];
     }
 
-    protected function transformOrder(Order $order): array
+    public function transformOrder(Order $order): array
     {
         return [
             'id' => $order->id,

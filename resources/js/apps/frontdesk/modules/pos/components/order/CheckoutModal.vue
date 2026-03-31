@@ -113,6 +113,40 @@
                             </label>
                         </div>
 
+
+                        <div class="rounded-2xl border border-slate-800 bg-slate-950 px-4 py-4">
+                            <div class="flex flex-col gap-3 md:flex-row md:items-end">
+                                <label class="flex-1 space-y-2 text-sm text-slate-300">
+                                    <span>Cadeaubon scannen / ingeven</span>
+                                    <input
+                                        v-model="voucherCode"
+                                        type="text"
+                                        class="w-full rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-blue-500"
+                                        placeholder="Scan QR of NFC-code"
+                                        @keyup.enter="applyVoucher"
+                                    >
+                                </label>
+
+                                <button
+                                    type="button"
+                                    class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-700"
+                                    @click="applyVoucher"
+                                >
+                                    Valideren
+                                </button>
+                            </div>
+
+                            <div v-if="store.appliedVouchers.length" class="mt-3 flex flex-wrap gap-2">
+                                <span
+                                    v-for="voucher in store.appliedVouchers"
+                                    :key="voucher.id"
+                                    class="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200"
+                                >
+                                    {{ voucher.code }} · -€ {{ formatPrice(voucher.amount_remaining) }}
+                                </span>
+                            </div>
+                        </div>
+
                         <div>
                             <label for="checkout-notes" class="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-400">
                                 Opmerking
@@ -188,7 +222,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { usePosStore } from '../../stores/usePosStore.js'
 
 const props = defineProps({
@@ -221,6 +255,7 @@ const form = reactive({
     notes: '',
     invoice_requested: false,
 })
+const voucherCode = ref('')
 
 const paymentMethodLabel = computed(() => {
     return paymentMethods.find(method => method.value === form.payment_method)?.label ?? form.payment_method
@@ -249,6 +284,20 @@ function formatPrice(value) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     }).format(Number(value ?? 0))
+}
+
+async function applyVoucher() {
+    const code = voucherCode.value.trim()
+
+    if (!code) {
+        return
+    }
+
+    const result = await store.applyVoucher(code)
+
+    if (result) {
+        voucherCode.value = ''
+    }
 }
 
 async function submitCheckout() {

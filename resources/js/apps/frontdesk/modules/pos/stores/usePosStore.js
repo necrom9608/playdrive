@@ -86,6 +86,7 @@ export const usePosStore = defineStore('pos', {
         checkoutProcessing: false,
         checkoutError: null,
         lastCheckoutSummary: null,
+        appliedVouchers: [],
     }),
 
     getters: {
@@ -535,12 +536,45 @@ export const usePosStore = defineStore('pos', {
             }
         },
 
+
+        async applyVoucher(code) {
+            this.checkoutError = null
+
+            try {
+                const response = await axios.post('/api/frontdesk/vouchers/validate', {
+                    code,
+                    reservation_id: this.selectedReservationId,
+                })
+
+                const order = response.data?.data?.order ?? null
+                const voucher = response.data?.data?.voucher ?? null
+
+                if (order) {
+                    this.upsertOrder(order)
+                }
+
+                if (voucher) {
+                    const exists = this.appliedVouchers.find(item => item.id === voucher.id)
+                    if (!exists) {
+                        this.appliedVouchers.push(voucher)
+                    }
+                }
+
+                return voucher
+            } catch (error) {
+                console.error('Failed to apply voucher', error)
+                this.checkoutError = error?.response?.data?.message ?? 'Cadeaubon valideren mislukt.'
+                return null
+            }
+        },
+
         async clearOrder() {
             const order = this.currentOrder
             const items = [...(order?.items ?? [])]
 
             this.checkoutError = null
             this.lastAddedLineId = null
+            this.appliedVouchers = []
 
             if (!items.length) {
                 return
@@ -597,6 +631,7 @@ export const usePosStore = defineStore('pos', {
 
             this.lastAddedLineId = null
             this.checkoutError = null
+            this.appliedVouchers = []
         },
 
         clearReservationSelection() {
@@ -604,6 +639,7 @@ export const usePosStore = defineStore('pos', {
             this.selectedOrderId = this.walkInOrder?.id ?? null
             this.lastAddedLineId = null
             this.checkoutError = null
+            this.appliedVouchers = []
         },
 
         setReservationSearch(value) {
@@ -708,6 +744,7 @@ export const usePosStore = defineStore('pos', {
                 }
 
                 this.lastAddedLineId = null
+                this.appliedVouchers = []
                 return checkoutData
             } catch (error) {
                 this.checkoutError = error?.response?.data?.message ?? 'Afrekenen mislukt.'

@@ -7,6 +7,7 @@ use App\Domain\Pricing\PricingEvaluator;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\GiftVoucher;
 use App\Models\Registration;
 use App\Support\CurrentTenant;
 use Illuminate\Support\Arr;
@@ -266,6 +267,20 @@ class OrderService
                 'notes' => filled(Arr::get($payload, 'notes')) ? (string) Arr::get($payload, 'notes') : null,
                 'invoice_requested' => (bool) Arr::get($payload, 'invoice_requested', false),
             ]);
+
+            GiftVoucher::query()
+                ->where('applied_order_id', $order->id)
+                ->where('status', GiftVoucher::STATUS_VALIDATED)
+                ->get()
+                ->each(function (GiftVoucher $voucher) use ($actorUserId) {
+                    $voucher->update([
+                        'status' => GiftVoucher::STATUS_REDEEMED,
+                        'amount_remaining' => 0,
+                        'redeemed_at' => now(),
+                        'redeemed_by' => $actorUserId,
+                        'updated_by' => $actorUserId,
+                    ]);
+                });
 
             if ($registration) {
                 $registration->update([

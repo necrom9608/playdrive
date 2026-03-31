@@ -3,7 +3,7 @@
         <div class="border-b border-slate-800 p-4">
             <h3 class="text-lg font-semibold text-white">Weektotalen</h3>
             <p class="mt-1 text-sm text-slate-400">
-                Snel overzicht per dag van reservaties en aanwezigen.
+                Snel overzicht per dag van reservaties, taken en aanwezigen.
             </p>
         </div>
 
@@ -25,7 +25,7 @@
                     </div>
 
                     <span class="rounded-full bg-slate-800 px-2 py-1 text-xs font-semibold text-slate-300">
-                        {{ day.totals.reservations }} res.
+                        {{ day.totals.reservations }} res. · {{ day.totals.tasks || 0 }} taken
                     </span>
                 </div>
 
@@ -36,6 +36,17 @@
                     </div>
 
                     <div class="mt-3 flex flex-wrap gap-1.5">
+                        <div
+                            v-for="task in activeStatuses(day.task_totals || [])"
+                            :key="`task-${task.key}`"
+                            class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1"
+                            :class="task.colors.badge"
+                            :title="`${task.label}: ${task.count}`"
+                        >
+                            <span class="h-2 w-2 rounded-full" :class="task.colors.accent"></span>
+                            <span>Taak {{ task.label }}</span>
+                            <span class="font-semibold">{{ task.count }}</span>
+                        </div>
                         <div
                             v-for="status in activeStatuses(day.status_totals)"
                             :key="status.key"
