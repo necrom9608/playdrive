@@ -81,16 +81,10 @@
             :open="modals.task"
             :processing="taskForm.processing"
             :error="taskForm.error"
-            :title-value="taskForm.title"
-            :description-value="taskForm.description"
-            :due-date="taskForm.due_date"
-            :assigned-user-id="taskForm.assigned_user_id"
+            :form="taskForm"
             :staff="taskStaff"
             @close="closeTaskModal"
-            @update:title-value="taskForm.title = $event"
-            @update:description-value="taskForm.description = $event"
-            @update:due-date="taskForm.due_date = $event"
-            @update:assigned-user-id="taskForm.assigned_user_id = $event"
+            @update:form="updateTaskForm"
             @submit="createTask"
         />
     </div>
@@ -170,13 +164,18 @@ async function loadDashboard() {
             axios.get('/api/frontdesk/tasks', { params: { statuses: ['open'] } }),
         ])
 
-        registrations.value = r.data?.data || []
+        registrations.value = (r.data?.data || []).filter(isRegistrationForToday)
         salesSummary.value = s.data?.data?.summary || null
         tasks.value = t.data?.data?.tasks || []
         taskStaff.value = t.data?.data?.staff || []
     } catch (e) {
+        console.error('Dashboard laden mislukt', e)
         showFeedback('error', 'Dashboard laden mislukt')
     }
+}
+
+function isRegistrationForToday(registration) {
+    return String(registration?.event_date || '') === today
 }
 
 /* ---------------- HELPERS ---------------- */
@@ -263,11 +262,11 @@ function init() {
     return { reservations: 0, visitors: 0, childrenStudents: 0, adults: 0 }
 }
 
-function add(b, v, c, a) {
-    b.reservations++
-    b.visitors += v
-    b.childrenStudents += c
-    b.adults += a
+function add(bucket, visitors, childrenStudents, adults) {
+    bucket.reservations++
+    bucket.visitors += visitors
+    bucket.childrenStudents += childrenStudents
+    bucket.adults += adults
 }
 
 /* ---------------- DATA ---------------- */
@@ -382,22 +381,51 @@ async function submitStaffAttendance() {
 }
 
 async function createTask() {
-    await axios.post('/api/frontdesk/tasks', {
-        title: taskForm.title,
-        description: taskForm.description || null,
-        due_date: taskForm.due_date,
-        assigned_user_id: taskForm.assigned_user_id,
-        status: 'open',
-        task_type: 'single',
-    })
-    modals.task = false
-    resetTaskForm()
-    await loadDashboard()
+    taskForm.processing = true
+    taskForm.error = ''
+
+    try {
+        await axios.post('/api/frontdesk/tasks', {
+            title: taskForm.title,
+            description: taskForm.description || null,
+            due_date: taskForm.due_date,
+            assigned_user_id: taskForm.assigned_user_id,
+            status: 'open',
+            task_type: 'single',
+        })
+
+        modals.task = false
+        resetTaskForm()
+        showFeedback('success', 'Taak toegevoegd.')
+        await loadDashboard()
+    } catch (error) {
+        console.error('Taak aanmaken mislukt', error)
+        taskForm.error = error?.response?.data?.message ?? 'Taak opslaan mislukt.'
+    } finally {
+        taskForm.processing = false
+    }
 }
 
 async function completeTask(task) {
-    await axios.patch(`/api/frontdesk/tasks/${task.id}`, { status: 'completed' })
-    await loadDashboard()
+    try {
+        await axios.put(`/api/frontdesk/tasks/${task.id}`, {
+            title: task.title,
+            description: task.description || null,
+            status: 'completed',
+            task_type: task.task_type || 'single',
+            recurrence_pattern: task.recurrence_pattern || null,
+            due_date: task.task_type === 'single' ? (task.due_date || today) : null,
+            start_date: task.task_type === 'recurring' ? (task.start_date || today) : null,
+            end_date: task.task_type === 'recurring' ? (task.end_date || null) : null,
+            assigned_user_id: task.assigned_user_id || null,
+        })
+
+        showFeedback('success', 'Taak afgewerkt.')
+        await loadDashboard()
+    } catch (error) {
+        console.error('Taak afronden mislukt', error)
+        showFeedback('error', error?.response?.data?.message ?? 'Taak afronden mislukt.')
+    }
 }
 
 /* ---------------- UI ---------------- */
@@ -440,6 +468,10 @@ function resetTaskForm() {
     taskForm.assigned_user_id = null
     taskForm.processing = false
     taskForm.error = ''
+}
+
+function updateTaskForm(value) {
+    Object.assign(taskForm, value)
 }
 
 function showFeedback(type, message) {

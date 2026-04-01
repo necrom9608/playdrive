@@ -1,17 +1,38 @@
 <template>
     <section class="flex h-full min-h-0 w-full flex-col rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl">
-        <div class="mb-4 flex items-center justify-between gap-3">
+        <div class="mb-4 flex items-start justify-between gap-3">
             <div>
                 <h2 class="text-xl font-semibold text-white">Bezoekersaantallen</h2>
                 <p class="mt-1 text-sm text-slate-400">Vandaag · reservaties en bezoekers per status</p>
             </div>
 
-            <span class="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1 text-xs font-semibold text-slate-300">
-                {{ dateLabel }}
-            </span>
+            <div class="flex items-center gap-3">
+                <div class="inline-flex rounded-2xl border border-slate-700 bg-slate-950/70 p-1">
+                    <button
+                        type="button"
+                        class="rounded-xl px-3 py-1.5 text-xs font-semibold transition"
+                        :class="viewMode === 'table' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'"
+                        @click="viewMode = 'table'"
+                    >
+                        Totalen
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-xl px-3 py-1.5 text-xs font-semibold transition"
+                        :class="viewMode === 'chart' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'"
+                        @click="viewMode = 'chart'"
+                    >
+                        Pie chart
+                    </button>
+                </div>
+
+                <span class="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1 text-xs font-semibold text-slate-300">
+                    {{ dateLabel }}
+                </span>
+            </div>
         </div>
 
-        <div class="min-h-0 flex-1 rounded-3xl border border-slate-800 bg-slate-950/50 p-3">
+        <div v-if="viewMode === 'table'" class="min-h-0 flex-1 rounded-3xl border border-slate-800 bg-slate-950/50 p-3">
             <div class="grid grid-cols-[220px_repeat(4,minmax(0,1fr))] gap-2">
                 <div class="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-200">
                     <div class="grid grid-cols-[44px_minmax(0,1fr)] items-center gap-3">
@@ -56,33 +77,62 @@
                         </div>
                     </div>
 
-                    <div
-                        class="flex min-h-[72px] items-center justify-center rounded-3xl border px-3 py-3 text-center"
-                        :class="row.cellClass"
-                    >
+                    <div class="flex min-h-[72px] items-center justify-center rounded-3xl border px-3 py-3 text-center" :class="row.cellClass">
                         <span class="text-3xl font-semibold tabular-nums text-white">{{ row.reservations }}</span>
                     </div>
 
-                    <div
-                        class="flex min-h-[72px] items-center justify-center rounded-3xl border px-3 py-3 text-center"
-                        :class="row.cellClass"
-                    >
+                    <div class="flex min-h-[72px] items-center justify-center rounded-3xl border px-3 py-3 text-center" :class="row.cellClass">
                         <span class="text-3xl font-semibold tabular-nums text-white">{{ row.childrenStudents }}</span>
                     </div>
 
-                    <div
-                        class="flex min-h-[72px] items-center justify-center rounded-3xl border px-3 py-3 text-center"
-                        :class="row.cellClass"
-                    >
+                    <div class="flex min-h-[72px] items-center justify-center rounded-3xl border px-3 py-3 text-center" :class="row.cellClass">
                         <span class="text-3xl font-semibold tabular-nums text-white">{{ row.adults }}</span>
                     </div>
 
-                    <div
-                        class="flex min-h-[72px] items-center justify-center rounded-3xl border px-3 py-3 text-center"
-                        :class="row.cellClass"
-                    >
+                    <div class="flex min-h-[72px] items-center justify-center rounded-3xl border px-3 py-3 text-center" :class="row.cellClass">
                         <span class="text-3xl font-semibold tabular-nums text-white">{{ row.visitors }}</span>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-else class="flex min-h-0 flex-1 rounded-3xl border border-slate-800 bg-slate-950/50 p-6">
+            <div class="grid w-full min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-6">
+                <div class="flex min-h-0 items-center justify-center">
+                    <div class="mx-auto flex w-full max-w-[420px] flex-col items-center">
+                        <div
+                            class="relative h-72 w-72 rounded-full border border-slate-700"
+                            :style="{ background: pieGradient }"
+                        >
+                            <div class="absolute inset-[22%] flex flex-col items-center justify-center rounded-full border border-slate-800 bg-slate-950 text-center shadow-inner">
+                                <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Totaal</div>
+                                <div class="mt-2 text-4xl font-bold text-white">{{ totalVisitors }}</div>
+                                <div class="mt-1 text-sm text-slate-400">bezoekers</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <article
+                        v-for="segment in chartSegments"
+                        :key="segment.key"
+                        class="rounded-3xl border border-slate-800 bg-slate-900/80 p-4"
+                    >
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex min-w-0 items-center gap-3">
+                                <span class="mt-1 h-3.5 w-3.5 rounded-full" :style="{ backgroundColor: segment.color }"></span>
+                                <div class="min-w-0">
+                                    <p class="truncate font-semibold text-white">{{ segment.label }}</p>
+                                    <p class="mt-1 text-sm text-slate-400">{{ segment.reservations }} reservaties</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-2xl font-semibold text-white">{{ segment.visitors }}</div>
+                                <div class="text-xs text-slate-400">{{ segment.percentage }}%</div>
+                            </div>
+                        </div>
+                    </article>
                 </div>
             </div>
         </div>
@@ -90,7 +140,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import {
     CalendarDaysIcon,
     IdentificationIcon,
@@ -111,6 +161,8 @@ const props = defineProps({
     },
 })
 
+const viewMode = ref('table')
+
 const rowOrder = ['reserved', 'members', 'checked_in', 'checked_out', 'paid', 'no_show']
 
 const rowLabelMap = {
@@ -127,31 +179,37 @@ const rowClassMap = {
         labelClass: 'border-amber-500/25 bg-amber-500/15',
         cellClass: 'border-amber-500/25 bg-amber-500/10',
         icon: CalendarDaysIcon,
+        color: '#f59e0b',
     },
     members: {
         labelClass: 'border-cyan-500/25 bg-cyan-500/15',
         cellClass: 'border-cyan-500/25 bg-cyan-500/10',
         icon: IdentificationIcon,
+        color: '#06b6d4',
     },
     checked_in: {
         labelClass: 'border-sky-500/25 bg-sky-500/15',
         cellClass: 'border-sky-500/25 bg-sky-500/10',
         icon: ArrowRightCircleIcon,
+        color: '#0ea5e9',
     },
     checked_out: {
         labelClass: 'border-violet-500/25 bg-violet-500/15',
         cellClass: 'border-violet-500/25 bg-violet-500/10',
         icon: ArrowLeftCircleIcon,
+        color: '#8b5cf6',
     },
     paid: {
         labelClass: 'border-emerald-500/25 bg-emerald-500/15',
         cellClass: 'border-emerald-500/25 bg-emerald-500/10',
         icon: BanknotesIcon,
+        color: '#10b981',
     },
     no_show: {
         labelClass: 'border-rose-500/25 bg-rose-500/15',
         cellClass: 'border-rose-500/25 bg-rose-500/10',
         icon: ExclamationTriangleIcon,
+        color: '#f43f5e',
     },
 }
 
@@ -179,5 +237,35 @@ const statusRows = computed(() => {
             ...rowClassMap[key],
         }
     })
+})
+
+const chartSegments = computed(() => {
+    const relevantRows = statusRows.value.filter((row) => row.visitors > 0)
+    const total = relevantRows.reduce((sum, row) => sum + row.visitors, 0)
+
+    return relevantRows.map((row) => ({
+        ...row,
+        percentage: total > 0 ? Math.round((row.visitors / total) * 100) : 0,
+    }))
+})
+
+const totalVisitors = computed(() => {
+    return chartSegments.value.reduce((sum, row) => sum + row.visitors, 0)
+})
+
+const pieGradient = computed(() => {
+    if (!chartSegments.value.length) {
+        return 'conic-gradient(#1e293b 0deg 360deg)'
+    }
+
+    let current = 0
+    const stops = chartSegments.value.map((segment) => {
+        const slice = totalVisitors.value > 0 ? (segment.visitors / totalVisitors.value) * 360 : 0
+        const start = current
+        current += slice
+        return `${segment.color} ${start}deg ${current}deg`
+    })
+
+    return `conic-gradient(${stops.join(', ')})`
 })
 </script>
