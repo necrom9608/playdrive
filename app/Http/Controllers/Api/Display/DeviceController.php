@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Display;
 
+use App\Events\DisplayStateUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\DisplayDevice;
 use App\Models\PosDevice;
@@ -69,6 +70,7 @@ class DeviceController extends Controller
                     'device_uuid' => $device->device_uuid,
                     'device_token' => $device->device_token,
                     'pairing_uuid' => $device->pairing_uuid,
+                    'broadcast_channel' => $device->broadcastChannelName(),
                     'current_mode' => $device->current_mode,
                 ],
             ]);
@@ -137,7 +139,7 @@ class DeviceController extends Controller
 
         $data = $request->validate([
             'device_uuid' => ['required', 'uuid'],
-            'device_token' => ['nullable', 'string'],
+            'device_token' => ['required', 'string'],
         ]);
 
         $device = DisplayDevice::query()
@@ -147,7 +149,7 @@ class DeviceController extends Controller
 
         abort_unless($device, 404, 'Display niet gevonden.');
 
-        if ($device->device_token && $data['device_token'] && $device->device_token !== $data['device_token']) {
+        if (! hash_equals((string) $device->device_token, (string) $data['device_token'])) {
             abort(403, 'Ongeldig display token.');
         }
 
@@ -160,6 +162,7 @@ class DeviceController extends Controller
                 'id' => $device->id,
                 'name' => $device->name,
                 'pairing_uuid' => $device->pairing_uuid,
+                'broadcast_channel' => $device->broadcastChannelName(),
                 'current_mode' => $device->current_mode,
                 'current_payload' => $device->current_payload ?? [],
                 'last_seen_at' => $device->last_seen_at,
@@ -173,7 +176,7 @@ class DeviceController extends Controller
 
         $data = $request->validate([
             'device_uuid' => ['required', 'uuid'],
-            'device_token' => ['nullable', 'string'],
+            'device_token' => ['required', 'string'],
             'mode' => ['required', 'in:standby,reservation'],
             'reservation_id' => ['nullable', 'integer'],
             'payload' => ['nullable', 'array'],
@@ -186,7 +189,7 @@ class DeviceController extends Controller
 
         abort_unless($pos, 404, 'POS device niet gevonden.');
 
-        if ($pos->device_token && $data['device_token'] && $pos->device_token !== $data['device_token']) {
+        if (! hash_equals((string) $pos->device_token, (string) $data['device_token'])) {
             abort(403, 'Ongeldig POS token.');
         }
 
@@ -208,10 +211,23 @@ class DeviceController extends Controller
             'last_seen_at' => now(),
         ]);
 
+        $state = [
+            'id' => $display->id,
+            'name' => $display->name,
+            'pairing_uuid' => $display->pairing_uuid,
+            'broadcast_channel' => $display->broadcastChannelName(),
+            'current_mode' => $display->current_mode,
+            'current_payload' => $display->current_payload ?? [],
+            'last_seen_at' => optional($display->last_seen_at)?->toIso8601String(),
+        ];
+
+        broadcast(new DisplayStateUpdated($display, $state));
+
         return response()->json([
             'data' => [
                 'display_device_id' => $display->id,
                 'current_mode' => $display->current_mode,
+                'broadcast_channel' => $display->broadcastChannelName(),
             ],
         ]);
     }

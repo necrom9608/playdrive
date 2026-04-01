@@ -12,6 +12,12 @@
             tenantName: @js($currentTenant?->name ?? null),
             tenantSlug: @js($currentTenant?->slug ?? null),
             host: @js(request()->getHost()),
+            realtime: {
+                appKey: @js(config('broadcasting.connections.reverb.key', 'playdrive')),
+                host: @js(env('VITE_REVERB_HOST', request()->getHost())),
+                port: @js((int) env('VITE_REVERB_PORT', env('REVERB_PORT', 8080))),
+                scheme: @js(env('VITE_REVERB_SCHEME', env('REVERB_SCHEME', request()->isSecure() ? 'https' : 'http'))),
+            },
         };
     </script>
 </head>

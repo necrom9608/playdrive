@@ -105,6 +105,7 @@
 import axios from 'axios'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { getDisplayToken, getOrCreateDisplayUuid, storeDisplayToken } from '../shared/device'
+import { getEcho, leaveChannel } from '../shared/realtime'
 
 const InfoCard = {
     props: ['label', 'value'],
@@ -122,7 +123,8 @@ const error = ref('')
 const pairingCode = ref('')
 const mode = ref('standby')
 const payload = ref({})
-let intervalId = null
+const broadcastChannel = ref('')
+let pollIntervalId = null
 
 const reservation = computed(() => payload.value?.reservation ?? {})
 const order = computed(() => payload.value?.order ?? {})
@@ -146,6 +148,36 @@ function formatMoney(value) {
     return Number(value ?? 0).toFixed(2).replace('.', ',')
 }
 
+function applyDisplayState(data) {
+    pairingCode.value = data?.pairing_uuid ?? pairingCode.value
+    mode.value = data?.current_mode ?? 'standby'
+    payload.value = data?.current_payload ?? {}
+    error.value = ''
+
+    if (data?.broadcast_channel && data.broadcast_channel !== broadcastChannel.value) {
+        connectRealtime(data.broadcast_channel)
+    }
+}
+
+function connectRealtime(channelName) {
+    if (!channelName || channelName === broadcastChannel.value) {
+        return
+    }
+
+    if (broadcastChannel.value) {
+        leaveChannel(broadcastChannel.value)
+    }
+
+    broadcastChannel.value = channelName
+
+    getEcho()
+        .channel(channelName)
+        .listen('.display.state.updated', (event) => {
+            applyDisplayState(event?.data ?? {})
+            loading.value = false
+        })
+}
+
 async function loadState() {
     try {
         const response = await axios.get('/api/display/state', {
@@ -155,10 +187,7 @@ async function loadState() {
             },
         })
 
-        pairingCode.value = response.data?.data?.pairing_uuid ?? pairingCode.value
-        mode.value = response.data?.data?.current_mode ?? 'standby'
-        payload.value = response.data?.data?.current_payload ?? {}
-        error.value = ''
+        applyDisplayState(response.data?.data ?? {})
     } catch (err) {
         error.value = err?.response?.data?.message ?? 'Kon displaystatus niet ophalen.'
     } finally {
@@ -182,11 +211,10 @@ async function bootstrap() {
             storeDisplayToken(response.data.data.device_token)
         }
 
-        pairingCode.value = response.data?.data?.pairing_uuid ?? ''
-        mode.value = response.data?.data?.current_mode ?? 'standby'
+        applyDisplayState(response.data?.data ?? {})
         await loadState()
 
-        intervalId = window.setInterval(loadState, 3000)
+        pollIntervalId = window.setInterval(loadState, 45000)
     } catch (err) {
         loading.value = false
         error.value = err?.response?.data?.message ?? 'Kon de display niet initialiseren.'
@@ -195,8 +223,12 @@ async function bootstrap() {
 
 onMounted(bootstrap)
 onBeforeUnmount(() => {
-    if (intervalId) {
-        clearInterval(intervalId)
+    if (pollIntervalId) {
+        clearInterval(pollIntervalId)
+    }
+
+    if (broadcastChannel.value) {
+        leaveChannel(broadcastChannel.value)
     }
 })
 </script>
