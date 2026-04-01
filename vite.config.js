@@ -12,6 +12,7 @@ export default defineConfig({
                 'resources/js/apps/backoffice/app.js',
                 'resources/js/apps/kiosk/app.js',
                 'resources/js/apps/client/app.js',
+                'resources/js/apps/staff/app.js',
             ],
             refresh: true,
         }),

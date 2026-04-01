@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\RequireFrontdeskAuth;
 use App\Http\Middleware\ResolveTenant;
+use App\Http\Middleware\RequireStaffAuth;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -24,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'frontdesk.auth' => RequireFrontdeskAuth::class,
+            'staff.auth' => RequireStaffAuth::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

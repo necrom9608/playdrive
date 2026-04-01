@@ -41,6 +41,7 @@ export async function apiFetch(url, options = {}) {
 
         if (response.status === 401) {
             window.dispatchEvent(new CustomEvent('frontdesk-auth-required'))
+            window.dispatchEvent(new CustomEvent('staff-auth-required'))
         }
 
         throw error
