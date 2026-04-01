@@ -103,9 +103,12 @@
 
 <script setup>
 import axios from 'axios'
+import Echo from 'laravel-echo'
+import Pusher from 'pusher-js'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { getDisplayToken, getOrCreateDisplayUuid, storeDisplayToken } from '../shared/device'
-import { getEcho, leaveChannel } from '../shared/realtime'
+
+window.Pusher = Pusher
 
 const InfoCard = {
     props: ['label', 'value'],
@@ -123,14 +126,18 @@ const error = ref('')
 const pairingCode = ref('')
 const mode = ref('standby')
 const payload = ref({})
-const broadcastChannel = ref('')
-let pollIntervalId = null
+const displayId = ref(null)
+
+let intervalId = null
+let echo = null
+let channel = null
 
 const reservation = computed(() => payload.value?.reservation ?? {})
 const order = computed(() => payload.value?.order ?? {})
 const orderItems = computed(() => Array.isArray(order.value?.items) ? order.value.items : [])
 const orderTotal = computed(() => Number(order.value?.total_incl_vat ?? 0))
 const orderCount = computed(() => orderItems.value.reduce((sum, item) => sum + Number(item.quantity ?? 0), 0))
+
 const totalPersonsLabel = computed(() => {
     if (reservation.value?.total_count != null) {
         return String(reservation.value.total_count)
@@ -142,39 +149,84 @@ const totalPersonsLabel = computed(() => {
 
     return total > 0 ? String(total) : '-'
 })
-const stateLabel = computed(() => mode.value === 'reservation' ? 'Display toont live de geselecteerde reservatie en huidige kassagegevens.' : 'Display staat in stand-by en wacht op een selectie vanuit de kassa.')
+
+const stateLabel = computed(() => {
+    return mode.value === 'reservation'
+        ? 'Display toont live de geselecteerde reservatie en huidige kassagegevens.'
+        : 'Display staat in stand-by en wacht op een selectie vanuit de kassa.'
+})
 
 function formatMoney(value) {
     return Number(value ?? 0).toFixed(2).replace('.', ',')
 }
 
-function applyDisplayState(data) {
+function applyState(data) {
+    displayId.value = data?.id ?? displayId.value
     pairingCode.value = data?.pairing_uuid ?? pairingCode.value
-    mode.value = data?.current_mode ?? 'standby'
-    payload.value = data?.current_payload ?? {}
-    error.value = ''
-
-    if (data?.broadcast_channel && data.broadcast_channel !== broadcastChannel.value) {
-        connectRealtime(data.broadcast_channel)
-    }
+    mode.value = data?.current_mode ?? data?.mode ?? 'standby'
+    payload.value = data?.current_payload ?? data?.payload ?? {}
 }
 
-function connectRealtime(channelName) {
-    if (!channelName || channelName === broadcastChannel.value) {
+function createEcho() {
+    if (echo) {
+        return echo
+    }
+
+    echo = new Echo({
+        broadcaster: 'reverb',
+        key: import.meta.env.VITE_REVERB_APP_KEY,
+        wsHost: import.meta.env.VITE_REVERB_HOST,
+        wsPort: Number(import.meta.env.VITE_REVERB_PORT ?? 9090),
+        wssPort: Number(import.meta.env.VITE_REVERB_PORT ?? 9090),
+        forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'http') === 'https',
+        enabledTransports: ['ws', 'wss'],
+    })
+
+    const connection = echo.connector?.pusher?.connection
+
+    if (connection) {
+        connection.bind('connected', () => {
+            console.log('[Display] Reverb connected')
+        })
+
+        connection.bind('disconnected', () => {
+            console.warn('[Display] Reverb disconnected')
+        })
+
+        connection.bind('error', (event) => {
+            console.error('[Display] Reverb connection error', event)
+        })
+    }
+
+    return echo
+}
+
+function subscribeToChannel() {
+    if (!displayId.value) {
         return
     }
 
-    if (broadcastChannel.value) {
-        leaveChannel(broadcastChannel.value)
+    const echoInstance = createEcho()
+
+    if (channel) {
+        echoInstance.leave(`display.${displayId.value}`)
+        channel = null
     }
 
-    broadcastChannel.value = channelName
-
-    getEcho()
-        .channel(channelName)
+    channel = echoInstance
+        .channel(`display.${displayId.value}`)
+        .subscribed(() => {
+            console.log(`[Display] subscribed to display.${displayId.value}`)
+        })
+        .error((event) => {
+            console.error('[Display] channel error', event)
+        })
         .listen('.display.state.updated', (event) => {
-            applyDisplayState(event?.data ?? {})
-            loading.value = false
+            console.log('[Display] live event ontvangen', event)
+
+            mode.value = event?.mode ?? 'standby'
+            payload.value = event?.payload?.current_payload ?? event?.payload ?? {}
+            error.value = ''
         })
 }
 
@@ -187,7 +239,12 @@ async function loadState() {
             },
         })
 
-        applyDisplayState(response.data?.data ?? {})
+        applyState(response.data?.data ?? {})
+        error.value = ''
+
+        if (displayId.value && !channel) {
+            subscribeToChannel()
+        }
     } catch (err) {
         error.value = err?.response?.data?.message ?? 'Kon displaystatus niet ophalen.'
     } finally {
@@ -211,10 +268,11 @@ async function bootstrap() {
             storeDisplayToken(response.data.data.device_token)
         }
 
-        applyDisplayState(response.data?.data ?? {})
+        applyState(response.data?.data ?? {})
         await loadState()
+        subscribeToChannel()
 
-        pollIntervalId = window.setInterval(loadState, 45000)
+        intervalId = window.setInterval(loadState, 15000)
     } catch (err) {
         loading.value = false
         error.value = err?.response?.data?.message ?? 'Kon de display niet initialiseren.'
@@ -222,13 +280,14 @@ async function bootstrap() {
 }
 
 onMounted(bootstrap)
+
 onBeforeUnmount(() => {
-    if (pollIntervalId) {
-        clearInterval(pollIntervalId)
+    if (intervalId) {
+        clearInterval(intervalId)
     }
 
-    if (broadcastChannel.value) {
-        leaveChannel(broadcastChannel.value)
+    if (echo && displayId.value) {
+        echo.leave(`display.${displayId.value}`)
     }
 })
 </script>
