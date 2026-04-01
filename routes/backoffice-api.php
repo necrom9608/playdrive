@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Backoffice\PricingEngineController;
 use App\Http\Controllers\Api\Backoffice\ProductCategoryController;
 use App\Http\Controllers\Api\Backoffice\ProductController;
 use App\Http\Controllers\Api\Backoffice\StaffController;
+use App\Http\Controllers\Api\Backoffice\DeviceManagementController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api/backoffice')->group(function () {
@@ -38,6 +39,12 @@ Route::prefix('api/backoffice')->group(function () {
     Route::post('/pricing-engine/profiles/{profile}/rules/reorder', [PricingEngineController::class, 'reorderRules']);
     Route::put('/pricing-engine/rules/{rule}', [PricingEngineController::class, 'updateRule']);
     Route::delete('/pricing-engine/rules/{rule}', [PricingEngineController::class, 'deleteRule']);
+
+    Route::get('/devices', [DeviceManagementController::class, 'index']);
+    Route::post('/devices/pair', [DeviceManagementController::class, 'pair']);
+    Route::post('/devices/{posDevice}/unpair', [DeviceManagementController::class, 'unpair']);
+    Route::put('/devices/pos/{posDevice}', [DeviceManagementController::class, 'updatePos']);
+    Route::put('/devices/display/{displayDevice}', [DeviceManagementController::class, 'updateDisplay']);
 
     Route::get('/staff', [StaffController::class, 'index']);
     Route::post('/staff', [StaffController::class, 'store']);

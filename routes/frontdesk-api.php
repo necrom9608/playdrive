@@ -12,7 +12,13 @@ use App\Http\Controllers\Api\Frontdesk\RegistrationController;
 use App\Http\Controllers\Api\Frontdesk\SalesController;
 use App\Http\Controllers\Api\Frontdesk\StaffAttendanceController;
 use App\Http\Controllers\Api\Frontdesk\TaskController;
+use App\Http\Controllers\Api\Display\DeviceController as DisplayDeviceController;
 use Illuminate\Support\Facades\Route;
+
+Route::prefix('api/display')->group(function () {
+    Route::post('/bootstrap', [DisplayDeviceController::class, 'bootstrap']);
+    Route::get('/state', [DisplayDeviceController::class, 'state']);
+});
 
 Route::prefix('api/frontdesk')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
@@ -45,6 +51,7 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::post('/orders/{order}/refund', [OrderController::class, 'refund']);
 
         Route::post('/vouchers/validate', [GiftVoucherController::class, 'validateForPos']);
+        Route::post('/display/sync', [DisplayDeviceController::class, 'sync']);
         Route::get('/vouchers', [GiftVoucherController::class, 'index']);
         Route::post('/vouchers', [GiftVoucherController::class, 'store']);
         Route::put('/vouchers/{voucher}', [GiftVoucherController::class, 'update']);

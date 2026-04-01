@@ -1,12 +1,60 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
 
-function generateLineId() {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-        return crypto.randomUUID()
+const POS_UUID_KEY = 'playdrive_pos_device_uuid'
+const POS_TOKEN_KEY = 'playdrive_pos_device_token'
+
+function generateUuid() {
+    if (typeof window !== 'undefined' && window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID()
     }
 
-    return `line_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+    if (typeof window !== 'undefined' && window.crypto && typeof window.crypto.getRandomValues === 'function') {
+        const bytes = new Uint8Array(16)
+        window.crypto.getRandomValues(bytes)
+
+        bytes[6] = (bytes[6] & 0x0f) | 0x40
+        bytes[8] = (bytes[8] & 0x3f) | 0x80
+
+        const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0'))
+
+        return [
+            hex.slice(0, 4).join(''),
+            hex.slice(4, 6).join(''),
+            hex.slice(6, 8).join(''),
+            hex.slice(8, 10).join(''),
+            hex.slice(10, 16).join(''),
+        ].join('-')
+    }
+
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+        const random = Math.floor(Math.random() * 16)
+        const value = char === 'x' ? random : ((random & 0x3) | 0x8)
+        return value.toString(16)
+    })
+}
+
+function getOrCreatePosDeviceUuid() {
+    let value = localStorage.getItem(POS_UUID_KEY)
+
+    if (!value) {
+        value = generateUuid()
+        localStorage.setItem(POS_UUID_KEY, value)
+    }
+
+    return value
+}
+
+function getStoredPosDeviceToken() {
+    return localStorage.getItem(POS_TOKEN_KEY)
+}
+
+function storePosDeviceToken(token) {
+    localStorage.setItem(POS_TOKEN_KEY, token)
+}
+
+function generateLineId() {
+    return generateUuid()
 }
 
 function todayString() {
@@ -44,8 +92,9 @@ function cloneOrder(order) {
                 line_id: item.line_id ?? generateLineId(),
                 product_id: item.product_id ?? item.id,
                 name: item.name,
-                price_incl_vat: Number(item.price_incl_vat ?? item.price ?? 0),
+                price_incl_vat: Number(item.price_incl_vat ?? item.price ?? item.unit_price_incl_vat ?? 0),
                 quantity: Number(item.quantity ?? 0),
+                line_total_incl_vat: Number(item.line_total_incl_vat ?? 0),
                 source: item.source ?? 'manual',
                 source_reference: item.source_reference ?? null,
             }))
@@ -87,6 +136,10 @@ export const usePosStore = defineStore('pos', {
         checkoutError: null,
         lastCheckoutSummary: null,
         appliedVouchers: [],
+
+        posDevice: null,
+        displaySyncReady: false,
+        displaySyncError: null,
     }),
 
     getters: {
@@ -267,6 +320,58 @@ export const usePosStore = defineStore('pos', {
     },
 
     actions: {
+        async initializeDisplayBridge() {
+            try {
+                const pairingUuid = new URLSearchParams(window.location.search).get('display')
+                const response = await axios.post('/api/display/bootstrap', {
+                    role: 'pos',
+                    device_uuid: getOrCreatePosDeviceUuid(),
+                    device_token: getStoredPosDeviceToken(),
+                    pairing_uuid: pairingUuid || null,
+                    name: 'Frontdesk POS',
+                })
+
+                this.posDevice = response.data?.data ?? null
+
+                if (this.posDevice?.device_token) {
+                    storePosDeviceToken(this.posDevice.device_token)
+                }
+
+                this.displaySyncReady = true
+                this.displaySyncError = null
+                await this.syncCustomerDisplay()
+            } catch (error) {
+                this.displaySyncReady = false
+                this.displaySyncError = error?.response?.data?.message ?? 'Displaykoppeling initialiseren mislukt.'
+            }
+        },
+
+        async syncCustomerDisplay() {
+            if (!this.displaySyncReady || !this.posDevice?.display_device_id || !this.posDevice?.device_uuid) {
+                return
+            }
+
+            const reservation = this.selectedReservation
+            const mode = reservation ? 'reservation' : 'standby'
+
+            try {
+                await axios.post('/api/frontdesk/display/sync', {
+                    device_uuid: this.posDevice.device_uuid,
+                    device_token: getStoredPosDeviceToken(),
+                    mode,
+                    reservation_id: reservation?.id ?? null,
+                    payload: reservation ? {
+                        reservation,
+                        order: this.currentOrder,
+                    } : {},
+                })
+
+                this.displaySyncError = null
+            } catch (error) {
+                this.displaySyncError = error?.response?.data?.message ?? 'Display synchroniseren mislukt.'
+            }
+        },
+
         async loadCatalog() {
             this.loadingCatalog = true
 
@@ -393,10 +498,13 @@ export const usePosStore = defineStore('pos', {
                     this.selectedOrderId = normalized.id ?? null
                 }
 
+                this.syncCustomerDisplay()
                 return
             }
 
             this.walkInOrder = normalized
+
+            this.syncCustomerDisplay()
 
             if (!this.selectedReservationId) {
                 this.selectedOrderId = normalized.id ?? null
@@ -536,7 +644,6 @@ export const usePosStore = defineStore('pos', {
             }
         },
 
-
         async applyVoucher(code) {
             this.checkoutError = null
 
@@ -632,6 +739,7 @@ export const usePosStore = defineStore('pos', {
             this.lastAddedLineId = null
             this.checkoutError = null
             this.appliedVouchers = []
+            this.syncCustomerDisplay()
         },
 
         clearReservationSelection() {
@@ -640,6 +748,7 @@ export const usePosStore = defineStore('pos', {
             this.lastAddedLineId = null
             this.checkoutError = null
             this.appliedVouchers = []
+            this.syncCustomerDisplay()
         },
 
         setReservationSearch(value) {
@@ -745,6 +854,7 @@ export const usePosStore = defineStore('pos', {
 
                 this.lastAddedLineId = null
                 this.appliedVouchers = []
+                this.syncCustomerDisplay()
                 return checkoutData
             } catch (error) {
                 this.checkoutError = error?.response?.data?.message ?? 'Afrekenen mislukt.'

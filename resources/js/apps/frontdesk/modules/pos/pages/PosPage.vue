@@ -16,6 +16,7 @@ onMounted(async () => {
         store.loadCatalog(),
         store.fetchReservations(),
         store.fetchOrders(),
+        store.initializeDisplayBridge(),
     ])
 })
 </script>

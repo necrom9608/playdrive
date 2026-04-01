@@ -1,8 +1,8 @@
-import axios from 'axios'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import axios from 'axios'
 import router from './router'
-import BackofficeApp from './App.vue'
+import DisplayApp from './App.vue'
 
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest'
 axios.defaults.withCredentials = true
@@ -12,9 +12,7 @@ if (csrfToken) {
     axios.defaults.headers.common['X-CSRF-TOKEN'] = csrfToken
 }
 
-const app = createApp(BackofficeApp)
-
+const app = createApp(DisplayApp)
 app.use(createPinia())
 app.use(router)
-
 app.mount('#app')
