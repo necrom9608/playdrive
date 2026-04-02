@@ -512,6 +512,18 @@ export const usePosStore = defineStore('pos', {
                 this.syncCustomerDisplay()
                 return
             }
+
+            this.walkInOrder = cloneOrder({
+                ...normalized,
+                context: 'walk_in',
+                registration_id: null,
+            })
+
+            if (!this.selectedReservationId) {
+                this.selectedOrderId = this.walkInOrder.id ?? null
+            }
+
+            this.syncCustomerDisplay()
         },
 
         setSelectedOrderId(id) {

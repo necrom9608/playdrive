@@ -5,10 +5,10 @@
             class="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/70 p-4"
             @click.self="handleClose"
         >
-            <div class="flex h-[860px] w-full max-w-7xl flex-col overflow-hidden rounded-[30px] border border-slate-800 bg-[#091633] shadow-2xl">
-                <div class="flex items-start justify-between border-b border-slate-800 px-6 py-5">
+            <div class="flex h-[760px] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-slate-800 bg-[#091633] shadow-2xl">
+                <div class="flex items-start justify-between border-b border-slate-800 px-5 py-4">
                     <div>
-                        <h2 class="text-2xl font-semibold text-white">Checkout</h2>
+                        <h2 class="text-xl font-semibold text-white">Checkout</h2>
                         <p class="mt-1 text-sm text-slate-400">
                             {{ activeReservationLabel }}
                         </p>
@@ -16,56 +16,50 @@
 
                     <button
                         type="button"
-                        class="rounded-2xl border border-slate-700 bg-slate-800/90 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+                        class="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800/90 text-white transition hover:bg-slate-700"
                         @click="handleClose"
                     >
-                        Sluiten
+                        <XMarkIcon class="h-5 w-5" />
                     </button>
                 </div>
 
-                <div class="grid min-h-0 flex-1 grid-cols-[0.82fr_1fr]">
+                <div class="grid min-h-0 flex-1 grid-cols-[0.9fr_1fr]">
                     <div class="flex min-h-0 flex-col border-r border-slate-800">
-                        <div class="flex items-center justify-between px-6 py-5">
-                            <h3 class="text-lg font-medium text-slate-300">Bestellijnen</h3>
-                            <span class="text-sm text-slate-400">
+                        <div class="flex items-center justify-between px-5 py-4">
+                            <h3 class="text-base font-medium text-slate-300">Bestellijnen</h3>
+                            <span class="text-xs text-slate-400">
                                 {{ itemCount }} items
                             </span>
                         </div>
 
-                        <div class="px-6 pb-3">
-                            <div class="rounded-2xl border border-slate-800 bg-slate-950/40 px-4 py-3 text-xs text-slate-400">
-                                Bron: {{ sourceLabel }} · gevonden lijnen: {{ sourceItems.length }}
-                            </div>
-                        </div>
-
-                        <div class="min-h-0 flex-1 px-6 pb-4">
+                        <div class="min-h-0 flex-1 px-5 pb-4">
                             <div class="flex h-full min-h-0 flex-col">
                                 <div class="min-h-0 flex-1 overflow-y-auto pr-2">
                                     <div
                                         v-if="normalizedItems.length"
-                                        class="space-y-4"
+                                        class="space-y-3"
                                     >
                                         <article
                                             v-for="item in normalizedItems"
                                             :key="item.key"
-                                            class="rounded-[24px] border border-slate-700 bg-[#020b24] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+                                            class="rounded-[20px] border border-slate-700 bg-[#020b24] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
                                         >
                                             <div class="flex items-start justify-between gap-4">
                                                 <div class="min-w-0">
-                                                    <h4 class="truncate text-xl font-semibold leading-tight text-white">
+                                                    <h4 class="truncate text-base font-semibold leading-tight text-white">
                                                         {{ item.name }}
                                                     </h4>
 
-                                                    <p class="mt-1 text-sm text-slate-400">
+                                                    <p class="mt-1 text-xs text-slate-400">
                                                         € {{ item.unitPriceFormatted }} / stuk
                                                     </p>
                                                 </div>
 
                                                 <div class="shrink-0 text-right">
-                                                    <div class="text-sm text-slate-300">
+                                                    <div class="text-xs text-slate-300">
                                                         x{{ item.quantity }}
                                                     </div>
-                                                    <div class="mt-1 text-2xl font-bold text-white">
+                                                    <div class="mt-1 text-lg font-bold text-white">
                                                         € {{ item.totalFormatted }}
                                                     </div>
                                                 </div>
@@ -75,16 +69,16 @@
 
                                     <div
                                         v-else
-                                        class="flex h-full items-center justify-center rounded-[24px] border border-dashed border-slate-700 bg-[#020b24] px-6 py-10 text-center text-sm text-slate-400"
+                                        class="flex h-full items-center justify-center rounded-[20px] border border-dashed border-slate-700 bg-[#020b24] px-6 py-10 text-center text-sm text-slate-400"
                                     >
                                         Geen bestellijnen gevonden.
                                     </div>
                                 </div>
 
-                                <div class="mt-4 rounded-[26px] border border-slate-800 bg-[#020b24] px-5 py-5">
+                                <div class="mt-4 rounded-[22px] border border-slate-800 bg-[#020b24] px-4 py-4">
                                     <div class="flex items-center justify-between gap-4">
-                                        <span class="text-lg font-medium text-slate-300">Te betalen</span>
-                                        <span class="text-4xl font-bold leading-none text-white">
+                                        <span class="text-base font-medium text-slate-300">Te betalen</span>
+                                        <span class="text-3xl font-bold leading-none text-white">
                                             € {{ resolvedTotalFormatted }}
                                         </span>
                                     </div>
@@ -93,18 +87,14 @@
                         </div>
                     </div>
 
-                    <div class="flex min-h-0 flex-col px-6 py-5">
+                    <div class="flex min-h-0 flex-col px-5 py-4">
                         <div class="min-h-0 flex-1 overflow-y-auto pr-2">
                             <div class="space-y-5">
                                 <section>
-                                    <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
-                                        Betaalmethode
-                                    </h3>
-
                                     <div class="grid grid-cols-2 gap-3">
                                         <button
                                             type="button"
-                                            class="overflow-hidden rounded-[24px] border text-left transition"
+                                            class="overflow-hidden rounded-[20px] border transition"
                                             :class="paymentMethod === 'cash'
                                                 ? 'border-sky-500 bg-slate-800 ring-2 ring-sky-500/30'
                                                 : 'border-slate-700 bg-slate-800/80 hover:border-slate-500'"
@@ -128,17 +118,11 @@
                                                     <path d="M4.5 5.5h8" />
                                                 </svg>
                                             </div>
-                                            <div class="px-4 py-4">
-                                                <div class="text-lg font-semibold text-white">Cash</div>
-                                                <div class="mt-1 text-sm leading-snug text-slate-400">
-                                                    Contante betaling aan de kassa
-                                                </div>
-                                            </div>
                                         </button>
 
                                         <button
                                             type="button"
-                                            class="overflow-hidden rounded-[24px] border text-left transition"
+                                            class="overflow-hidden rounded-[20px] border transition"
                                             :class="paymentMethod === 'bancontact'
                                                 ? 'border-sky-500 bg-slate-800 ring-2 ring-sky-500/30'
                                                 : 'border-slate-700 bg-slate-800/80 hover:border-slate-500'"
@@ -158,21 +142,15 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="px-4 py-4">
-                                                <div class="text-lg font-semibold text-white">Bancontact</div>
-                                                <div class="mt-1 text-sm leading-snug text-slate-400">
-                                                    Elektronische betaling
-                                                </div>
-                                            </div>
                                         </button>
                                     </div>
                                 </section>
 
-                                <section class="rounded-[24px] border border-slate-800 bg-[#020b24] p-5">
+                                <section class="rounded-[20px] border border-slate-800 bg-[#020b24] p-4">
                                     <label class="flex items-start justify-between gap-4">
                                         <div>
-                                            <div class="text-lg font-semibold text-white">Factuur gewenst</div>
-                                            <p class="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
+                                            <div class="text-base font-semibold text-white">Factuur gewenst</div>
+                                            <p class="mt-1 text-sm leading-relaxed text-slate-400">
                                                 Duid aan of deze bestelling later gefactureerd moet worden.
                                             </p>
                                         </div>
@@ -185,14 +163,14 @@
                                     </label>
                                 </section>
 
-                                <section class="rounded-[24px] border border-slate-800 bg-[#020b24] p-5">
-                                    <div class="text-lg font-semibold text-white">Cadeaubon scannen / ingeven</div>
+                                <section class="rounded-[20px] border border-slate-800 bg-[#020b24] p-4">
+                                    <div class="text-base font-semibold text-white">Cadeaubon</div>
 
                                     <div class="mt-4 flex flex-wrap items-stretch gap-3">
                                         <input
                                             v-model="voucherCode"
                                             type="text"
-                                            class="min-w-[260px] flex-1 rounded-2xl border border-slate-700 bg-slate-800/90 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-sky-500"
+                                            class="min-w-[240px] flex-1 rounded-2xl border border-slate-700 bg-slate-800/90 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-sky-500"
                                             placeholder="Scan QR, RFID of geef de code in"
                                             @keydown.enter.prevent="handleValidateVoucher"
                                         />
@@ -234,38 +212,27 @@
                                         {{ voucherSuccess }}
                                     </p>
                                 </section>
-
-                                <section>
-                                    <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
-                                        Opmerking
-                                    </h3>
-
-                                    <textarea
-                                        v-model="note"
-                                        rows="5"
-                                        class="w-full resize-none rounded-[24px] border border-slate-700 bg-slate-800/90 px-4 py-4 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-sky-500"
-                                        placeholder="Optionele opmerking bij deze bestelling"
-                                    />
-                                </section>
                             </div>
                         </div>
 
                         <div class="mt-5 grid grid-cols-2 gap-4">
                             <button
                                 type="button"
-                                class="rounded-[22px] border border-slate-700 bg-slate-800/90 px-6 py-4 text-base font-semibold text-white transition hover:bg-slate-700"
+                                class="inline-flex items-center justify-center gap-2 rounded-[20px] border border-slate-700 bg-slate-800/90 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-700"
                                 @click="handleClose"
                             >
-                                Annuleren
+                                <XMarkIcon class="h-5 w-5" />
+                                <span>Annuleren</span>
                             </button>
 
                             <button
                                 type="button"
-                                class="rounded-[22px] bg-blue-600 px-6 py-4 text-base font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                class="inline-flex items-center justify-center gap-2 rounded-[20px] bg-blue-600 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                                 :disabled="confirmLoading || normalizedItems.length === 0"
                                 @click="handleConfirm"
                             >
-                                {{ confirmLoading ? 'Betaling verwerken...' : 'Betaling bevestigen' }}
+                                <CheckIcon class="h-5 w-5" />
+                                <span>{{ confirmLoading ? 'Betaling verwerken...' : 'Betaling bevestigen' }}</span>
                             </button>
                         </div>
                     </div>
@@ -277,7 +244,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { CheckBadgeIcon } from '@heroicons/vue/24/outline'
+import { CheckBadgeIcon, CheckIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import ScanQrButton from '../../../../../../shared/components/scanners/ScanQrButton.vue'
 import ScanRfidButton from '../../../../../../shared/components/scanners/ScanRfidButton.vue'
 
@@ -399,15 +366,6 @@ const sourceItems = computed(() => {
     }
 
     return []
-})
-
-const sourceLabel = computed(() => {
-    if (Array.isArray(props.items) && props.items.length) return 'props.items'
-    if (Array.isArray(props.lines) && props.lines.length) return 'props.lines'
-    if (Array.isArray(props.order?.items) && props.order.items.length) return 'props.order.items'
-    if (Array.isArray(props.order?.order_items) && props.order.order_items.length) return 'props.order.order_items'
-    if (Array.isArray(props.order?.lines) && props.order.lines.length) return 'props.order.lines'
-    return 'geen'
 })
 
 const normalizedItems = computed(() =>

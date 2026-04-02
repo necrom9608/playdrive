@@ -6,33 +6,33 @@
                 <p class="mt-1 text-sm text-slate-400">Vandaag · reservaties en bezoekers per status</p>
             </div>
 
-            <div class="flex items-center gap-3">
-                <div class="inline-flex rounded-2xl border border-slate-700 bg-slate-950/70 p-1">
-                    <button
-                        type="button"
-                        class="rounded-xl px-3 py-1.5 text-xs font-semibold transition"
-                        :class="viewMode === 'table' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'"
-                        @click="viewMode = 'table'"
-                    >
-                        Totalen
-                    </button>
-                    <button
-                        type="button"
-                        class="rounded-xl px-3 py-1.5 text-xs font-semibold transition"
-                        :class="viewMode === 'chart' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'"
-                        @click="viewMode = 'chart'"
-                    >
-                        Pie chart
-                    </button>
-                </div>
+            <div class="inline-flex rounded-2xl border border-slate-700 bg-slate-950/70 p-1.5 shadow-inner">
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition"
+                    :class="viewMode === 'chart' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'"
+                    @click="viewMode = 'chart'"
+                >
+                    <ChartPieIcon class="h-5 w-5" />
+                    <span>Pie chart</span>
+                </button>
 
-                <span class="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1 text-xs font-semibold text-slate-300">
-                    {{ dateLabel }}
-                </span>
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition"
+                    :class="viewMode === 'table' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'"
+                    @click="viewMode = 'table'"
+                >
+                    <TableCellsIcon class="h-5 w-5" />
+                    <span>Totalen</span>
+                </button>
             </div>
         </div>
 
-        <div v-if="viewMode === 'table'" class="min-h-0 flex-1 rounded-3xl border border-slate-800 bg-slate-950/50 p-3">
+        <div
+            v-if="viewMode === 'table'"
+            class="rounded-3xl border border-slate-800 bg-slate-950/50 p-3"
+        >
             <div class="grid grid-cols-[220px_repeat(4,minmax(0,1fr))] gap-2">
                 <div class="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-200">
                     <div class="grid grid-cols-[44px_minmax(0,1fr)] items-center gap-3">
@@ -53,7 +53,7 @@
                     Volwassenen
                 </div>
 
-                <div class="rounded-2xl border border-slate-700 bg-slate-900 px-3 py-3 text-center text-sm font-semibold text-slate-200">
+                <div class="rounded-2xl border border-white/15 bg-white/10 px-3 py-3 text-center text-sm font-semibold text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04)]">
                     Totaal
                 </div>
             </div>
@@ -65,10 +65,10 @@
                     class="grid grid-cols-[220px_repeat(4,minmax(0,1fr))] gap-2"
                 >
                     <div
-                        class="min-h-[72px] rounded-3xl border px-4 py-4"
+                        class="rounded-3xl border px-4 py-3"
                         :class="row.labelClass"
                     >
-                        <div class="grid h-full grid-cols-[44px_minmax(0,1fr)] items-center gap-3">
+                        <div class="grid grid-cols-[44px_minmax(0,1fr)] items-center gap-3">
                             <div class="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-black/10 text-white/95">
                                 <component :is="row.icon" class="h-5 w-5" />
                             </div>
@@ -77,20 +77,20 @@
                         </div>
                     </div>
 
-                    <div class="flex min-h-[72px] items-center justify-center rounded-3xl border px-3 py-3 text-center" :class="row.cellClass">
-                        <span class="text-3xl font-semibold tabular-nums text-white">{{ row.reservations }}</span>
+                    <div class="flex items-center justify-center rounded-3xl border px-3 py-3 text-center" :class="row.cellClass">
+                        <span class="text-xl font-semibold leading-none tabular-nums text-white">{{ row.reservations }}</span>
                     </div>
 
-                    <div class="flex min-h-[72px] items-center justify-center rounded-3xl border px-3 py-3 text-center" :class="row.cellClass">
-                        <span class="text-3xl font-semibold tabular-nums text-white">{{ row.childrenStudents }}</span>
+                    <div class="flex items-center justify-center rounded-3xl border px-3 py-3 text-center" :class="row.cellClass">
+                        <span class="text-xl font-semibold leading-none tabular-nums text-white">{{ row.childrenStudents }}</span>
                     </div>
 
-                    <div class="flex min-h-[72px] items-center justify-center rounded-3xl border px-3 py-3 text-center" :class="row.cellClass">
-                        <span class="text-3xl font-semibold tabular-nums text-white">{{ row.adults }}</span>
+                    <div class="flex items-center justify-center rounded-3xl border px-3 py-3 text-center" :class="row.cellClass">
+                        <span class="text-xl font-semibold leading-none tabular-nums text-white">{{ row.adults }}</span>
                     </div>
 
-                    <div class="flex min-h-[72px] items-center justify-center rounded-3xl border px-3 py-3 text-center" :class="row.cellClass">
-                        <span class="text-3xl font-semibold tabular-nums text-white">{{ row.visitors }}</span>
+                    <div class="flex items-center justify-center rounded-3xl border px-3 py-3 text-center" :class="row.totalCellClass">
+                        <span class="text-2xl font-bold leading-none tabular-nums text-white">{{ row.visitors }}</span>
                     </div>
                 </div>
             </div>
@@ -101,7 +101,7 @@
                 <div class="flex min-h-0 items-center justify-center">
                     <div class="mx-auto flex w-full max-w-[420px] flex-col items-center">
                         <div
-                            class="relative h-72 w-72 rounded-full border border-slate-700"
+                            class="relative h-72 w-72 rounded-full border border-slate-700 shadow-[0_0_40px_rgba(15,23,42,0.35)]"
                             :style="{ background: pieGradient }"
                         >
                             <div class="absolute inset-[22%] flex flex-col items-center justify-center rounded-full border border-slate-800 bg-slate-950 text-center shadow-inner">
@@ -148,6 +148,8 @@ import {
     ArrowLeftCircleIcon,
     BanknotesIcon,
     ExclamationTriangleIcon,
+    ChartPieIcon,
+    TableCellsIcon,
 } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
@@ -161,7 +163,7 @@ const props = defineProps({
     },
 })
 
-const viewMode = ref('table')
+const viewMode = ref('chart')
 
 const rowOrder = ['reserved', 'members', 'checked_in', 'checked_out', 'paid', 'no_show']
 
@@ -178,36 +180,42 @@ const rowClassMap = {
     reserved: {
         labelClass: 'border-amber-500/25 bg-amber-500/15',
         cellClass: 'border-amber-500/25 bg-amber-500/10',
+        totalCellClass: 'border-amber-400/40 bg-amber-400/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
         icon: CalendarDaysIcon,
         color: '#f59e0b',
     },
     members: {
         labelClass: 'border-cyan-500/25 bg-cyan-500/15',
         cellClass: 'border-cyan-500/25 bg-cyan-500/10',
+        totalCellClass: 'border-cyan-400/40 bg-cyan-400/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
         icon: IdentificationIcon,
         color: '#06b6d4',
     },
     checked_in: {
         labelClass: 'border-sky-500/25 bg-sky-500/15',
         cellClass: 'border-sky-500/25 bg-sky-500/10',
+        totalCellClass: 'border-sky-400/40 bg-sky-400/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
         icon: ArrowRightCircleIcon,
         color: '#0ea5e9',
     },
     checked_out: {
         labelClass: 'border-violet-500/25 bg-violet-500/15',
         cellClass: 'border-violet-500/25 bg-violet-500/10',
+        totalCellClass: 'border-violet-400/40 bg-violet-400/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
         icon: ArrowLeftCircleIcon,
         color: '#8b5cf6',
     },
     paid: {
         labelClass: 'border-emerald-500/25 bg-emerald-500/15',
         cellClass: 'border-emerald-500/25 bg-emerald-500/10',
+        totalCellClass: 'border-emerald-400/40 bg-emerald-400/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
         icon: BanknotesIcon,
         color: '#10b981',
     },
     no_show: {
         labelClass: 'border-rose-500/25 bg-rose-500/15',
         cellClass: 'border-rose-500/25 bg-rose-500/10',
+        totalCellClass: 'border-rose-400/40 bg-rose-400/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
         icon: ExclamationTriangleIcon,
         color: '#f43f5e',
     },
