@@ -1,0 +1,131 @@
+<template>
+  <div
+    v-if="open"
+    class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/85 p-4"
+    @click.self="close"
+  >
+    <div class="w-full max-w-md overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl">
+      <div class="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-5">
+        <div>
+          <h3 class="text-lg font-semibold text-white">{{ title }}</h3>
+          <p class="mt-1 text-sm text-slate-400">Houd de RFID-tag bij de lezer of scan de code in.</p>
+        </div>
+
+        <button
+          type="button"
+          class="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-700"
+          @click="close"
+        >
+          Sluiten
+        </button>
+      </div>
+
+      <div class="space-y-4 px-6 py-6">
+        <div class="rounded-2xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-100">
+          Klaar om te scannen. De Enter-toets wordt enkel in deze scanmodal afgehandeld.
+        </div>
+
+        <label class="block text-sm text-slate-300">
+          <span class="mb-2 block">RFID-code</span>
+          <input
+            ref="inputRef"
+            v-model="localValue"
+            type="text"
+            class="w-full rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-blue-500"
+            :placeholder="placeholder"
+            @keydown.enter.prevent="handleConfirm"
+          >
+        </label>
+
+        <div v-if="localValue" class="rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-300">
+          Gescand: <span class="font-semibold text-white">{{ localValue }}</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 border-t border-slate-800 px-6 py-5">
+        <button
+          type="button"
+          class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-700"
+          @click="close"
+        >
+          Annuleren
+        </button>
+
+        <button
+          type="button"
+          class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+          :disabled="!normalizedValue"
+          @click="handleConfirm"
+        >
+          {{ confirmLabel }}
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, nextTick, ref, watch } from 'vue'
+
+const props = defineProps({
+  open: { type: Boolean, default: false },
+  modelValue: { type: String, default: '' },
+  title: { type: String, default: 'RFID scannen' },
+  placeholder: { type: String, default: 'Wacht op RFID-scan' },
+  confirmLabel: { type: String, default: 'Bevestigen' },
+  autoConfirm: { type: Boolean, default: true },
+})
+
+const emit = defineEmits(['update:open', 'update:modelValue', 'scanned', 'confirmed'])
+
+const inputRef = ref(null)
+const localValue = ref('')
+let autoConfirmTimer = null
+
+const normalizedValue = computed(() => localValue.value.trim().replace(/[\r\n]+/g, ''))
+
+watch(
+  () => props.open,
+  async (isOpen) => {
+    if (!isOpen) {
+      localValue.value = props.modelValue ?? ''
+      return
+    }
+
+    localValue.value = props.modelValue ?? ''
+
+    await nextTick()
+    inputRef.value?.focus()
+    inputRef.value?.select?.()
+  },
+  { immediate: true }
+)
+
+watch(normalizedValue, (value, previousValue) => {
+  if (!props.open) return
+  if (!value || value === previousValue) return
+
+  emit('update:modelValue', value)
+  emit('scanned', value)
+
+  if (!props.autoConfirm) return
+
+  clearTimeout(autoConfirmTimer)
+  autoConfirmTimer = setTimeout(() => {
+    handleConfirm()
+  }, 180)
+})
+
+function close() {
+  emit('update:open', false)
+}
+
+function handleConfirm() {
+  const value = normalizedValue.value
+  if (!value) return
+
+  emit('update:modelValue', value)
+  emit('confirmed', value)
+  close()
+}
+</script>
