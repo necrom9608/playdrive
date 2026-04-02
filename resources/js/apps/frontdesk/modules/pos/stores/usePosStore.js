@@ -419,10 +419,14 @@ export const usePosStore = defineStore('pos', {
 
                 orders.forEach(order => {
                     const registrationId = order.registration_id ?? order.reservation_id ?? null
+                    const context = order.context === 'registration' ? 'reservation' : order.context
 
-                    if (order.context === 'reservation' && registrationId) {
-                        this.reservationOrders[registrationId] = cloneOrder(order)
-                    } else if (order.context === 'walk_in') {
+                    if (context === 'reservation' && registrationId) {
+                        this.reservationOrders[registrationId] = cloneOrder({
+                            ...order,
+                            context: 'reservation',
+                        })
+                    } else if (context === 'walk_in') {
                         this.walkInOrder = cloneOrder(order)
                     }
                 })
@@ -491,7 +495,10 @@ export const usePosStore = defineStore('pos', {
         },
 
         upsertOrder(order) {
-            const normalized = cloneOrder(order)
+            const normalized = cloneOrder({
+                ...order,
+                context: order?.context === 'registration' ? 'reservation' : order?.context,
+            })
             const registrationId = normalized.registration_id ?? null
 
             if (normalized.context === 'reservation' && registrationId) {
@@ -503,14 +510,6 @@ export const usePosStore = defineStore('pos', {
 
                 this.syncCustomerDisplay()
                 return
-            }
-
-            this.walkInOrder = normalized
-
-            this.syncCustomerDisplay()
-
-            if (!this.selectedReservationId) {
-                this.selectedOrderId = normalized.id ?? null
             }
         },
 
