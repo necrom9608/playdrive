@@ -302,6 +302,9 @@ async function applyVoucher() {
 
 async function submitCheckout() {
     const result = await store.checkoutCurrentOrder({
+        order_id: store.currentOrder?.id ?? null,
+        registration_id: store.selectedReservationId ?? store.currentOrder?.registration_id ?? null,
+        reservation_id: store.selectedReservationId ?? store.currentOrder?.registration_id ?? null,
         payment_method: form.payment_method,
         notes: form.notes,
         invoice_requested: form.invoice_requested,

@@ -96,6 +96,7 @@ class OrderController extends Controller
         $validated = $request->validate([
             'order_id' => ['nullable', 'integer'],
             'registration_id' => ['nullable', 'integer'],
+            'reservation_id' => ['nullable', 'integer'],
             'payment_method' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string'],
             'invoice_requested' => ['nullable', 'boolean'],
@@ -237,6 +238,7 @@ class OrderController extends Controller
             'status' => $order->status,
             'context' => $order->source === Order::SOURCE_RESERVATION ? 'registration' : 'walk_in',
             'registration_id' => $order->registration_id,
+            'reservation_id' => $order->registration_id,
             'subtotal_excl_vat' => (float) $order->subtotal_excl_vat,
             'total_vat' => (float) $order->total_vat,
             'total_incl_vat' => (float) $order->total_incl_vat,

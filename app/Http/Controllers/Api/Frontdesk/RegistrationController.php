@@ -381,7 +381,8 @@ class RegistrationController extends Controller
         return [
             'id' => $order->id,
             'status' => $order->status,
-            'context' => $order->source === Order::SOURCE_RESERVATION ? 'reservation' : 'walk_in',
+            'context' => $order->source === Order::SOURCE_RESERVATION ? 'registration' : 'walk_in',
+            'registration_id' => $order->registration_id,
             'reservation_id' => $order->registration_id,
             'subtotal_excl_vat' => (float) $order->subtotal_excl_vat,
             'total_vat' => (float) $order->total_vat,

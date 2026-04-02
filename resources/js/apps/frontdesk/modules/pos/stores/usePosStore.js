@@ -359,6 +359,7 @@ export const usePosStore = defineStore('pos', {
                     device_uuid: this.posDevice.device_uuid,
                     device_token: getStoredPosDeviceToken(),
                     mode,
+                    reservation_id: reservation?.id ?? null,
                     registration_id: reservation?.id ?? null,
                     payload: reservation ? {
                         registration: reservation,
@@ -784,12 +785,21 @@ export const usePosStore = defineStore('pos', {
             }
         },
 
-        async checkoutOrder(payload) {
+        async checkoutOrder(payload = {}) {
             this.checkoutProcessing = true
             this.checkoutError = null
 
+            const currentOrder = this.currentOrder ?? null
+            const registrationId = this.selectedReservationId ?? currentOrder?.registration_id ?? currentOrder?.reservation_id ?? null
+            const checkoutPayload = {
+                ...payload,
+                order_id: payload.order_id ?? currentOrder?.id ?? null,
+                registration_id: payload.registration_id ?? registrationId,
+                reservation_id: payload.reservation_id ?? registrationId,
+            }
+
             try {
-                const response = await axios.post('/api/frontdesk/orders/checkout', payload)
+                const response = await axios.post('/api/frontdesk/orders/checkout', checkoutPayload)
                 await this.fetchOrders()
                 await this.fetchReservations()
                 this.appliedVouchers = []

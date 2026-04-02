@@ -32,7 +32,7 @@ class OrderService
             ->findOrFail((int) $payload['product_id']);
 
         $quantity = max(1, (int) ($payload['quantity'] ?? 1));
-        $registrationId = Arr::get($payload, 'registration_id');
+        $registrationId = Arr::get($payload, 'registration_id', Arr::get($payload, 'reservation_id'));
         $registration = $this->resolveRegistration($registrationId, $currentTenant);
         $source = $registration ? Order::SOURCE_RESERVATION : Order::SOURCE_WALK_IN;
         $actorUserId = $this->frontdeskUserId();
