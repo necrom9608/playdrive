@@ -21,6 +21,6 @@ const routes = [
 ]
 
 export default createRouter({
-    history: createWebHistory('/frontdesk/'),
+    history: createWebHistory('/frontdesk'),
     routes,
 })
