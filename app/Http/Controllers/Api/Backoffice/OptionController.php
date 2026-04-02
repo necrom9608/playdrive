@@ -8,6 +8,7 @@ use App\Support\CurrentTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class OptionController extends Controller
@@ -16,8 +17,7 @@ class OptionController extends Controller
     {
         $modelClass = $this->resolveModelClass($request->route('type'));
 
-        $items = $modelClass::query()
-            ->where('tenant_id', $currentTenant->id())
+        $items = $this->tenantAwareQuery($modelClass, $currentTenant->id())
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
@@ -40,8 +40,7 @@ class OptionController extends Controller
     {
         $modelClass = $this->resolveModelClass($type);
         /** @var Model $record */
-        $record = $modelClass::query()
-            ->where('tenant_id', $currentTenant->id())
+        $record = $this->tenantAwareQuery($modelClass, $currentTenant->id())
             ->findOrFail($item);
 
         $record->update($this->payload($request, $record, $currentTenant->id()));
@@ -58,8 +57,7 @@ class OptionController extends Controller
         ])['items'];
 
         foreach ($items as $index => $item) {
-            $modelClass::query()
-                ->where('tenant_id', $currentTenant->id())
+            $this->tenantAwareQuery($modelClass, $currentTenant->id())
                 ->whereKey($item['id'] ?? null)
                 ->update(['sort_order' => $index + 1]);
         }
@@ -70,8 +68,7 @@ class OptionController extends Controller
     public function destroy(CurrentTenant $currentTenant, string $type, int $item): JsonResponse
     {
         $modelClass = $this->resolveModelClass($type);
-        $modelClass::query()
-            ->where('tenant_id', $currentTenant->id())
+        $this->tenantAwareQuery($modelClass, $currentTenant->id())
             ->findOrFail($item)
             ->delete();
 
@@ -80,10 +77,9 @@ class OptionController extends Controller
 
     protected function payload(StoreCatalogOptionRequest $request, Model $record, int $tenantId): array
     {
-        $nextSortOrder = (int) $record::query()->where('tenant_id', $tenantId)->max('sort_order') + 1;
+        $nextSortOrder = (int) $this->tenantAwareQuery($record::class, $tenantId)->max('sort_order') + 1;
 
         $payload = [
-            'tenant_id' => $tenantId,
             'name' => $request->string('name')->toString(),
             'code' => $request->filled('code')
                 ? Str::slug($request->string('code')->toString(), '_')
@@ -93,6 +89,10 @@ class OptionController extends Controller
             'is_active' => $request->boolean('is_active', true),
         ];
 
+        if ($this->modelHasTenantColumn($record::class)) {
+            $payload['tenant_id'] = $tenantId;
+        }
+
         if ($record->getAttribute('duration_minutes') !== null || $request->has('duration_minutes')) {
             $payload['duration_minutes'] = $request->filled('duration_minutes')
                 ? $request->integer('duration_minutes', 0)
@@ -100,6 +100,25 @@ class OptionController extends Controller
         }
 
         return $payload;
+    }
+
+
+    protected function tenantAwareQuery(string $modelClass, ?int $tenantId)
+    {
+        $query = $modelClass::query();
+
+        if ($tenantId !== null && $this->modelHasTenantColumn($modelClass)) {
+            $query->where('tenant_id', $tenantId);
+        }
+
+        return $query;
+    }
+
+    protected function modelHasTenantColumn(string $modelClass): bool
+    {
+        $model = new $modelClass();
+
+        return Schema::hasColumn($model->getTable(), 'tenant_id');
     }
 
     protected function resolveModelClass(string $type): string

@@ -1,6 +1,6 @@
 <template>
     <div>
-        <FrontdeskLayout v-if="auth.initialized" />
+        <FrontdeskLayout v-if="auth.initialized && auth.isAuthenticated" />
         <FrontdeskLoginModal v-if="auth.initialized && !auth.isAuthenticated" />
     </div>
 </template>

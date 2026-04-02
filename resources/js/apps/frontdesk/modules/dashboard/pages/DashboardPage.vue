@@ -92,7 +92,7 @@
 
 <script setup>
 import axios from 'axios'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
     UserPlusIcon,
     IdentificationIcon,
@@ -112,6 +112,10 @@ import MemberModal from '../../members/components/MemberModal.vue'
 import MemberAttendanceModal from '../modals/MemberAttendanceModal.vue'
 import StaffAttendanceModal from '../modals/StaffAttendanceModal.vue'
 import TaskCreateModal from '../modals/TaskCreateModal.vue'
+
+import { useAuthStore } from '../../../stores/authStore'
+
+const auth = useAuthStore()
 
 const today = getTodayDateString()
 
@@ -154,9 +158,39 @@ const taskForm = reactive({
     error: '',
 })
 
-onMounted(loadDashboard)
+onMounted(() => {
+    window.addEventListener('frontdesk-auth-changed', handleAuthChanged)
+    if (auth.isAuthenticated) {
+        loadDashboard()
+    }
+})
+
+onBeforeUnmount(() => {
+    window.removeEventListener('frontdesk-auth-changed', handleAuthChanged)
+})
+
+watch(() => auth.isAuthenticated, isAuthenticated => {
+    if (isAuthenticated) {
+        loadDashboard()
+        return
+    }
+
+    registrations.value = []
+    salesSummary.value = null
+    tasks.value = []
+    taskStaff.value = []
+})
+
+function handleAuthChanged(event) {
+    if (event?.detail?.authenticated) {
+        loadDashboard()
+    }
+}
 
 async function loadDashboard() {
+    if (!auth.isAuthenticated) {
+        return
+    }
     try {
         const [r, s, t] = await Promise.all([
             axios.get('/api/frontdesk/registrations'),

@@ -86,7 +86,7 @@
             <template v-else>
                 <AgendaDayOverview
                     v-if="store.view === 'day'"
-                    :registrations="store.dayRegistrations"
+                    :items="store.dayRegistrations"
                 />
 
                 <AgendaWeekOverview
