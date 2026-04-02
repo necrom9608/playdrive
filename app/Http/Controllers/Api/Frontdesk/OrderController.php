@@ -52,7 +52,7 @@ class OrderController extends Controller
     public function addItem(Request $request, CurrentTenant $currentTenant): JsonResponse
     {
         $validated = $request->validate([
-            'reservation_id' => ['nullable', 'integer'],
+            'registration_id' => ['nullable', 'integer'],
             'product_id' => ['required', 'integer'],
             'quantity' => ['nullable', 'integer', 'min:1'],
         ]);
@@ -95,7 +95,7 @@ class OrderController extends Controller
     {
         $validated = $request->validate([
             'order_id' => ['nullable', 'integer'],
-            'reservation_id' => ['nullable', 'integer'],
+            'registration_id' => ['nullable', 'integer'],
             'payment_method' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string'],
             'invoice_requested' => ['nullable', 'boolean'],
@@ -107,13 +107,16 @@ class OrderController extends Controller
         $order = $this->orderService->checkout($validated, $currentTenant);
 
         return response()->json([
-            'data' => [
-                'id' => $order->id,
-                'status' => $order->status,
-                'total_incl_vat' => (float) $order->total_incl_vat,
-                'payment_method' => $order->payment_method,
-                'invoice_requested' => (bool) $order->invoice_requested,
-            ],
+            'data' => $this->transformOrder($order->fresh([
+                'items.product',
+                'creator:id,name',
+                'updater:id,name',
+                'payer:id,name',
+                'canceller:id,name',
+                'refunder:id,name',
+                'items.creator:id,name',
+                'items.updater:id,name',
+            ])),
         ]);
     }
 
@@ -232,8 +235,8 @@ class OrderController extends Controller
         return [
             'id' => $order->id,
             'status' => $order->status,
-            'context' => $order->source === Order::SOURCE_RESERVATION ? 'reservation' : 'walk_in',
-            'reservation_id' => $order->registration_id,
+            'context' => $order->source === Order::SOURCE_RESERVATION ? 'registration' : 'walk_in',
+            'registration_id' => $order->registration_id,
             'subtotal_excl_vat' => (float) $order->subtotal_excl_vat,
             'total_vat' => (float) $order->total_vat,
             'total_incl_vat' => (float) $order->total_incl_vat,

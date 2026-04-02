@@ -4,10 +4,10 @@ namespace App\Domain\Orders;
 
 use App\Domain\Pricing\PricingContext;
 use App\Domain\Pricing\PricingEvaluator;
+use App\Models\GiftVoucher;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
-use App\Models\GiftVoucher;
 use App\Models\Registration;
 use App\Support\CurrentTenant;
 use Illuminate\Support\Arr;
@@ -32,7 +32,8 @@ class OrderService
             ->findOrFail((int) $payload['product_id']);
 
         $quantity = max(1, (int) ($payload['quantity'] ?? 1));
-        $registration = $this->resolveRegistration(Arr::get($payload, 'reservation_id'), $currentTenant);
+        $registrationId = Arr::get($payload, 'registration_id');
+        $registration = $this->resolveRegistration($registrationId, $currentTenant);
         $source = $registration ? Order::SOURCE_RESERVATION : Order::SOURCE_WALK_IN;
         $actorUserId = $this->frontdeskUserId();
 
@@ -104,7 +105,8 @@ class OrderService
         }
 
         $actorUserId = $this->frontdeskUserId();
-        $registration = $this->resolveRegistration(Arr::get($payload, 'reservation_id'), $currentTenant);
+        $registrationId = Arr::get($payload, 'registration_id');
+        $registration = $this->resolveRegistration($registrationId, $currentTenant);
         $source = $registration ? Order::SOURCE_RESERVATION : Order::SOURCE_WALK_IN;
 
         $order = null;
@@ -244,11 +246,11 @@ class OrderService
         }
 
         if ($registration && (int) $order->registration_id !== (int) $registration->id) {
-            throw new InvalidArgumentException('Order hoort niet bij de geselecteerde reservatie.');
+            throw new InvalidArgumentException('Order hoort niet bij de geselecteerde registratie.');
         }
 
         if (! $registration && $order->registration_id) {
-            throw new InvalidArgumentException('Dit order hoort bij een reservatie en kan niet als losse verkoop afgerekend worden.');
+            throw new InvalidArgumentException('Dit order hoort bij een registratie en kan niet als losse verkoop afgerekend worden.');
         }
 
         if (! $order->items()->exists()) {

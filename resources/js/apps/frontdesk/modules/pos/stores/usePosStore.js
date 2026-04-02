@@ -66,11 +66,11 @@ function todayString() {
     return `${year}-${month}-${day}`
 }
 
-function createEmptyOrder(context = 'walk_in', reservationId = null) {
+function createEmptyOrder(context = 'walk_in', registrationId = null) {
     return {
         id: null,
         context,
-        reservation_id: reservationId,
+        registration_id: registrationId,
         items: [],
         subtotal_excl_vat: 0,
         total_vat: 0,
@@ -82,7 +82,7 @@ function cloneOrder(order) {
     return {
         id: order?.id ?? null,
         context: order?.context ?? 'walk_in',
-        reservation_id: order?.reservation_id ?? null,
+        registration_id: order?.registration_id ?? order?.reservation_id ?? null,
         subtotal_excl_vat: Number(order?.subtotal_excl_vat ?? 0),
         total_vat: Number(order?.total_vat ?? 0),
         total_incl_vat: Number(order?.total_incl_vat ?? 0),
@@ -284,7 +284,7 @@ export const usePosStore = defineStore('pos', {
             const items = this.statsReservations
 
             const totalReservations = items.length
-            const totalPersons = items.reduce((sum, r) => sum + Number(r.total_count ?? 0), 0)
+            const totalPersons = items.reduce((sum, r) => sum + Number(r.total_count ?? r.total_participants ?? 0), 0)
 
             const newItems = items.filter(r => r.status === 'new')
             const confirmed = items.filter(r => r.status === 'confirmed')
@@ -294,7 +294,7 @@ export const usePosStore = defineStore('pos', {
             const cancelled = items.filter(r => r.status === 'cancelled')
             const noShow = items.filter(r => r.status === 'no_show')
 
-            const sumPersons = (rows) => rows.reduce((sum, r) => sum + Number(r.total_count ?? 0), 0)
+            const sumPersons = (rows) => rows.reduce((sum, r) => sum + Number(r.total_count ?? r.total_participants ?? 0), 0)
 
             return {
                 totalReservations,
@@ -359,9 +359,9 @@ export const usePosStore = defineStore('pos', {
                     device_uuid: this.posDevice.device_uuid,
                     device_token: getStoredPosDeviceToken(),
                     mode,
-                    reservation_id: reservation?.id ?? null,
+                    registration_id: reservation?.id ?? null,
                     payload: reservation ? {
-                        reservation,
+                        registration: reservation,
                         order: this.currentOrder,
                     } : {},
                 })
@@ -418,8 +418,10 @@ export const usePosStore = defineStore('pos', {
                 this.walkInOrder = createEmptyOrder('walk_in', null)
 
                 orders.forEach(order => {
-                    if (order.context === 'reservation' && order.reservation_id) {
-                        this.reservationOrders[order.reservation_id] = cloneOrder(order)
+                    const registrationId = order.registration_id ?? order.reservation_id ?? null
+
+                    if (order.context === 'reservation' && registrationId) {
+                        this.reservationOrders[registrationId] = cloneOrder(order)
                     } else if (order.context === 'walk_in') {
                         this.walkInOrder = cloneOrder(order)
                     }
@@ -468,12 +470,12 @@ export const usePosStore = defineStore('pos', {
             this.selectedCategoryId = categoryId
         },
 
-        ensureReservationOrder(reservationId) {
-            if (!this.reservationOrders[reservationId]) {
-                this.reservationOrders[reservationId] = createEmptyOrder('reservation', reservationId)
+        ensureReservationOrder(registrationId) {
+            if (!this.reservationOrders[registrationId]) {
+                this.reservationOrders[registrationId] = createEmptyOrder('reservation', registrationId)
             }
 
-            return this.reservationOrders[reservationId]
+            return this.reservationOrders[registrationId]
         },
 
         getMutableCurrentOrder() {
@@ -490,11 +492,12 @@ export const usePosStore = defineStore('pos', {
 
         upsertOrder(order) {
             const normalized = cloneOrder(order)
+            const registrationId = normalized.registration_id ?? null
 
-            if (normalized.context === 'reservation' && normalized.reservation_id) {
-                this.reservationOrders[normalized.reservation_id] = normalized
+            if (normalized.context === 'reservation' && registrationId) {
+                this.reservationOrders[registrationId] = normalized
 
-                if (this.selectedReservationId === normalized.reservation_id) {
+                if (this.selectedReservationId === registrationId) {
                     this.selectedOrderId = normalized.id ?? null
                 }
 
@@ -517,7 +520,7 @@ export const usePosStore = defineStore('pos', {
 
         async persistAddProduct(product) {
             const response = await axios.post('/api/frontdesk/orders/items', {
-                reservation_id: this.selectedReservationId,
+                registration_id: this.selectedReservationId,
                 product_id: Number(product.id),
                 quantity: 1,
             })
@@ -650,7 +653,7 @@ export const usePosStore = defineStore('pos', {
             try {
                 const response = await axios.post('/api/frontdesk/vouchers/validate', {
                     code,
-                    reservation_id: this.selectedReservationId,
+                    registration_id: this.selectedReservationId,
                 })
 
                 const order = response.data?.data?.order ?? null
@@ -700,7 +703,7 @@ export const usePosStore = defineStore('pos', {
             this.walkInOrder = cloneOrder({
                 ...order,
                 context: 'walk_in',
-                reservation_id: null,
+                registration_id: null,
             })
 
             if (this.walkInOrder.id) {
@@ -708,15 +711,15 @@ export const usePosStore = defineStore('pos', {
             }
         },
 
-        replaceReservationOrder(reservationId, order) {
-            this.reservationOrders[reservationId] = cloneOrder({
+        replaceReservationOrder(registrationId, order) {
+            this.reservationOrders[registrationId] = cloneOrder({
                 ...order,
                 context: 'reservation',
-                reservation_id: reservationId,
+                registration_id: registrationId,
             })
 
-            if (this.reservationOrders[reservationId]?.id) {
-                this.selectedOrderId = this.reservationOrders[reservationId].id
+            if (this.reservationOrders[registrationId]?.id) {
+                this.selectedOrderId = this.reservationOrders[registrationId].id
             }
         },
 
@@ -799,6 +802,10 @@ export const usePosStore = defineStore('pos', {
             } finally {
                 this.checkoutProcessing = false
             }
+        },
+
+        async checkoutCurrentOrder(payload) {
+            return this.checkoutOrder(payload)
         },
     },
 })
