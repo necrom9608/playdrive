@@ -1,8 +1,11 @@
 <?php
 
+use App\Http\Middleware\RequireBackofficeAuth;
 use App\Http\Middleware\RequireFrontdeskAuth;
-use App\Http\Middleware\ResolveTenant;
+use App\Http\Middleware\RequirePlaydriveAdminAuth;
 use App\Http\Middleware\RequireStaffAuth;
+use App\Http\Middleware\RequireValidTenantForApp;
+use App\Http\Middleware\ResolveTenant;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,15 +21,19 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             ResolveTenant::class,
+            RequireValidTenantForApp::class,
         ]);
 
         $middleware->api(append: [
             ResolveTenant::class,
+            RequireValidTenantForApp::class,
         ]);
 
         $middleware->alias([
             'frontdesk.auth' => RequireFrontdeskAuth::class,
+            'backoffice.auth' => RequireBackofficeAuth::class,
             'staff.auth' => RequireStaffAuth::class,
+            'playdrive.admin.auth' => RequirePlaydriveAdminAuth::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

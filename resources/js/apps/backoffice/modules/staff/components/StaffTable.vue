@@ -45,6 +45,7 @@
                         <th class="px-4 py-3 text-left font-semibold">E-mail</th>
                         <th class="px-4 py-3 text-left font-semibold">RFID</th>
                         <th class="px-4 py-3 text-left font-semibold">Adres</th>
+                        <th class="px-4 py-3 text-left font-semibold">Rol</th>
                         <th class="px-4 py-3 text-left font-semibold">Status</th>
                         <th class="px-4 py-3 text-right font-semibold">Acties</th>
                     </tr>
@@ -84,6 +85,10 @@
 
                         <td class="px-4 py-3 text-slate-400">
                             {{ member.full_address || '—' }}
+                        </td>
+
+                        <td class="px-4 py-3">
+                            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" :class="member.is_admin ? 'bg-cyan-500/15 text-cyan-300' : 'bg-slate-700 text-slate-300'">{{ member.is_admin ? 'Admin' : 'Medewerker' }}</span>
                         </td>
 
                         <td class="px-4 py-3">

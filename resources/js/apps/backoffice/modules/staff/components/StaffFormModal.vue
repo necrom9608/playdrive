@@ -148,14 +148,26 @@
                 </div>
             </div>
 
-            <label class="flex items-center gap-3 text-sm text-slate-300">
-                <input
-                    v-model="form.is_active"
-                    type="checkbox"
-                    class="h-4 w-4 rounded border-slate-600 bg-slate-950"
-                />
-                Actief
-            </label>
+            <div class="grid gap-3 md:grid-cols-2">
+                <label class="flex items-center gap-3 text-sm text-slate-300">
+                    <input
+                        v-model="form.is_active"
+                        type="checkbox"
+                        class="h-4 w-4 rounded border-slate-600 bg-slate-950"
+                    />
+                    Actief
+                </label>
+
+                <label class="flex items-center gap-3 text-sm text-slate-300">
+                    <input
+                        v-model="form.is_admin"
+                        type="checkbox"
+                        class="h-4 w-4 rounded border-slate-600 bg-slate-950"
+                    />
+                    Backoffice admin
+                </label>
+            </div>
+
 
             <div class="flex flex-wrap gap-3 pt-2">
                 <button
@@ -215,6 +227,7 @@ const form = reactive({
     postal_code: '',
     city: '',
     is_active: true,
+    is_admin: false,
 })
 
 const scanningRfid = ref(false)
@@ -248,6 +261,7 @@ function fillFormFromProps() {
     form.postal_code = props.staff?.postal_code ?? ''
     form.city = props.staff?.city ?? ''
     form.is_active = props.staff?.is_active ?? true
+    form.is_admin = props.staff?.is_admin ?? false
 }
 
 function resetForm() {
@@ -262,6 +276,7 @@ function resetForm() {
     form.postal_code = ''
     form.city = ''
     form.is_active = true
+    form.is_admin = false
 }
 
 function submitForm() {
@@ -277,6 +292,7 @@ function submitForm() {
         postal_code: form.postal_code,
         city: form.city,
         is_active: form.is_active,
+        is_admin: form.is_admin,
     })
 }
 

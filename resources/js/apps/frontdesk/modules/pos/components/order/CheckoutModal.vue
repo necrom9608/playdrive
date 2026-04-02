@@ -4,7 +4,7 @@
         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4"
         @click.self="$emit('close')"
     >
-        <div class="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl">
+        <div class="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl">
             <div class="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-5">
                 <div>
                     <h3 class="text-xl font-semibold text-white">Checkout</h3>
@@ -59,7 +59,7 @@
                 </div>
 
                 <form class="flex min-h-0 flex-col p-6" @submit.prevent="submitCheckout">
-                    <div class="space-y-5">
+                    <div class="grid gap-5 xl:grid-cols-2">
                         <div>
                             <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-400">
                                 Betaalmethode

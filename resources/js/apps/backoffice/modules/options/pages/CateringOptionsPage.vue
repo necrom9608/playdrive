@@ -71,7 +71,7 @@ async function loadOptions() {
     error.value = ''
 
     try {
-        options.value = await fetchOptions()
+        options.value = await fetchOptions('catering-options')
     } catch (err) {
         console.error(err)
         error.value = 'Kon cateringopties niet laden.'
@@ -112,9 +112,9 @@ async function handleSubmit(payload) {
 
     try {
         if (editingOption.value?.id) {
-            await updateOption(editingOption.value.id, payload)
+            await updateOption('catering-options', editingOption.value.id, payload)
         } else {
-            await createOption(payload)
+            await createOption('catering-options', payload)
         }
 
         closeFormModal()
@@ -145,7 +145,7 @@ async function handleDelete(option) {
     error.value = ''
 
     try {
-        await deleteOption(option.id)
+        await deleteOption('catering-options', option.id)
         await loadOptions()
     } catch (err) {
         console.error(err)
@@ -157,7 +157,7 @@ async function handleReorder(items) {
     error.value = ''
 
     try {
-        await reorderOptions(items.map((item) => ({ id: item.id })))
+        await reorderOptions('catering-options', items.map((item) => ({ id: item.id })))
         await loadOptions()
     } catch (err) {
         console.error(err)

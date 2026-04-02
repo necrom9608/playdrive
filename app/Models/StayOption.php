@@ -11,6 +11,7 @@ class StayOption extends Model
     use HasFactory;
 
     protected $fillable = [
+        'tenant_id',
         'name',
         'code',
         'emoji',
@@ -20,6 +21,7 @@ class StayOption extends Model
     ];
 
     protected $casts = [
+        'tenant_id' => 'integer',
         'duration_minutes' => 'integer',
         'sort_order' => 'integer',
         'is_active' => 'boolean',

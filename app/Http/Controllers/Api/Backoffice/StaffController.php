@@ -47,6 +47,7 @@ class StaffController extends Controller
             'postal_code' => $this->nullableValue($data['postal_code'] ?? null),
             'city' => $this->nullableValue($data['city'] ?? null),
             'is_active' => (bool) ($data['is_active'] ?? true),
+            'is_admin' => (bool) ($data['is_admin'] ?? false),
             'sort_order' => $nextSortOrder + 1,
         ]);
 
@@ -70,6 +71,7 @@ class StaffController extends Controller
             'postal_code' => $this->nullableValue($data['postal_code'] ?? null),
             'city' => $this->nullableValue($data['city'] ?? null),
             'is_active' => (bool) ($data['is_active'] ?? true),
+            'is_admin' => (bool) ($data['is_admin'] ?? false),
         ]);
 
         if (! empty($data['password'])) {
@@ -148,6 +150,7 @@ class StaffController extends Controller
             'city' => $user->city,
             'full_address' => $this->formatAddress($user),
             'is_active' => (bool) $user->is_active,
+            'is_admin' => (bool) $user->is_admin,
             'sort_order' => (int) $user->sort_order,
         ];
     }

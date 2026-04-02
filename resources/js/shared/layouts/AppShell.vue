@@ -28,6 +28,11 @@
                         </div>
                     </div>
                 </nav>
+
+                <div v-if="statusLabel || canLogout" class="mt-8 space-y-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                    <div v-if="statusLabel" class="text-sm text-slate-300">{{ statusLabel }}</div>
+                    <button v-if="canLogout" type="button" class="w-full rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/20" @click="$emit('logout')">Uitloggen</button>
+                </div>
             </aside>
 
             <main class="min-h-0 flex-1 overflow-y-auto p-6">
@@ -42,19 +47,14 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 const props = defineProps({
-    title: {
-        type: String,
-        required: true,
-    },
-    subtitle: {
-        type: String,
-        required: true,
-    },
-    navigation: {
-        type: Array,
-        required: true,
-    },
+    title: { type: String, required: true },
+    subtitle: { type: String, required: true },
+    navigation: { type: Array, required: true },
+    statusLabel: { type: String, default: null },
+    canLogout: { type: Boolean, default: true },
 })
+
+defineEmits(['logout'])
 
 const route = useRoute()
 

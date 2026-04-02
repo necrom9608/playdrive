@@ -11,6 +11,7 @@ class CateringOption extends Model
     use HasFactory;
 
     protected $fillable = [
+        'tenant_id',
         'name',
         'code',
         'emoji',
@@ -19,6 +20,7 @@ class CateringOption extends Model
     ];
 
     protected $casts = [
+        'tenant_id' => 'integer',
         'sort_order' => 'integer',
         'is_active' => 'boolean',
     ];

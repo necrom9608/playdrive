@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\Api\Display\DeviceController as DisplayDeviceController;
 use App\Http\Controllers\Api\Frontdesk\AgendaController;
 use App\Http\Controllers\Api\Frontdesk\AuthController;
+use App\Http\Controllers\Api\Frontdesk\CatalogController;
 use App\Http\Controllers\Api\Frontdesk\FormOptionsController;
 use App\Http\Controllers\Api\Frontdesk\GiftVoucherController;
 use App\Http\Controllers\Api\Frontdesk\LocationSearchController;
@@ -12,7 +14,6 @@ use App\Http\Controllers\Api\Frontdesk\RegistrationController;
 use App\Http\Controllers\Api\Frontdesk\SalesController;
 use App\Http\Controllers\Api\Frontdesk\StaffAttendanceController;
 use App\Http\Controllers\Api\Frontdesk\TaskController;
-use App\Http\Controllers\Api\Display\DeviceController as DisplayDeviceController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api/display')->group(function () {
@@ -31,6 +32,9 @@ Route::prefix('api/frontdesk')->group(function () {
     Route::middleware('frontdesk.auth')->group(function () {
         Route::get('/form-options', FormOptionsController::class);
         Route::get('/locations/search', LocationSearchController::class);
+
+        Route::get('/catalog/product-categories', [CatalogController::class, 'categories']);
+        Route::get('/catalog/products', [CatalogController::class, 'products']);
 
         Route::get('/registrations', [RegistrationController::class, 'index']);
         Route::post('/registrations', [RegistrationController::class, 'store']);
@@ -51,10 +55,11 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::post('/orders/{order}/refund', [OrderController::class, 'refund']);
 
         Route::post('/vouchers/validate', [GiftVoucherController::class, 'validateForPos']);
-        Route::post('/display/sync', [DisplayDeviceController::class, 'sync']);
         Route::get('/vouchers', [GiftVoucherController::class, 'index']);
         Route::post('/vouchers', [GiftVoucherController::class, 'store']);
         Route::put('/vouchers/{voucher}', [GiftVoucherController::class, 'update']);
+
+        Route::post('/display/sync', [DisplayDeviceController::class, 'sync']);
 
         Route::get('/sales', [SalesController::class, 'index']);
         Route::get('/agenda', AgendaController::class);

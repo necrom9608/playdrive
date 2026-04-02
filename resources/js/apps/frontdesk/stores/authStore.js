@@ -41,7 +41,9 @@ export const useAuthStore = defineStore('frontdeskAuth', {
             this.user = response.user ?? null
             this.initialized = true
 
-            window.location.reload()
+            window.dispatchEvent(new CustomEvent('frontdesk-auth-changed', {
+                detail: { authenticated: true, user: this.user },
+            }))
 
             return response
         },
@@ -55,7 +57,9 @@ export const useAuthStore = defineStore('frontdeskAuth', {
             this.user = response.user ?? null
             this.initialized = true
 
-            window.location.reload()
+            window.dispatchEvent(new CustomEvent('frontdesk-auth-changed', {
+                detail: { authenticated: true, user: this.user },
+            }))
 
             return response
         },
@@ -68,7 +72,9 @@ export const useAuthStore = defineStore('frontdeskAuth', {
             this.user = null
             this.initialized = true
 
-            window.location.reload()
-        }
+            window.dispatchEvent(new CustomEvent('frontdesk-auth-changed', {
+                detail: { authenticated: false, user: null },
+            }))
+        },
     },
 })

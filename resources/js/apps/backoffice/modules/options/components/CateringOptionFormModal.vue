@@ -24,9 +24,9 @@
                 </div>
 
                 <div>
-                    <label class="mb-1 block text-sm font-medium text-slate-300">Slug</label>
+                    <label class="mb-1 block text-sm font-medium text-slate-300">Code</label>
                     <input
-                        v-model="form.slug"
+                        v-model="form.code"
                         type="text"
                         class="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-blue-500"
                     />
@@ -35,9 +35,9 @@
 
             <div class="grid gap-4 md:grid-cols-2">
                 <div>
-                    <label class="mb-1 block text-sm font-medium text-slate-300">Icoon</label>
+                    <label class="mb-1 block text-sm font-medium text-slate-300">Emoji</label>
                     <input
-                        v-model="form.icon"
+                        v-model="form.emoji"
                         type="text"
                         placeholder="Bijv. 🍕"
                         class="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-blue-500"
@@ -104,8 +104,8 @@ const emit = defineEmits(['close', 'submit'])
 
 const form = reactive({
     name: '',
-    slug: '',
-    icon: '',
+    code: '',
+    emoji: '',
     is_active: true,
 })
 
@@ -125,23 +125,23 @@ watch(
 
 function fillFormFromProps() {
     form.name = props.option?.name ?? ''
-    form.slug = props.option?.slug ?? ''
-    form.icon = props.option?.icon ?? ''
+    form.code = props.option?.code ?? ''
+    form.emoji = props.option?.emoji ?? ''
     form.is_active = props.option?.is_active ?? true
 }
 
 function resetForm() {
     form.name = ''
-    form.slug = ''
-    form.icon = ''
+    form.code = ''
+    form.emoji = ''
     form.is_active = true
 }
 
 function submitForm() {
     emit('submit', {
         name: form.name,
-        slug: form.slug,
-        icon: form.icon,
+        code: form.code,
+        emoji: form.emoji,
         is_active: form.is_active,
     })
 }

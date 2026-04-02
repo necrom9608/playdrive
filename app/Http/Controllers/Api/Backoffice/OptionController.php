@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Backoffice;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backoffice\StoreCatalogOptionRequest;
+use App\Support\CurrentTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,11 +12,12 @@ use Illuminate\Support\Str;
 
 class OptionController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, CurrentTenant $currentTenant): JsonResponse
     {
         $modelClass = $this->resolveModelClass($request->route('type'));
 
         $items = $modelClass::query()
+            ->where('tenant_id', $currentTenant->id())
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
@@ -23,62 +25,78 @@ class OptionController extends Controller
         return response()->json($items);
     }
 
-    public function store(StoreCatalogOptionRequest $request): JsonResponse
+    public function store(StoreCatalogOptionRequest $request, CurrentTenant $currentTenant): JsonResponse
     {
         $modelClass = $this->resolveModelClass($request->route('type'));
-
         /** @var Model $item */
-        $item = $modelClass::query()->create($this->payload($request, new $modelClass()));
+        $item = new $modelClass();
+        $item->fill($this->payload($request, $item, $currentTenant->id()));
+        $item->save();
 
-        return response()->json($item, 201);
+        return response()->json($item->fresh(), 201);
     }
 
-    public function update(StoreCatalogOptionRequest $request, string $type, int $item): JsonResponse
+    public function update(StoreCatalogOptionRequest $request, CurrentTenant $currentTenant, string $type, int $item): JsonResponse
     {
         $modelClass = $this->resolveModelClass($type);
         /** @var Model $record */
-        $record = $modelClass::query()->findOrFail($item);
-        $record->update($this->payload($request, $record));
+        $record = $modelClass::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->findOrFail($item);
+
+        $record->update($this->payload($request, $record, $currentTenant->id()));
 
         return response()->json($record->fresh());
     }
 
-    public function reorder(Request $request, string $type): JsonResponse
+    public function reorder(Request $request, CurrentTenant $currentTenant, string $type): JsonResponse
     {
         $modelClass = $this->resolveModelClass($type);
-        $items = $request->input('items', []);
+        $items = $request->validate([
+            'items' => ['required', 'array'],
+            'items.*.id' => ['required', 'integer'],
+        ])['items'];
 
         foreach ($items as $index => $item) {
-            $modelClass::query()->whereKey($item['id'] ?? null)->update(['sort_order' => $index + 1]);
+            $modelClass::query()
+                ->where('tenant_id', $currentTenant->id())
+                ->whereKey($item['id'] ?? null)
+                ->update(['sort_order' => $index + 1]);
         }
 
         return response()->json(['success' => true]);
     }
 
-    public function destroy(string $type, int $item): JsonResponse
+    public function destroy(CurrentTenant $currentTenant, string $type, int $item): JsonResponse
     {
         $modelClass = $this->resolveModelClass($type);
-        $modelClass::query()->findOrFail($item)->delete();
+        $modelClass::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->findOrFail($item)
+            ->delete();
 
         return response()->json(['success' => true]);
     }
 
-    protected function payload(StoreCatalogOptionRequest $request, Model $record): array
+    protected function payload(StoreCatalogOptionRequest $request, Model $record, int $tenantId): array
     {
-        $nextSortOrder = (int) $record::query()->max('sort_order') + 1;
+        $nextSortOrder = (int) $record::query()->where('tenant_id', $tenantId)->max('sort_order') + 1;
 
         $payload = [
+            'tenant_id' => $tenantId,
             'name' => $request->string('name')->toString(),
             'code' => $request->filled('code')
                 ? Str::slug($request->string('code')->toString(), '_')
                 : Str::slug($request->string('name')->toString(), '_'),
-            'emoji' => $request->input('emoji'),
+            'emoji' => $this->nullableValue($request->input('emoji')),
             'sort_order' => $request->integer('sort_order', $record->exists ? $record->getAttribute('sort_order') : $nextSortOrder),
             'is_active' => $request->boolean('is_active', true),
         ];
 
         if ($record->getAttribute('duration_minutes') !== null || $request->has('duration_minutes')) {
-            $payload['duration_minutes'] = $request->integer('duration_minutes', 0);
+            $payload['duration_minutes'] = $request->filled('duration_minutes')
+                ? $request->integer('duration_minutes', 0)
+                : null;
         }
 
         return $payload;
@@ -92,5 +110,18 @@ class OptionController extends Controller
             'stay-options' => \App\Models\StayOption::class,
             default => abort(404),
         };
+    }
+
+    private function nullableValue(mixed $value): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_string($value) && trim($value) === '') {
+            return null;
+        }
+
+        return $value;
     }
 }

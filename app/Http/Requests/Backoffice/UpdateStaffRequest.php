@@ -28,6 +28,7 @@ class UpdateStaffRequest extends FormRequest
             'postal_code' => ['nullable', 'string', 'max:50'],
             'city' => ['nullable', 'string', 'max:255'],
             'is_active' => ['required', 'boolean'],
+            'is_admin' => ['required', 'boolean'],
         ];
     }
 }

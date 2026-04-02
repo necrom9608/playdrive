@@ -41,8 +41,8 @@
                     <tr>
                         <th class="px-4 py-3 text-left font-semibold">Volgorde</th>
                         <th class="px-4 py-3 text-left font-semibold">Naam</th>
-                        <th class="px-4 py-3 text-left font-semibold">Slug</th>
-                        <th class="px-4 py-3 text-left font-semibold">Icoon</th>
+                        <th class="px-4 py-3 text-left font-semibold">Code</th>
+                        <th class="px-4 py-3 text-left font-semibold">Emoji</th>
                         <th class="px-4 py-3 text-left font-semibold">Status</th>
                         <th class="px-4 py-3 text-right font-semibold">Acties</th>
                     </tr>
@@ -69,11 +69,11 @@
                         </td>
 
                         <td class="px-4 py-3 text-slate-400">
-                            {{ option.slug }}
+                            {{ option.code }}
                         </td>
 
                         <td class="px-4 py-3 text-slate-400">
-                            {{ option.icon || '—' }}
+                            {{ option.emoji || '—' }}
                         </td>
 
                         <td class="px-4 py-3">

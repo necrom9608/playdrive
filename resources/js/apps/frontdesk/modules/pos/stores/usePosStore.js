@@ -258,137 +258,37 @@ export const usePosStore = defineStore('pos', {
             })
         },
 
-        statsReservations(state) {
-            let items = [...state.reservations]
-
-            if (state.reservationViewMode === 'today') {
-                const today = todayString()
-                items = items.filter(reservation => reservation.event_date === today)
-            }
-
-            if (state.reservationViewMode === 'date') {
-                const selectedDate = state.reservationSelectedDate || todayString()
-                items = items.filter(reservation => reservation.event_date === selectedDate)
-            }
-
-            if (state.reservationViewMode === 'open') {
-                items = items.filter(reservation =>
-                    ['new', 'confirmed'].includes(reservation.status)
-                )
-            }
-
-            return items
-        },
-
-        reservationStats() {
-            const items = this.statsReservations
-
-            const totalReservations = items.length
-            const totalPersons = items.reduce((sum, r) => sum + Number(r.total_count ?? 0), 0)
-
-            const newItems = items.filter(r => r.status === 'new')
-            const confirmed = items.filter(r => r.status === 'confirmed')
-            const checkedIn = items.filter(r => r.status === 'checked_in')
-            const checkedOut = items.filter(r => r.status === 'checked_out')
-            const paid = items.filter(r => r.status === 'paid')
-            const cancelled = items.filter(r => r.status === 'cancelled')
-            const noShow = items.filter(r => r.status === 'no_show')
-
-            const sumPersons = (rows) => rows.reduce((sum, r) => sum + Number(r.total_count ?? 0), 0)
+        todayCounts() {
+            const today = todayString()
+            const todaysReservations = this.reservations.filter(reservation => reservation.event_date === today)
 
             return {
-                totalReservations,
-                totalPersons,
-                newReservations: newItems.length,
-                newPersons: sumPersons(newItems),
-                confirmedReservations: confirmed.length,
-                confirmedPersons: sumPersons(confirmed),
-                checkedInReservations: checkedIn.length,
-                checkedInPersons: sumPersons(checkedIn),
-                checkedOutReservations: checkedOut.length,
-                checkedOutPersons: sumPersons(checkedOut),
-                paidReservations: paid.length,
-                paidPersons: sumPersons(paid),
-                cancelledReservations: cancelled.length,
-                cancelledPersons: sumPersons(cancelled),
-                noShowReservations: noShow.length,
-                noShowPersons: sumPersons(noShow),
-                openReservations: newItems.length + confirmed.length,
-                openPersons: sumPersons(newItems) + sumPersons(confirmed),
+                total: todaysReservations.length,
+                open: todaysReservations.filter(r => ['new', 'confirmed'].includes(r.status)).length,
+                checked_in: todaysReservations.filter(r => r.status === 'checked_in').length,
+                checked_out: todaysReservations.filter(r => r.status === 'checked_out').length,
             }
         },
     },
 
     actions: {
-        async initializeDisplayBridge() {
-            try {
-                const pairingUuid = new URLSearchParams(window.location.search).get('display')
-                const response = await axios.post('/api/display/bootstrap', {
-                    role: 'pos',
-                    device_uuid: getOrCreatePosDeviceUuid(),
-                    device_token: getStoredPosDeviceToken(),
-                    pairing_uuid: pairingUuid || null,
-                    name: 'Frontdesk POS',
-                })
-
-                this.posDevice = response.data?.data ?? null
-
-                if (this.posDevice?.device_token) {
-                    storePosDeviceToken(this.posDevice.device_token)
-                }
-
-                this.displaySyncReady = true
-                this.displaySyncError = null
-                await this.syncCustomerDisplay()
-            } catch (error) {
-                this.displaySyncReady = false
-                this.displaySyncError = error?.response?.data?.message ?? 'Displaykoppeling initialiseren mislukt.'
-            }
-        },
-
-        async syncCustomerDisplay() {
-            if (!this.displaySyncReady || !this.posDevice?.display_device_id || !this.posDevice?.device_uuid) {
+        async loadCatalog() {
+            if (this.loadingCatalog) {
                 return
             }
 
-            const reservation = this.selectedReservation
-            const mode = reservation ? 'reservation' : 'standby'
-
-            try {
-                await axios.post('/api/frontdesk/display/sync', {
-                    device_uuid: this.posDevice.device_uuid,
-                    device_token: getStoredPosDeviceToken(),
-                    mode,
-                    reservation_id: reservation?.id ?? null,
-                    payload: reservation ? {
-                        reservation,
-                        order: this.currentOrder,
-                    } : {},
-                })
-
-                this.displaySyncError = null
-            } catch (error) {
-                this.displaySyncError = error?.response?.data?.message ?? 'Display synchroniseren mislukt.'
-            }
-        },
-
-        async loadCatalog() {
             this.loadingCatalog = true
 
             try {
                 const [categoriesResponse, productsResponse] = await Promise.all([
-                    axios.get('/api/backoffice/product-categories'),
-                    axios.get('/api/backoffice/products'),
+                    axios.get('/api/frontdesk/catalog/product-categories'),
+                    axios.get('/api/frontdesk/catalog/products'),
                 ])
 
-                this.categories = categoriesResponse.data
-                this.products = productsResponse.data
+                this.categories = categoriesResponse.data ?? []
+                this.products = productsResponse.data ?? []
 
-                if (
-                    this.selectedCategoryId === null &&
-                    Array.isArray(this.categories) &&
-                    this.categories.length > 0
-                ) {
+                if (!this.selectedCategoryId && this.categories.length > 0) {
                     this.selectedCategoryId = this.categories[0].id
                 }
             } finally {
@@ -396,471 +296,168 @@ export const usePosStore = defineStore('pos', {
             }
         },
 
-        async fetchReservations() {
+        async loadReservations() {
+            if (this.loadingReservations) {
+                return
+            }
+
             this.loadingReservations = true
 
             try {
                 const response = await axios.get('/api/frontdesk/registrations')
-                this.reservations = response.data.data ?? []
-            } catch (error) {
-                console.error('Failed to fetch reservations', error)
+                this.reservations = response.data?.data ?? response.data ?? []
             } finally {
                 this.loadingReservations = false
             }
         },
 
-        async fetchOrders() {
-            try {
-                const response = await axios.get('/api/frontdesk/orders')
-                const orders = response.data?.data ?? []
-
-                this.reservationOrders = {}
-                this.walkInOrder = createEmptyOrder('walk_in', null)
-
-                orders.forEach(order => {
-                    if (order.context === 'reservation' && order.reservation_id) {
-                        this.reservationOrders[order.reservation_id] = cloneOrder(order)
-                    } else if (order.context === 'walk_in') {
-                        this.walkInOrder = cloneOrder(order)
-                    }
-                })
-
-                if (this.selectedReservationId) {
-                    const selectedReservationOrder = this.reservationOrders[this.selectedReservationId] ?? null
-                    this.selectedOrderId = selectedReservationOrder?.id ?? null
-                } else {
-                    this.selectedOrderId = this.walkInOrder?.id ?? null
-                }
-            } catch (error) {
-                console.error('Failed to fetch orders', error)
-            }
-        },
-
-        addReservation(reservation) {
-            this.reservations.unshift(reservation)
-        },
-
-        updateReservation(updatedReservation) {
-            const index = this.reservations.findIndex(item => item.id === updatedReservation.id)
-
-            if (index === -1) {
-                this.reservations.unshift(updatedReservation)
-                return
-            }
-
-            this.reservations[index] = updatedReservation
-        },
-
-        removeReservation(id) {
-            this.reservations = this.reservations.filter(item => item.id !== id)
-
-            if (this.selectedReservationId === id) {
-                this.selectedReservationId = null
-                this.selectedOrderId = null
-            }
-
-            if (this.reservationOrders[id]) {
-                delete this.reservationOrders[id]
-            }
-        },
-
-        selectCategory(categoryId) {
+        setSelectedCategory(categoryId) {
             this.selectedCategoryId = categoryId
         },
 
-        ensureReservationOrder(reservationId) {
-            if (!this.reservationOrders[reservationId]) {
-                this.reservationOrders[reservationId] = createEmptyOrder('reservation', reservationId)
-            }
+        selectReservation(reservationId) {
+            this.selectedReservationId = reservationId
 
-            return this.reservationOrders[reservationId]
-        },
-
-        getMutableCurrentOrder() {
-            if (this.selectedReservationId) {
-                return this.ensureReservationOrder(this.selectedReservationId)
-            }
-
-            if (!this.walkInOrder) {
-                this.walkInOrder = createEmptyOrder('walk_in', null)
-            }
-
-            return this.walkInOrder
-        },
-
-        upsertOrder(order) {
-            const normalized = cloneOrder(order)
-
-            if (normalized.context === 'reservation' && normalized.reservation_id) {
-                this.reservationOrders[normalized.reservation_id] = normalized
-
-                if (this.selectedReservationId === normalized.reservation_id) {
-                    this.selectedOrderId = normalized.id ?? null
-                }
-
-                this.syncCustomerDisplay()
-                return
-            }
-
-            this.walkInOrder = normalized
-
-            this.syncCustomerDisplay()
-
-            if (!this.selectedReservationId) {
-                this.selectedOrderId = normalized.id ?? null
-            }
-        },
-
-        setSelectedOrderId(id) {
-            this.selectedOrderId = id
-        },
-
-        async persistAddProduct(product) {
-            const response = await axios.post('/api/frontdesk/orders/items', {
-                reservation_id: this.selectedReservationId,
-                product_id: Number(product.id),
-                quantity: 1,
-            })
-
-            const savedOrder = response.data?.data ?? null
-
-            if (!savedOrder) {
-                return null
-            }
-
-            this.upsertOrder(savedOrder)
-
-            const savedItems = savedOrder.items ?? []
-            const matchingItems = savedItems.filter(item => Number(item.product_id) === Number(product.id) && (item.source ?? 'manual') === 'manual')
-            const lastItem = matchingItems.length ? matchingItems[matchingItems.length - 1] : savedItems[savedItems.length - 1] ?? null
-            this.lastAddedLineId = lastItem?.line_id ?? null
-
-            return savedOrder
-        },
-
-        async addProduct(product) {
-            this.checkoutError = null
-
-            try {
-                await this.persistAddProduct(product)
-            } catch (error) {
-                console.error('Failed to add product to order', error)
-                this.checkoutError = error?.response?.data?.message ?? 'Product toevoegen mislukt.'
-            }
-        },
-
-        async increaseItem(lineId) {
-            const order = this.getMutableCurrentOrder()
-            const item = order.items.find(entry => entry.line_id === lineId)
-
-            if (!item || !order?.id || !item?.id) {
-                return
-            }
-
-            this.checkoutError = null
-
-            try {
-                const response = await axios.patch(`/api/frontdesk/orders/${order.id}/items/${item.id}`, {
-                    quantity: Number(item.quantity) + 1,
-                })
-
-                const savedOrder = response.data?.data ?? null
-
-                if (!savedOrder) {
-                    return
-                }
-
-                this.upsertOrder(savedOrder)
-                this.lastAddedLineId = lineId
-            } catch (error) {
-                console.error('Failed to increase order item', error)
-                this.checkoutError = error?.response?.data?.message ?? 'Aantal verhogen mislukt.'
-            }
-        },
-
-        async decreaseItem(lineId) {
-            const order = this.getMutableCurrentOrder()
-            const item = order.items.find(entry => entry.line_id === lineId)
-
-            if (!item || !order?.id || !item?.id) {
-                return
-            }
-
-            this.checkoutError = null
-
-            if (Number(item.quantity) <= 1) {
-                await this.removeItem(lineId)
-                return
-            }
-
-            try {
-                const response = await axios.patch(`/api/frontdesk/orders/${order.id}/items/${item.id}`, {
-                    quantity: Number(item.quantity) - 1,
-                })
-
-                const savedOrder = response.data?.data ?? null
-
-                if (!savedOrder) {
-                    return
-                }
-
-                this.upsertOrder(savedOrder)
-                this.lastAddedLineId = lineId
-            } catch (error) {
-                console.error('Failed to decrease order item', error)
-                this.checkoutError = error?.response?.data?.message ?? 'Aantal verlagen mislukt.'
-            }
-        },
-
-        async removeItem(lineId) {
-            const order = this.getMutableCurrentOrder()
-            const item = order.items.find(entry => entry.line_id === lineId)
-
-            if (!item || !order?.id || !item?.id) {
-                return
-            }
-
-            this.checkoutError = null
-
-            try {
-                const response = await axios.delete(`/api/frontdesk/orders/${order.id}/items/${item.id}`)
-                const savedOrder = response.data?.data ?? null
-
-                if (!savedOrder) {
-                    return
-                }
-
-                this.upsertOrder(savedOrder)
-
-                if (this.lastAddedLineId === lineId) {
-                    const currentItems = savedOrder.items ?? []
-                    this.lastAddedLineId = currentItems.length
-                        ? currentItems[currentItems.length - 1].line_id
-                        : null
-                }
-            } catch (error) {
-                console.error('Failed to remove order item', error)
-                this.checkoutError = error?.response?.data?.message ?? 'Item verwijderen mislukt.'
-            }
-        },
-
-        async applyVoucher(code) {
-            this.checkoutError = null
-
-            try {
-                const response = await axios.post('/api/frontdesk/vouchers/validate', {
-                    code,
-                    reservation_id: this.selectedReservationId,
-                })
-
-                const order = response.data?.data?.order ?? null
-                const voucher = response.data?.data?.voucher ?? null
-
-                if (order) {
-                    this.upsertOrder(order)
-                }
-
-                if (voucher) {
-                    const exists = this.appliedVouchers.find(item => item.id === voucher.id)
-                    if (!exists) {
-                        this.appliedVouchers.push(voucher)
-                    }
-                }
-
-                return voucher
-            } catch (error) {
-                console.error('Failed to apply voucher', error)
-                this.checkoutError = error?.response?.data?.message ?? 'Cadeaubon valideren mislukt.'
-                return null
-            }
-        },
-
-        async clearOrder() {
-            const order = this.currentOrder
-            const items = [...(order?.items ?? [])]
-
-            this.checkoutError = null
-            this.lastAddedLineId = null
-            this.appliedVouchers = []
-
-            if (!items.length) {
-                return
-            }
-
-            for (const item of items) {
-                if (!item?.line_id) {
-                    continue
-                }
-
-                // eslint-disable-next-line no-await-in-loop
-                await this.removeItem(item.line_id)
-            }
-        },
-
-        replaceWalkInOrder(order) {
-            this.walkInOrder = cloneOrder({
-                ...order,
-                context: 'walk_in',
-                reservation_id: null,
-            })
-
-            if (this.walkInOrder.id) {
-                this.selectedOrderId = this.walkInOrder.id
-            }
-        },
-
-        replaceReservationOrder(reservationId, order) {
-            this.reservationOrders[reservationId] = cloneOrder({
-                ...order,
-                context: 'reservation',
-                reservation_id: reservationId,
-            })
-
-            if (this.reservationOrders[reservationId]?.id) {
-                this.selectedOrderId = this.reservationOrders[reservationId].id
-            }
-        },
-
-        selectReservation(id) {
-            this.selectedReservationId = id
-
-            if (id) {
-                const order = this.ensureReservationOrder(id)
-
-                if (order?.id) {
-                    this.selectedOrderId = order.id
-                } else {
-                    this.selectedOrderId = null
-                }
-            } else {
+            if (!reservationId) {
                 this.selectedOrderId = this.walkInOrder?.id ?? null
+                return
             }
 
-            this.lastAddedLineId = null
-            this.checkoutError = null
-            this.appliedVouchers = []
-            this.syncCustomerDisplay()
+            const reservationOrder = this.reservationOrders[reservationId] ?? createEmptyOrder('reservation', reservationId)
+            this.reservationOrders = {
+                ...this.reservationOrders,
+                [reservationId]: reservationOrder,
+            }
+
+            this.selectedOrderId = reservationOrder.id
         },
 
-        clearReservationSelection() {
+        selectWalkIn() {
             this.selectedReservationId = null
             this.selectedOrderId = this.walkInOrder?.id ?? null
-            this.lastAddedLineId = null
-            this.checkoutError = null
-            this.appliedVouchers = []
-            this.syncCustomerDisplay()
         },
 
-        setReservationSearch(value) {
-            this.reservationSearch = value
+        setReservationViewMode(mode) {
+            this.reservationViewMode = mode
         },
 
         setReservationSelectedDate(value) {
             this.reservationSelectedDate = value
         },
 
-        setReservationViewMode(mode) {
-            this.reservationViewMode = mode
-
-            if (mode === 'today') {
-                this.reservationSelectedDate = todayString()
-                this.resetReservationStatusFilters()
-            }
-
-            if (mode === 'open') {
-                this.applyOpenReservationFilters()
-            }
-
-            if (mode === 'date') {
-                this.resetReservationStatusFilters()
-            }
+        setReservationSearch(value) {
+            this.reservationSearch = value
         },
 
         toggleReservationStatusFilter(status) {
             this.reservationStatusFilters[status] = !this.reservationStatusFilters[status]
         },
 
-        resetReservationStatusFilters() {
-            this.reservationStatusFilters = {
-                new: true,
-                confirmed: true,
-                checked_in: true,
-                checked_out: true,
-                paid: false,
-                cancelled: false,
-                no_show: false,
+        replaceCurrentOrder(order) {
+            const cloned = cloneOrder(order)
+
+            if (cloned.context === 'reservation' && cloned.reservation_id) {
+                this.reservationOrders = {
+                    ...this.reservationOrders,
+                    [cloned.reservation_id]: cloned,
+                }
+            } else {
+                this.walkInOrder = cloned
             }
+
+            this.selectedOrderId = cloned.id
         },
 
-        applyOpenReservationFilters() {
-            this.reservationStatusFilters = {
-                new: true,
-                confirmed: true,
-                checked_in: false,
-                checked_out: false,
-                paid: false,
-                cancelled: false,
-                no_show: false,
+        async addProduct(product) {
+            const payload = {
+                product_id: product.id,
+                reservation_id: this.selectedReservationId,
             }
+
+            const response = await axios.post('/api/frontdesk/orders/items', payload)
+            const order = response.data?.order ?? response.data
+
+            this.replaceCurrentOrder(order)
+            this.lastAddedLineId = order?.items?.[order.items.length - 1]?.line_id ?? null
         },
 
-        async checkoutCurrentOrder(payload = {}) {
+        async updateItem(lineItem, quantity) {
             const order = this.currentOrder
-            const items = (order?.items ?? [])
-                .filter(item => Number(item.quantity) > 0)
-                .map(item => ({
-                    product_id: Number(item.product_id),
-                    quantity: Number(item.quantity),
-                }))
 
-            if (!items.length) {
-                this.checkoutError = 'Voeg eerst minstens één product toe aan de bestelling.'
-                return null
+            if (!order?.id || !lineItem?.id) {
+                return
             }
 
+            const response = await axios.patch(`/api/frontdesk/orders/${order.id}/items/${lineItem.id}`, {
+                quantity,
+            })
+
+            this.replaceCurrentOrder(response.data?.order ?? response.data)
+        },
+
+        async deleteItem(lineItem) {
+            const order = this.currentOrder
+
+            if (!order?.id || !lineItem?.id) {
+                return
+            }
+
+            const response = await axios.delete(`/api/frontdesk/orders/${order.id}/items/${lineItem.id}`)
+            this.replaceCurrentOrder(response.data?.order ?? response.data)
+        },
+
+        async validateVoucher(code) {
+            const response = await axios.post('/api/frontdesk/vouchers/validate', { code })
+            return response.data
+        },
+
+        async checkout(payload) {
             this.checkoutProcessing = true
             this.checkoutError = null
 
             try {
-                const response = await axios.post('/api/frontdesk/orders/checkout', {
-                    order_id: order?.id ?? null,
-                    reservation_id: this.selectedReservationId,
-                    payment_method: payload.payment_method ?? 'cash',
-                    notes: payload.notes ?? null,
-                    invoice_requested: payload.invoice_requested ?? false,
-                    items,
-                })
-
-                const checkoutData = response.data?.data ?? null
-                this.lastCheckoutSummary = checkoutData
-
-                if (this.selectedReservationId && this.selectedReservation) {
-                    this.updateReservation({
-                        ...this.selectedReservation,
-                        status: 'paid',
-                    })
-                }
-
-                if (this.selectedReservationId) {
-                    this.reservationOrders[this.selectedReservationId] = createEmptyOrder(
-                        'reservation',
-                        this.selectedReservationId
-                    )
-                    this.selectedOrderId = null
-                } else {
-                    this.walkInOrder = createEmptyOrder('walk_in', null)
-                    this.selectedOrderId = null
-                }
-
-                this.lastAddedLineId = null
+                const response = await axios.post('/api/frontdesk/orders/checkout', payload)
+                this.lastCheckoutSummary = response.data ?? null
                 this.appliedVouchers = []
-                this.syncCustomerDisplay()
-                return checkoutData
+                return response.data
             } catch (error) {
                 this.checkoutError = error?.response?.data?.message ?? 'Afrekenen mislukt.'
-                return null
+                throw error
             } finally {
                 this.checkoutProcessing = false
+            }
+        },
+
+        async bootstrapDisplaySync() {
+            try {
+                const response = await axios.post('/api/display/bootstrap', {
+                    uuid: getOrCreatePosDeviceUuid(),
+                    token: getStoredPosDeviceToken(),
+                })
+
+                this.posDevice = response.data?.device ?? null
+
+                if (response.data?.token) {
+                    storePosDeviceToken(response.data.token)
+                }
+
+                this.displaySyncReady = true
+                this.displaySyncError = null
+            } catch (error) {
+                this.displaySyncReady = false
+                this.displaySyncError = error?.response?.data?.message ?? 'Display-koppeling mislukt.'
+            }
+        },
+
+        async syncDisplay(payload = {}) {
+            if (!this.displaySyncReady) {
+                return
+            }
+
+            try {
+                await axios.post('/api/frontdesk/display/sync', payload)
+            } catch (error) {
+                this.displaySyncError = error?.response?.data?.message ?? 'Display sync mislukt.'
             }
         },
     },

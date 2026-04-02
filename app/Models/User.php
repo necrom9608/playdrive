@@ -25,6 +25,7 @@ class User extends Authenticatable
         'postal_code',
         'city',
         'is_active',
+        'is_admin',
         'sort_order',
     ];
 
@@ -39,6 +40,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'is_admin' => 'boolean',
             'sort_order' => 'integer',
         ];
     }
