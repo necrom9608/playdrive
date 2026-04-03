@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import DashboardPage from '../modules/dashboard/pages/DashboardPage.vue'
 import ReportingPage from '../modules/reporting/pages/ReportingPage.vue'
+import DayTotalsPage from '../modules/daytotals/pages/DayTotalsPage.vue'
 import ProductManagementPage from '../modules/product-management/pages/ProductManagementPage.vue'
 import CateringOptionsPage from '../modules/options/pages/CateringOptionsPage.vue'
 import EventTypesPage from '../modules/options/pages/EventTypesPage.vue'
@@ -12,6 +13,7 @@ import DevicesPage from '../modules/devices/pages/DevicesPage.vue'
 const routes = [
     { path: '/', name: 'backoffice.dashboard', component: DashboardPage },
     { path: '/reporting', name: 'backoffice.reporting', component: ReportingPage },
+    { path: '/daytotals', name: 'backoffice.daytotals', component: DayTotalsPage },
     { path: '/catalog', name: 'backoffice.product-management', component: ProductManagementPage },
     {
         path: '/products',
@@ -39,12 +41,6 @@ const routes = [
     { path: '/stay-options', name: 'backoffice.stay-options', component: StayOptionsPage },
     { path: '/staff', name: 'backoffice.staff', component: StaffPage },
     { path: '/devices', name: 'backoffice.devices', component: DevicesPage },
-
-    {
-        path: '/daytotals',
-        name: 'backoffice-daytotals',
-        component: () => import('../modules/daytotals/pages/DayTotalsPage.vue'),
-    }
 ]
 
 export default createRouter({

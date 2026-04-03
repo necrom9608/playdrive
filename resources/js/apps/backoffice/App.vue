@@ -23,13 +23,10 @@ const navigation = [
     { label: 'Dashboard', to: '/', group: 'Inzichten' },
     { label: 'Rapportering', to: '/reporting', group: 'Inzichten' },
     { label: 'Dagtotalen', to: '/daytotals', group: 'Inzichten' },
-
     { label: 'Productbeheer', to: '/catalog', group: 'Verkoop' },
     { label: 'Cateringopties', to: '/catering-options', group: 'Verkoop' },
-
     { label: 'Personeel', to: '/staff', group: 'Beheer' },
     { label: 'Displays & POS', to: '/devices', group: 'Beheer' },
-
     { label: 'Event types', to: '/event-types', group: 'Instellingen' },
     { label: 'Verblijfsopties', to: '/stay-options', group: 'Instellingen' },
 ]

@@ -10,15 +10,9 @@ use App\Http\Controllers\Api\Backoffice\ProductController;
 use App\Http\Controllers\Api\Backoffice\StaffController;
 use App\Http\Controllers\Api\Backoffice\DeviceManagementController;
 use App\Http\Controllers\Api\Backoffice\AnalyticsController;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Backoffice\DayTotalsController;
+use Illuminate\Support\Facades\Route;
 
-Route::get('/day-totals', [DayTotalsController::class, 'index']);
-Route::get('/day-totals/export', [DayTotalsController::class, 'export']);
-
-
-Route::get('/day-totals', [DayTotalsController::class, 'index']);
-Route::get('/day-totals/export', [DayTotalsController::class, 'export']);
 Route::prefix('api/backoffice')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/login', [AuthController::class, 'login']);
@@ -56,6 +50,8 @@ Route::prefix('api/backoffice')->group(function () {
 
         Route::get('/analytics/dashboard', [AnalyticsController::class, 'dashboard']);
         Route::get('/analytics/reporting', [AnalyticsController::class, 'reporting']);
+        Route::get('/day-totals', [DayTotalsController::class, 'index']);
+        Route::get('/day-totals/export', [DayTotalsController::class, 'export']);
 
         Route::get('/devices', [DeviceManagementController::class, 'index']);
         Route::post('/devices/pair', [DeviceManagementController::class, 'pair']);

@@ -1,4 +1,3 @@
-
 import axios from 'axios'
 
 export async function fetchDayTotals(params = {}) {
@@ -7,6 +6,9 @@ export async function fetchDayTotals(params = {}) {
 }
 
 export function getDayTotalsExportUrl(params = {}) {
-    const query = new URLSearchParams(params).toString()
-    return `/api/backoffice/day-totals/export?${query}`
+    const query = new URLSearchParams(
+        Object.entries(params).filter(([, value]) => value !== null && value !== undefined && value !== '')
+    ).toString()
+
+    return `/api/backoffice/day-totals/export${query ? `?${query}` : ''}`
 }
