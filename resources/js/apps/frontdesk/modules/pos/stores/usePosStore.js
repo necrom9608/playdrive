@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import axios from '@/lib/http'
 
 const POS_UUID_KEY = 'playdrive_pos_device_uuid'
 const POS_TOKEN_KEY = 'playdrive_pos_device_token'

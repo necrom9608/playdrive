@@ -234,7 +234,7 @@
 </template>
 
 <script setup>
-import axios from 'axios'
+import axios from '@/lib/http'
 import { computed, nextTick, onMounted, ref } from 'vue'
 
 const loading = ref(false)

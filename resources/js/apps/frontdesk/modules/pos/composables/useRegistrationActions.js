@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios from '@/lib/http'
 import { computed, ref } from 'vue'
 
 export function useRegistrationActions(store) {

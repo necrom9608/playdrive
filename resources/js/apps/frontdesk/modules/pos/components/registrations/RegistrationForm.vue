@@ -78,7 +78,7 @@
 </template>
 
 <script setup>
-import axios from 'axios'
+import axios from '@/lib/http'
 import { computed, onMounted, ref, toRaw, watch } from 'vue'
 import { useRegistrationForm } from '../../composables/useRegistrationForm'
 import RegistrationTabs from './RegistrationTabs.vue'

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import axios from '@/lib/http'
 
 export const useAgendaStore = defineStore('frontdeskAgenda', {
     state: () => ({

@@ -91,7 +91,7 @@
 </template>
 
 <script setup>
-import axios from 'axios'
+import axios from '@/lib/http'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
     UserPlusIcon,
