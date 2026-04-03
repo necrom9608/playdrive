@@ -23,6 +23,8 @@ class OrderItem extends Model
         'source_reference',
         'created_by',
         'updated_by',
+        'source',
+        'source_reference',
     ];
 
     protected $casts = [

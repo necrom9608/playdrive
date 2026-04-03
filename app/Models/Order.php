@@ -39,6 +39,8 @@ class Order extends Model
         'updated_by',
         'paid_by',
         'notes',
+        'source',
+        'source_reference',
     ];
 
     protected $casts = [
