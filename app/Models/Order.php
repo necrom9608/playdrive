@@ -20,6 +20,7 @@ class Order extends Model
         'registration_id',
         'status',
         'source',
+        'source_reference',
         'subtotal_excl_vat',
         'total_vat',
         'total_incl_vat',
@@ -39,8 +40,6 @@ class Order extends Model
         'updated_by',
         'paid_by',
         'notes',
-        'source',
-        'source_reference',
     ];
 
     protected $casts = [

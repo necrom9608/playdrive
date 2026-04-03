@@ -20,7 +20,9 @@ import { useBackofficeAuthStore } from './stores/authStore'
 const auth = useBackofficeAuthStore()
 
 const navigation = [
-    { label: 'Productbeheer', to: '/', group: 'Verkoop' },
+    { label: 'Dashboard', to: '/', group: 'Inzichten' },
+    { label: 'Rapportering', to: '/reporting', group: 'Inzichten' },
+    { label: 'Productbeheer', to: '/catalog', group: 'Verkoop' },
     { label: 'Cateringopties', to: '/catering-options', group: 'Verkoop' },
     { label: 'Personeel', to: '/staff', group: 'Beheer' },
     { label: 'Displays & POS', to: '/devices', group: 'Beheer' },

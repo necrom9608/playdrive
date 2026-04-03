@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+import DashboardPage from '../modules/dashboard/pages/DashboardPage.vue'
+import ReportingPage from '../modules/reporting/pages/ReportingPage.vue'
 import ProductManagementPage from '../modules/product-management/pages/ProductManagementPage.vue'
 import CateringOptionsPage from '../modules/options/pages/CateringOptionsPage.vue'
 import EventTypesPage from '../modules/options/pages/EventTypesPage.vue'
@@ -8,7 +10,9 @@ import StaffPage from '../modules/staff/pages/StaffPage.vue'
 import DevicesPage from '../modules/devices/pages/DevicesPage.vue'
 
 const routes = [
-    { path: '/', name: 'backoffice.product-management', component: ProductManagementPage },
+    { path: '/', name: 'backoffice.dashboard', component: DashboardPage },
+    { path: '/reporting', name: 'backoffice.reporting', component: ReportingPage },
+    { path: '/catalog', name: 'backoffice.product-management', component: ProductManagementPage },
     {
         path: '/products',
         redirect: {

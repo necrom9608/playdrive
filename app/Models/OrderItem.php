@@ -21,10 +21,10 @@ class OrderItem extends Model
         'sort_order',
         'source',
         'source_reference',
+        'legacy_category',
+        'legacy_article_number',
         'created_by',
         'updated_by',
-        'source',
-        'source_reference',
     ];
 
     protected $casts = [
