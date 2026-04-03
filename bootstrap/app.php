@@ -6,6 +6,7 @@ use App\Http\Middleware\RequirePlaydriveAdminAuth;
 use App\Http\Middleware\RequireStaffAuth;
 use App\Http\Middleware\RequireValidTenantForApp;
 use App\Http\Middleware\ResolveTenant;
+use App\Http\Middleware\ValidatePublicApiKey;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -34,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'backoffice.auth' => RequireBackofficeAuth::class,
             'staff.auth' => RequireStaffAuth::class,
             'playdrive.admin.auth' => RequirePlaydriveAdminAuth::class,
+            'public.api' => ValidatePublicApiKey::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

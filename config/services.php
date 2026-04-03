@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+
+    'playdrive' => [
+        'public_api_key' => env('PLAYDRIVE_PUBLIC_API_KEY'),
+    ],
+
 ];
