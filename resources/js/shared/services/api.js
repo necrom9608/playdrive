@@ -1,5 +1,34 @@
+function getCookie(name) {
+    const value = `; ${document.cookie}`
+    const parts = value.split(`; ${name}=`)
+
+    if (parts.length === 2) {
+        return parts.pop().split(';').shift() || ''
+    }
+
+    return ''
+}
+
 function getCsrfToken() {
+    const xsrfCookie = getCookie('XSRF-TOKEN')
+
+    if (xsrfCookie) {
+        return decodeURIComponent(xsrfCookie)
+    }
+
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+}
+
+function updateMetaCsrfToken(token) {
+    if (!token) {
+        return
+    }
+
+    const meta = document.querySelector('meta[name="csrf-token"]')
+
+    if (meta) {
+        meta.setAttribute('content', token)
+    }
 }
 
 export async function apiFetch(url, options = {}) {
@@ -9,7 +38,7 @@ export async function apiFetch(url, options = {}) {
     const headers = {
         Accept: 'application/json',
         'X-Requested-With': 'XMLHttpRequest',
-        ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+        ...(csrfToken ? { 'X-XSRF-TOKEN': csrfToken } : {}),
         ...(options.headers || {}),
     }
 
@@ -22,6 +51,11 @@ export async function apiFetch(url, options = {}) {
         ...options,
         headers,
     })
+
+    const refreshedToken = getCsrfToken()
+    if (refreshedToken) {
+        updateMetaCsrfToken(refreshedToken)
+    }
 
     const contentType = response.headers.get('content-type') || ''
 
