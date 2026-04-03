@@ -17,7 +17,7 @@
                 </a>
             </div>
 
-            <div class="grid gap-4 md:grid-cols-5">
+            <div class="grid gap-4 md:grid-cols-6">
                 <div>
                     <label class="mb-2 block text-sm font-medium text-slate-300">Modus</label>
                     <select
@@ -102,6 +102,18 @@
                     </div>
                 </template>
 
+                <div class="md:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-slate-300">Facturen</label>
+                    <label class="inline-flex w-full items-center gap-3 rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-200">
+                        <input
+                            v-model="filters.includeInvoices"
+                            type="checkbox"
+                            class="h-4 w-4 rounded border-slate-600 bg-slate-900 text-violet-500 focus:ring-violet-500"
+                        />
+                        <span>Factuurverkopen meenemen in dagtotalen</span>
+                    </label>
+                </div>
+
                 <div class="flex items-end">
                     <button
                         @click="loadData"
@@ -155,8 +167,8 @@
             </div>
         </div>
 
-        <div class="min-h-0 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/90 shadow-xl">
-            <div class="overflow-auto">
+        <div class="min-h-0 flex-1 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/90 shadow-xl">
+            <div class="h-full overflow-auto">
                 <table class="min-w-full divide-y divide-slate-800 text-sm">
                     <thead class="bg-slate-950/80 text-slate-300">
                     <tr>
@@ -336,6 +348,7 @@ const filters = reactive({
     quarter: Math.floor(now.getMonth() / 3) + 1,
     start: new Date().toISOString().slice(0, 10),
     end: new Date().toISOString().slice(0, 10),
+    includeInvoices: false,
 })
 
 const visibleGroups = reactive({
@@ -394,6 +407,12 @@ const requestParams = computed(() => ({
     quarter: filters.quarter,
     start: filters.start,
     end: filters.end,
+    include_invoices: filters.includeInvoices ? 1 : 0,
+    show_rate0: visibleGroups.rate0 ? 1 : 0,
+    show_rate6: visibleGroups.rate6 ? 1 : 0,
+    show_rate12: visibleGroups.rate12 ? 1 : 0,
+    show_rate21: visibleGroups.rate21 ? 1 : 0,
+    show_total: visibleGroups.total ? 1 : 0,
 }))
 
 const exportUrl = computed(() => getDayTotalsExportUrl(requestParams.value))

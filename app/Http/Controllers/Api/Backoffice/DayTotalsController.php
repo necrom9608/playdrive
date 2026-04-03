@@ -22,7 +22,7 @@ class DayTotalsController extends Controller
 
         [$start, $end] = $this->resolvePeriod($request);
 
-        $rows = $this->buildRows($currentTenant->id(), $start, $end);
+        $rows = $this->buildRows($currentTenant->id(), $start, $end, $this->includeInvoices($request));
         $totals = $this->buildTotals($rows);
 
         return response()->json([
@@ -44,16 +44,17 @@ class DayTotalsController extends Controller
         }
 
         [$start, $end] = $this->resolvePeriod($request);
-        $rows = $this->buildRows($currentTenant->id(), $start, $end);
+        $rows = $this->buildRows($currentTenant->id(), $start, $end, $this->includeInvoices($request));
         $totals = $this->buildTotals($rows);
+        $visibleGroups = $this->resolveVisibleGroups($request);
 
-        $filename = 'dagtotalen_' . $start->format('Ymd') . '_' . $end->format('Ymd') . '.xls';
+        $filename = 'dagtotalen_' . $start->format('Ymd') . '_' . $end->format('Ymd') . '.xlsx';
+        $xlsx = $this->buildXlsxBinary($rows, $totals, $visibleGroups);
 
-        $html = $this->buildExcelHtml($rows, $totals);
-
-        return response($html, 200, [
-            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
+        return response($xlsx, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Length' => (string) strlen($xlsx),
         ]);
     }
 
@@ -66,6 +67,12 @@ class DayTotalsController extends Controller
             'quarter' => ['nullable', 'integer', 'between:1,4'],
             'start' => ['nullable', 'date'],
             'end' => ['nullable', 'date'],
+            'include_invoices' => ['nullable', 'boolean'],
+            'show_rate0' => ['nullable', 'boolean'],
+            'show_rate6' => ['nullable', 'boolean'],
+            'show_rate12' => ['nullable', 'boolean'],
+            'show_rate21' => ['nullable', 'boolean'],
+            'show_total' => ['nullable', 'boolean'],
         ]);
 
         $mode = $validated['mode'] ?? 'month';
@@ -96,7 +103,23 @@ class DayTotalsController extends Controller
         return [$start, $end];
     }
 
-    protected function buildRows(int $tenantId, Carbon $start, Carbon $end): array
+    protected function includeInvoices(Request $request): bool
+    {
+        return $request->boolean('include_invoices');
+    }
+
+    protected function resolveVisibleGroups(Request $request): array
+    {
+        return [
+            'rate0' => $request->boolean('show_rate0'),
+            'rate6' => $request->boolean('show_rate6', true),
+            'rate12' => $request->boolean('show_rate12'),
+            'rate21' => $request->boolean('show_rate21', true),
+            'total' => $request->boolean('show_total', true),
+        ];
+    }
+
+    protected function buildRows(int $tenantId, Carbon $start, Carbon $end, bool $includeInvoices = false): array
     {
         $items = OrderItem::query()
             ->selectRaw('DATE(orders.paid_at) as order_date')
@@ -108,8 +131,13 @@ class DayTotalsController extends Controller
             ->where('orders.tenant_id', $tenantId)
             ->whereNotNull('orders.paid_at')
             ->whereBetween('orders.paid_at', [$start, $end])
-            ->where('orders.status', 'paid')
-            ->groupBy(
+            ->where('orders.status', 'paid');
+
+        if (! $includeInvoices) {
+            $items->where('orders.invoice_requested', false);
+        }
+
+        $items = $items->groupBy(
                 DB::raw('DATE(orders.paid_at)'),
                 DB::raw('ROUND(order_items.vat_rate, 0)')
             )
@@ -208,72 +236,277 @@ class DayTotalsController extends Controller
         return $totals;
     }
 
-    protected function buildExcelHtml(array $rows, array $totals): string
+    protected function buildXlsxBinary(array $rows, array $totals, array $visibleGroups): string
     {
-        $out = [];
-        $out[] = '<html><head><meta charset="UTF-8"></head><body>';
-        $out[] = '<table border="1">';
-        $out[] = '<tr>';
-        $out[] = '<th>Datum</th>';
-        $out[] = '<th>Excl. BTW</th>';
-        $out[] = '<th>BTW</th>';
-        $out[] = '<th>Incl. BTW</th>';
-        $out[] = '<th>0% Excl.</th>';
-        $out[] = '<th>0% BTW</th>';
-        $out[] = '<th>0% Incl.</th>';
-        $out[] = '<th>6% Excl.</th>';
-        $out[] = '<th>6% BTW</th>';
-        $out[] = '<th>6% Incl.</th>';
-        $out[] = '<th>12% Excl.</th>';
-        $out[] = '<th>12% BTW</th>';
-        $out[] = '<th>12% Incl.</th>';
-        $out[] = '<th>21% Excl.</th>';
-        $out[] = '<th>21% BTW</th>';
-        $out[] = '<th>21% Incl.</th>';
-        $out[] = '</tr>';
-
-        foreach ($rows as $row) {
-            $out[] = '<tr>';
-            $out[] = '<td>' . e($row['date']) . '</td>';
-            $out[] = '<td>' . $row['total_excl_vat'] . '</td>';
-            $out[] = '<td>' . $row['total_vat'] . '</td>';
-            $out[] = '<td>' . $row['total_incl_vat'] . '</td>';
-            $out[] = '<td>' . ($row['vat_breakdown']['0']['excl'] ?? 0) . '</td>';
-            $out[] = '<td>' . ($row['vat_breakdown']['0']['vat'] ?? 0) . '</td>';
-            $out[] = '<td>' . ($row['vat_breakdown']['0']['incl'] ?? 0) . '</td>';
-            $out[] = '<td>' . ($row['vat_breakdown']['6']['excl'] ?? 0) . '</td>';
-            $out[] = '<td>' . ($row['vat_breakdown']['6']['vat'] ?? 0) . '</td>';
-            $out[] = '<td>' . ($row['vat_breakdown']['6']['incl'] ?? 0) . '</td>';
-            $out[] = '<td>' . ($row['vat_breakdown']['12']['excl'] ?? 0) . '</td>';
-            $out[] = '<td>' . ($row['vat_breakdown']['12']['vat'] ?? 0) . '</td>';
-            $out[] = '<td>' . ($row['vat_breakdown']['12']['incl'] ?? 0) . '</td>';
-            $out[] = '<td>' . ($row['vat_breakdown']['21']['excl'] ?? 0) . '</td>';
-            $out[] = '<td>' . ($row['vat_breakdown']['21']['vat'] ?? 0) . '</td>';
-            $out[] = '<td>' . ($row['vat_breakdown']['21']['incl'] ?? 0) . '</td>';
-            $out[] = '</tr>';
+        if (! class_exists(\ZipArchive::class)) {
+            abort(500, 'ZipArchive is niet beschikbaar op deze server.');
         }
 
-        $out[] = '<tr>';
-        $out[] = '<th>Totaal</th>';
-        $out[] = '<th>' . $totals['total_excl_vat'] . '</th>';
-        $out[] = '<th>' . $totals['total_vat'] . '</th>';
-        $out[] = '<th>' . $totals['total_incl_vat'] . '</th>';
-        $out[] = '<th>' . ($totals['vat_breakdown']['0']['excl'] ?? 0) . '</th>';
-        $out[] = '<th>' . ($totals['vat_breakdown']['0']['vat'] ?? 0) . '</th>';
-        $out[] = '<th>' . ($totals['vat_breakdown']['0']['incl'] ?? 0) . '</th>';
-        $out[] = '<th>' . ($totals['vat_breakdown']['6']['excl'] ?? 0) . '</th>';
-        $out[] = '<th>' . ($totals['vat_breakdown']['6']['vat'] ?? 0) . '</th>';
-        $out[] = '<th>' . ($totals['vat_breakdown']['6']['incl'] ?? 0) . '</th>';
-        $out[] = '<th>' . ($totals['vat_breakdown']['12']['excl'] ?? 0) . '</th>';
-        $out[] = '<th>' . ($totals['vat_breakdown']['12']['vat'] ?? 0) . '</th>';
-        $out[] = '<th>' . ($totals['vat_breakdown']['12']['incl'] ?? 0) . '</th>';
-        $out[] = '<th>' . ($totals['vat_breakdown']['21']['excl'] ?? 0) . '</th>';
-        $out[] = '<th>' . ($totals['vat_breakdown']['21']['vat'] ?? 0) . '</th>';
-        $out[] = '<th>' . ($totals['vat_breakdown']['21']['incl'] ?? 0) . '</th>';
-        $out[] = '</tr>';
+        [$sheetRows, $merges, $columnCount] = $this->buildSheetRows($rows, $totals, $visibleGroups);
+        $sheetXml = $this->buildWorksheetXml($sheetRows, $merges, $columnCount);
 
-        $out[] = '</table></body></html>';
+        $tmp = tempnam(sys_get_temp_dir(), 'daytotals_xlsx_');
+        $zip = new \ZipArchive();
+        $zip->open($tmp, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
 
-        return implode('', $out);
+        $zip->addFromString('[Content_Types].xml', $this->buildContentTypesXml());
+        $zip->addFromString('_rels/.rels', $this->buildRootRelationshipsXml());
+        $zip->addFromString('xl/workbook.xml', $this->buildWorkbookXml());
+        $zip->addFromString('xl/_rels/workbook.xml.rels', $this->buildWorkbookRelationshipsXml());
+        $zip->addFromString('xl/styles.xml', $this->buildStylesXml());
+        $zip->addFromString('xl/worksheets/sheet1.xml', $sheetXml);
+        $zip->close();
+
+        $binary = file_get_contents($tmp) ?: '';
+        @unlink($tmp);
+
+        return $binary;
+    }
+
+    protected function buildSheetRows(array $rows, array $totals, array $visibleGroups): array
+    {
+        $headerTop = ['Datum'];
+        $headerBottom = [''];
+        $merges = ['A1:A2'];
+        $currentColumn = 2;
+
+        foreach ($this->exportGroups($visibleGroups) as $group) {
+            $headerTop[] = $group['title'];
+            $headerTop[] = '';
+            $headerTop[] = '';
+            $headerBottom[] = 'Excl.';
+            $headerBottom[] = 'Btw';
+            $headerBottom[] = 'Incl.';
+
+            $startColumn = $currentColumn;
+            $endColumn = $currentColumn + 2;
+            $merges[] = $this->columnLetter($startColumn) . '1:' . $this->columnLetter($endColumn) . '1';
+            $currentColumn += 3;
+        }
+
+        $sheetRows = [$headerTop, $headerBottom];
+
+        foreach ($rows as $row) {
+            $sheetRow = [$row['date']];
+
+            foreach ($this->exportGroups($visibleGroups) as $group) {
+                if ($group['type'] === 'total') {
+                    $sheetRow[] = $row['total_excl_vat'];
+                    $sheetRow[] = $row['total_vat'];
+                    $sheetRow[] = $row['total_incl_vat'];
+                    continue;
+                }
+
+                $rate = $group['rate'];
+                $sheetRow[] = $row['vat_breakdown'][$rate]['excl'] ?? 0;
+                $sheetRow[] = $row['vat_breakdown'][$rate]['vat'] ?? 0;
+                $sheetRow[] = $row['vat_breakdown'][$rate]['incl'] ?? 0;
+            }
+
+            $sheetRows[] = $sheetRow;
+        }
+
+        $totalRow = ['Totaal'];
+
+        foreach ($this->exportGroups($visibleGroups) as $group) {
+            if ($group['type'] === 'total') {
+                $totalRow[] = $totals['total_excl_vat'];
+                $totalRow[] = $totals['total_vat'];
+                $totalRow[] = $totals['total_incl_vat'];
+                continue;
+            }
+
+            $rate = $group['rate'];
+            $totalRow[] = $totals['vat_breakdown'][$rate]['excl'] ?? 0;
+            $totalRow[] = $totals['vat_breakdown'][$rate]['vat'] ?? 0;
+            $totalRow[] = $totals['vat_breakdown'][$rate]['incl'] ?? 0;
+        }
+
+        $sheetRows[] = $totalRow;
+
+        return [$sheetRows, $merges, count($headerTop)];
+    }
+
+    protected function exportGroups(array $visibleGroups): array
+    {
+        $groups = [];
+
+        if (! empty($visibleGroups['rate0'])) {
+            $groups[] = ['type' => 'rate', 'rate' => '0', 'title' => '0%'];
+        }
+
+        if (! empty($visibleGroups['rate6'])) {
+            $groups[] = ['type' => 'rate', 'rate' => '6', 'title' => '6%'];
+        }
+
+        if (! empty($visibleGroups['rate12'])) {
+            $groups[] = ['type' => 'rate', 'rate' => '12', 'title' => '12%'];
+        }
+
+        if (! empty($visibleGroups['rate21'])) {
+            $groups[] = ['type' => 'rate', 'rate' => '21', 'title' => '21%'];
+        }
+
+        if (! empty($visibleGroups['total'])) {
+            $groups[] = ['type' => 'total', 'title' => 'Totaal'];
+        }
+
+        return $groups;
+    }
+
+    protected function buildWorksheetXml(array $rows, array $merges, int $columnCount): string
+    {
+        $xmlRows = [];
+        $lastRowIndex = count($rows);
+
+        foreach ($rows as $rowIndex => $row) {
+            $cells = [];
+            $excelRow = $rowIndex + 1;
+            $isHeader = $excelRow <= 2;
+            $isTotal = $excelRow === $lastRowIndex;
+
+            foreach ($row as $columnIndex => $value) {
+                $cellRef = $this->columnLetter($columnIndex + 1) . $excelRow;
+                $style = $this->resolveCellStyle($columnIndex, $isHeader, $isTotal);
+
+                if ($columnIndex === 0 || $isHeader) {
+                    $cells[] = '<c r="' . $cellRef . '" t="inlineStr" s="' . $style . '"><is><t>' . $this->xmlEscape((string) $value) . '</t></is></c>';
+                    continue;
+                }
+
+                $cells[] = '<c r="' . $cellRef . '" s="' . $style . '"><v>' . $this->normalizeNumber($value) . '</v></c>';
+            }
+
+            $xmlRows[] = '<row r="' . $excelRow . '">' . implode('', $cells) . '</row>';
+        }
+
+        $colsXml = '<col min="1" max="1" width="14" customWidth="1"/>';
+
+        if ($columnCount > 1) {
+            $colsXml .= '<col min="2" max="' . $columnCount . '" width="14" customWidth="1"/>';
+        }
+
+        $mergeXml = '';
+        if (! empty($merges)) {
+            $mergeXml = '<mergeCells count="' . count($merges) . '">';
+            foreach ($merges as $merge) {
+                $mergeXml .= '<mergeCell ref="' . $merge . '"/>';
+            }
+            $mergeXml .= '</mergeCells>';
+        }
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            . '<sheetViews><sheetView workbookViewId="0"/></sheetViews>'
+            . '<sheetFormatPr defaultRowHeight="15"/>'
+            . '<cols>' . $colsXml . '</cols>'
+            . '<sheetData>' . implode('', $xmlRows) . '</sheetData>'
+            . $mergeXml
+            . '</worksheet>';
+    }
+
+    protected function resolveCellStyle(int $columnIndex, bool $isHeader, bool $isTotal): string
+    {
+        if ($isHeader) {
+            return '1';
+        }
+
+        if ($columnIndex === 0) {
+            return $isTotal ? '3' : '2';
+        }
+
+        return $isTotal ? '3' : '0';
+    }
+
+    protected function buildContentTypesXml(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            . '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            . '<Default Extension="xml" ContentType="application/xml"/>'
+            . '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+            . '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+            . '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+            . '</Types>';
+    }
+
+    protected function buildRootRelationshipsXml(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+            . '</Relationships>';
+    }
+
+    protected function buildWorkbookXml(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            . '<sheets>'
+            . '<sheet name="Dagtotalen" sheetId="1" r:id="rId1"/>'
+            . '</sheets>'
+            . '</workbook>';
+    }
+
+    protected function buildWorkbookRelationshipsXml(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+            . '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+            . '</Relationships>';
+    }
+
+    protected function buildStylesXml(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            . '<fonts count="2">'
+            . '<font><sz val="11"/><name val="Calibri"/></font>'
+            . '<font><b/><sz val="11"/><name val="Calibri"/></font>'
+            . '</fonts>'
+            . '<fills count="2">'
+            . '<fill><patternFill patternType="none"/></fill>'
+            . '<fill><patternFill patternType="gray125"/></fill>'
+            . '</fills>'
+            . '<borders count="1">'
+            . '<border><left/><right/><top/><bottom/><diagonal/></border>'
+            . '</borders>'
+            . '<cellStyleXfs count="1">'
+            . '<xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>'
+            . '</cellStyleXfs>'
+            . '<cellXfs count="4">'
+            . '<xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
+            . '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
+            . '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+            . '<xf numFmtId="4" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyNumberFormat="1"/>'
+            . '</cellXfs>'
+            . '<cellStyles count="1">'
+            . '<cellStyle name="Normal" xfId="0" builtinId="0"/>'
+            . '</cellStyles>'
+            . '</styleSheet>';
+    }
+
+    protected function columnLetter(int $index): string
+    {
+        $letter = '';
+
+        while ($index > 0) {
+            $mod = ($index - 1) % 26;
+            $letter = chr(65 + $mod) . $letter;
+            $index = intdiv($index - $mod - 1, 26);
+        }
+
+        return $letter;
+    }
+
+    protected function normalizeNumber(mixed $value): string
+    {
+        return number_format((float) $value, 2, '.', '');
+    }
+
+    protected function xmlEscape(string $value): string
+    {
+        return htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
     }
 }
