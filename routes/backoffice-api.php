@@ -11,7 +11,14 @@ use App\Http\Controllers\Api\Backoffice\StaffController;
 use App\Http\Controllers\Api\Backoffice\DeviceManagementController;
 use App\Http\Controllers\Api\Backoffice\AnalyticsController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\Backoffice\DayTotalsController;
 
+Route::get('/day-totals', [DayTotalsController::class, 'index']);
+Route::get('/day-totals/export', [DayTotalsController::class, 'export']);
+
+
+Route::get('/day-totals', [DayTotalsController::class, 'index']);
+Route::get('/day-totals/export', [DayTotalsController::class, 'export']);
 Route::prefix('api/backoffice')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/login', [AuthController::class, 'login']);

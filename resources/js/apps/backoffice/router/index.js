@@ -39,6 +39,12 @@ const routes = [
     { path: '/stay-options', name: 'backoffice.stay-options', component: StayOptionsPage },
     { path: '/staff', name: 'backoffice.staff', component: StaffPage },
     { path: '/devices', name: 'backoffice.devices', component: DevicesPage },
+
+    {
+        path: '/daytotals',
+        name: 'backoffice-daytotals',
+        component: () => import('../modules/daytotals/pages/DayTotalsPage.vue'),
+    }
 ]
 
 export default createRouter({
