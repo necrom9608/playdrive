@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Backoffice\AuthController;
+use App\Http\Controllers\Api\Backoffice\BadgeTemplateController;
 use App\Http\Controllers\Api\Backoffice\CateringOptionController;
 use App\Http\Controllers\Api\Backoffice\CateringOptionProductController;
 use App\Http\Controllers\Api\Backoffice\OptionController;
@@ -52,6 +53,12 @@ Route::prefix('api/backoffice')->group(function () {
         Route::get('/analytics/reporting', [AnalyticsController::class, 'reporting']);
         Route::get('/day-totals', [DayTotalsController::class, 'index']);
         Route::get('/day-totals/export', [DayTotalsController::class, 'export']);
+
+        Route::get('/badge-templates', [BadgeTemplateController::class, 'index']);
+        Route::post('/badge-templates', [BadgeTemplateController::class, 'store']);
+        Route::post('/badge-templates/media', [BadgeTemplateController::class, 'uploadMedia']);
+        Route::put('/badge-templates/{badgeTemplate}', [BadgeTemplateController::class, 'update']);
+        Route::delete('/badge-templates/{badgeTemplate}', [BadgeTemplateController::class, 'destroy']);
 
         Route::get('/devices', [DeviceManagementController::class, 'index']);
         Route::post('/devices/pair', [DeviceManagementController::class, 'pair']);
