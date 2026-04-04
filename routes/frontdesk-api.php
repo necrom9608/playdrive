@@ -51,6 +51,7 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::patch('/orders/{order}/items/{item}', [OrderController::class, 'updateItem']);
         Route::delete('/orders/{order}/items/{item}', [OrderController::class, 'deleteItem']);
         Route::post('/orders/checkout', [OrderController::class, 'checkout']);
+        Route::get('/orders/{order}/receipt', [OrderController::class, 'receipt']);
         Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel']);
         Route::post('/orders/{order}/refund', [OrderController::class, 'refund']);
 

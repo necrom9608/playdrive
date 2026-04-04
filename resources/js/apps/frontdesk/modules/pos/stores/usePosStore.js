@@ -87,17 +87,29 @@ function cloneOrder(order) {
         total_vat: Number(order?.total_vat ?? 0),
         total_incl_vat: Number(order?.total_incl_vat ?? 0),
         items: Array.isArray(order?.items)
-            ? order.items.map(item => ({
-                id: item.id ?? null,
-                line_id: item.line_id ?? generateLineId(),
-                product_id: item.product_id ?? item.id,
-                name: item.name,
-                price_incl_vat: Number(item.price_incl_vat ?? item.price ?? item.unit_price_incl_vat ?? 0),
-                quantity: Number(item.quantity ?? 0),
-                line_total_incl_vat: Number(item.line_total_incl_vat ?? 0),
-                source: item.source ?? 'manual',
-                source_reference: item.source_reference ?? null,
-            }))
+            ? [...order.items]
+                .sort((a, b) => {
+                    const sortA = Number(a.sort_order ?? 0)
+                    const sortB = Number(b.sort_order ?? 0)
+
+                    if (sortA !== sortB) {
+                        return sortA - sortB
+                    }
+
+                    return Number(a.id ?? 0) - Number(b.id ?? 0)
+                })
+                .map(item => ({
+                    id: item.id ?? null,
+                    line_id: item.line_id ?? generateLineId(),
+                    product_id: item.product_id ?? item.id,
+                    name: item.name,
+                    price_incl_vat: Number(item.price_incl_vat ?? item.price ?? item.unit_price_incl_vat ?? 0),
+                    quantity: Number(item.quantity ?? 0),
+                    line_total_incl_vat: Number(item.line_total_incl_vat ?? 0),
+                    source: item.source ?? 'manual',
+                    source_reference: item.source_reference ?? null,
+                    sort_order: Number(item.sort_order ?? 0),
+                }))
             : [],
     }
 }
@@ -545,10 +557,23 @@ export const usePosStore = defineStore('pos', {
 
             this.upsertOrder(savedOrder)
 
-            const savedItems = savedOrder.items ?? []
-            const matchingItems = savedItems.filter(item => Number(item.product_id) === Number(product.id) && (item.source ?? 'manual') === 'manual')
-            const lastItem = matchingItems.length ? matchingItems[matchingItems.length - 1] : savedItems[savedItems.length - 1] ?? null
-            this.lastAddedLineId = lastItem?.line_id ?? null
+            const savedItems = [...(savedOrder.items ?? [])]
+                .sort((a, b) => {
+                    const sortA = Number(a.sort_order ?? 0)
+                    const sortB = Number(b.sort_order ?? 0)
+
+                    if (sortA !== sortB) {
+                        return sortA - sortB
+                    }
+
+                    return Number(a.id ?? 0) - Number(b.id ?? 0)
+                })
+
+            const lastManualItem = [...savedItems]
+                .reverse()
+                .find(item => (item.source ?? 'manual') === 'manual' && !item.source_reference)
+
+            this.lastAddedLineId = lastManualItem?.line_id ?? null
 
             return savedOrder
         },

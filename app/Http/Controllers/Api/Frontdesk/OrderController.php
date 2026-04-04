@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\User;
+use App\Support\Printing\ReceiptBuilder;
 use App\Support\CurrentTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -118,6 +119,23 @@ class OrderController extends Controller
                 'items.creator:id,name',
                 'items.updater:id,name',
             ])),
+        ]);
+    }
+
+
+    public function receipt(CurrentTenant $currentTenant, Order $order)
+    {
+        if (! $currentTenant->exists() || (int) $order->tenant_id !== (int) $currentTenant->id()) {
+            abort(404);
+        }
+
+        $receipt = ReceiptBuilder::build($order, [
+            'name' => config('app.name', 'Playdrive'),
+            'footer' => 'Bedankt voor je bezoek aan Game-INN!',
+        ]);
+
+        return response()->view('print.receipt', [
+            'receipt' => $receipt,
         ]);
     }
 

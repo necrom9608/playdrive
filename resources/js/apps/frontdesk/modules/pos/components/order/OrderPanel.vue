@@ -187,6 +187,10 @@ async function handleConfirmCheckout(payload = {}) {
             voucher_code: payload.voucher_code ?? voucherCode.value,
         })
 
+        if (payload.print_receipt && result?.id) {
+            window.open(`/api/frontdesk/orders/${result.id}/receipt`, '_blank', 'noopener,noreferrer')
+        }
+
         store.lastCheckoutSummary = {
             mode: 'checkout',
             order: result,

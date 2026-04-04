@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Registration;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Schema;
 
@@ -111,7 +112,7 @@ class ImportLegacyReservations extends Command
         }
 
         $this->newLine();
-        $this->info("Import klaar.");
+        $this->info('Import klaar.');
         $this->line("Geïmporteerd: {$imported}");
         $this->line("Overgeslagen: {$skipped}");
         $this->line("Fouten: {$errors}");
@@ -215,29 +216,31 @@ class ImportLegacyReservations extends Command
 
         $eventDate = $this->parseDate($row['date'] ?? null);
         $eventTime = $this->buildTime($row['timestart_hours'] ?? null, $row['timestart_minutes'] ?? null);
-
-        $checkedInAt = null;
-        $checkedOutAt = null;
+        $endTime = $this->buildTime($row['timeend_hours'] ?? null, $row['timeend_minutes'] ?? null);
 
         $status = $this->mapStatus((string) ($row['status'] ?? ''));
 
+        $checkedInAt = null;
+        $checkedOutAt = null;
+        $cancelledAt = null;
+        $noShowAt = null;
+
         if ($status === Registration::STATUS_CHECKED_IN) {
-            $checkedInAt = $this->parseDateTime(
-                $eventDate,
-                $this->buildTime($row['timestart_hours'] ?? null, $row['timestart_minutes'] ?? null)
-            );
+            $checkedInAt = $this->parseDateTime($eventDate, $eventTime);
         }
 
-        if (in_array($status, [Registration::STATUS_CHECKED_OUT, Registration::STATUS_PAID], true)) {
-            $checkedInAt = $this->parseDateTime(
-                $eventDate,
-                $this->buildTime($row['timestart_hours'] ?? null, $row['timestart_minutes'] ?? null)
-            );
+        if ($status === Registration::STATUS_PAID || $status === Registration::STATUS_CHECKED_OUT) {
+            $checkedInAt = $this->parseDateTime($eventDate, $eventTime);
+            $checkedOutAt = $this->parseDateTime($eventDate, $endTime);
+        }
 
-            $checkedOutAt = $this->parseDateTime(
-                $eventDate,
-                $this->buildTime($row['timeend_hours'] ?? null, $row['timeend_minutes'] ?? null)
-            );
+        if ($status === Registration::STATUS_NO_SHOW) {
+            $noShowAt = $this->parseDateTime($eventDate, $eventTime);
+        }
+
+        if ($status === Registration::STATUS_CANCELLED) {
+            $cancelledAt = $this->parseDateTimeString($row['updatedon'] ?? null)
+                ?? $this->parseDateTime($eventDate, $eventTime);
         }
 
         $playedMinutes = $this->calculatePlayedMinutes(
@@ -245,21 +248,28 @@ class ImportLegacyReservations extends Command
             $row['duration_minutes'] ?? null
         );
 
+        $createdAt = $this->parseDateTimeString($row['createdon'] ?? null);
+        $updatedAt = $this->parseDateTimeString($row['updatedon'] ?? null) ?? $createdAt;
+
         $data = [
             'name' => $cleanName !== '' ? $cleanName : 'Onbekend',
             'phone' => $this->nullIfEmpty($row['tel'] ?? null),
             'email' => $this->nullIfEmpty($row['email'] ?? null),
             'postal_code' => null,
             'municipality' => $this->nullIfEmpty($row['city'] ?? null),
+
             'event_type_id' => $isBirthday ? 2 : 1,
             'event_date' => $eventDate,
             'event_time' => $eventTime,
             'stay_option_id' => null,
             'catering_option_id' => $isBirthday ? 4 : null,
+
             'participants_children' => (int) ($row['amountstudents'] ?? 0),
             'participants_adults' => (int) ($row['amountadults'] ?? 0),
             'participants_supervisors' => 0,
+
             'comment' => $this->nullIfEmpty($row['comment'] ?? null),
+
             'stats' => [
                 'legacy_id' => $row['id'] ?? null,
                 'legacy_status' => $row['status'] ?? null,
@@ -272,7 +282,9 @@ class ImportLegacyReservations extends Command
                     'formatted' => $row['duration_timeformatted'] ?? null,
                 ],
             ],
+
             'status' => $status,
+
             'invoice_requested' => false,
             'invoice_company_name' => null,
             'invoice_vat_number' => null,
@@ -280,14 +292,30 @@ class ImportLegacyReservations extends Command
             'invoice_address' => null,
             'invoice_postal_code' => null,
             'invoice_city' => null,
+
             'checked_in_at' => $checkedInAt,
+            'checked_in_by' => null,
             'checked_out_at' => $checkedOutAt,
+            'checked_out_by' => null,
+
+            'cancelled_at' => $cancelledAt,
+            'cancelled_by' => null,
+
+            'no_show_at' => $noShowAt,
+            'no_show_by' => null,
+
+            'created_by' => null,
+            'updated_by' => null,
+
             'played_minutes' => $playedMinutes,
             'bill_total_cents' => 0,
             'outside_opening_hours' => false,
-            'created_at' => $this->parseDateTimeString($row['createdon'] ?? null),
-            'updated_at' => $this->parseDateTimeString($row['updatedon'] ?? null)
-                ?? $this->parseDateTimeString($row['createdon'] ?? null),
+
+            'is_member' => false,
+            'member_id' => null,
+
+            'created_at' => $createdAt,
+            'updated_at' => $updatedAt,
         ];
 
         if ($hasTenantColumn) {
@@ -366,7 +394,7 @@ class ImportLegacyReservations extends Command
         }
 
         try {
-            return \Carbon\Carbon::parse($value)->format('Y-m-d');
+            return Carbon::parse($value)->format('Y-m-d');
         } catch (\Throwable) {
             return null;
         }
@@ -379,7 +407,7 @@ class ImportLegacyReservations extends Command
         }
 
         try {
-            return \Carbon\Carbon::parse("{$date} {$time}")->format('Y-m-d H:i:s');
+            return Carbon::parse("{$date} {$time}")->format('Y-m-d H:i:s');
         } catch (\Throwable) {
             return null;
         }
@@ -394,7 +422,7 @@ class ImportLegacyReservations extends Command
         }
 
         try {
-            return \Carbon\Carbon::parse($value)->format('Y-m-d H:i:s');
+            return Carbon::parse($value)->format('Y-m-d H:i:s');
         } catch (\Throwable) {
             return null;
         }

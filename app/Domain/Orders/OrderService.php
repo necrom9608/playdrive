@@ -40,17 +40,23 @@ class OrderService
         return DB::transaction(function () use ($currentTenant, $registration, $source, $product, $quantity, $actorUserId) {
             $order = $this->findOrCreateOpenOrder($currentTenant, $registration, $source, $actorUserId);
 
-            $existingItem = $order->items()
-                ->where('product_id', $product->id)
+            $lastManualItem = $order->items()
                 ->where('source', 'manual')
                 ->whereNull('source_reference')
-                ->orderByDesc('sort_order')
-                ->orderByDesc('id')
-                ->first();
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get()
+                ->last();
 
-            if ($existingItem) {
-                $this->applyQuantityToItem($existingItem, (int) $existingItem->quantity + $quantity, $actorUserId);
+            if ($lastManualItem && (int) $lastManualItem->product_id === (int) $product->id) {
+                $this->applyQuantityToItem(
+                    $lastManualItem,
+                    (int) $lastManualItem->quantity + $quantity,
+                    $actorUserId
+                );
             } else {
+                $nextSortOrder = ((int) ($order->items()->max('sort_order') ?? 0)) + 1;
+
                 $this->createOrderItem(
                     $order,
                     $product,
@@ -58,7 +64,7 @@ class OrderService
                     'manual',
                     null,
                     $actorUserId,
-                    ((int) $order->items()->max('sort_order')) + 1,
+                    $nextSortOrder,
                 );
             }
 
