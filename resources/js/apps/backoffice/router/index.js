@@ -9,13 +9,14 @@ import EventTypesPage from '../modules/options/pages/EventTypesPage.vue'
 import StayOptionsPage from '../modules/options/pages/StayOptionsPage.vue'
 import StaffPage from '../modules/staff/pages/StaffPage.vue'
 import DevicesPage from '../modules/devices/pages/DevicesPage.vue'
-import BadgeCreatorPage from '../modules/badges/pages/BadgeCreatorPage.vue'
+import VoucherTemplatesPage from '../modules/voucher-templates/pages/VoucherTemplatesPage.vue'
 
 const routes = [
     { path: '/', name: 'backoffice.dashboard', component: DashboardPage },
     { path: '/reporting', name: 'backoffice.reporting', component: ReportingPage },
     { path: '/daytotals', name: 'backoffice.daytotals', component: DayTotalsPage },
     { path: '/catalog', name: 'backoffice.product-management', component: ProductManagementPage },
+    { path: '/voucher-templates', name: 'backoffice.voucher-templates', component: VoucherTemplatesPage },
     {
         path: '/products',
         redirect: {
@@ -42,7 +43,6 @@ const routes = [
     { path: '/stay-options', name: 'backoffice.stay-options', component: StayOptionsPage },
     { path: '/staff', name: 'backoffice.staff', component: StaffPage },
     { path: '/devices', name: 'backoffice.devices', component: DevicesPage },
-    { path: '/badges', name: 'backoffice.badges', component: BadgeCreatorPage },
 ]
 
 export default createRouter({

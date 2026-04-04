@@ -2,13 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BadgeTemplate extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
         'tenant_id',
         'name',
@@ -18,11 +16,13 @@ class BadgeTemplate extends Model
         'config_json',
     ];
 
-    protected function casts(): array
+    protected $casts = [
+        'is_default' => 'boolean',
+        'config_json' => 'array',
+    ];
+
+    public function tenant(): BelongsTo
     {
-        return [
-            'is_default' => 'boolean',
-            'config_json' => 'array',
-        ];
+        return $this->belongsTo(Tenant::class);
     }
 }
