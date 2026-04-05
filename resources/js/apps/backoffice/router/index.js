@@ -4,6 +4,7 @@ import DashboardPage from '../modules/dashboard/pages/DashboardPage.vue'
 import ReportingPage from '../modules/reporting/pages/ReportingPage.vue'
 import DayTotalsPage from '../modules/daytotals/pages/DayTotalsPage.vue'
 import ProductManagementPage from '../modules/product-management/pages/ProductManagementPage.vue'
+import BadgeCreatorPage from '../modules/badges/pages/BadgeCreatorPage.vue'
 import CateringOptionsPage from '../modules/options/pages/CateringOptionsPage.vue'
 import EventTypesPage from '../modules/options/pages/EventTypesPage.vue'
 import StayOptionsPage from '../modules/options/pages/StayOptionsPage.vue'
@@ -16,6 +17,7 @@ const routes = [
     { path: '/reporting', name: 'backoffice.reporting', component: ReportingPage },
     { path: '/daytotals', name: 'backoffice.daytotals', component: DayTotalsPage },
     { path: '/catalog', name: 'backoffice.product-management', component: ProductManagementPage },
+    { path: '/badges', name: 'backoffice.badges', component: BadgeCreatorPage },
     { path: '/voucher-templates', name: 'backoffice.voucher-templates', component: VoucherTemplatesPage },
     {
         path: '/products',
