@@ -25,10 +25,6 @@
             print-color-adjust: exact;
         }
 
-        body {
-            display: block;
-        }
-
         .print-sheet {
             width: 85.60mm;
             height: 53.98mm;
@@ -37,23 +33,29 @@
             background: #ffffff;
         }
 
-        .print-svg,
-        .print-raster {
+        .print-image,
+        .render-canvas {
             display: block;
             width: 85.60mm;
             height: 53.98mm;
         }
 
-        .print-raster {
-            object-fit: fill;
-        }
-
-        .is-rasterized .print-svg {
+        .render-canvas {
             display: none;
         }
 
-        .print-sheet:not(.is-rasterized) .print-raster {
+        .render-error {
             display: none;
+            position: absolute;
+            inset: 0;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            text-align: center;
+            color: #7f1d1d;
+            background: #fee2e2;
+            font-size: 12px;
+            font-weight: 700;
         }
 
         @media screen {
@@ -106,308 +108,290 @@
         }
     </style>
 </head>
-@php
-    $svgWidth = (int) ($template['width'] ?? 1011);
-    $svgHeight = (int) ($template['height'] ?? 638);
-
-    $escape = static fn (?string $value): string => e($value ?? '');
-
-    $hexToRgb = static function (?string $value): string {
-        $value = trim((string) $value);
-        if ($value === '') {
-            return '0 0 0';
-        }
-
-        if (preg_match('/^rgba?\(([^)]+)\)$/i', $value, $matches)) {
-            $parts = array_map('trim', explode(',', $matches[1]));
-            return implode(' ', array_slice($parts, 0, 3));
-        }
-
-        $value = ltrim($value, '#');
-        if (strlen($value) === 3) {
-            $value = $value[0].$value[0].$value[1].$value[1].$value[2].$value[2];
-        }
-
-        if (strlen($value) !== 6 || ! ctype_xdigit($value)) {
-            return '0 0 0';
-        }
-
-        return hexdec(substr($value, 0, 2)).' '.hexdec(substr($value, 2, 2)).' '.hexdec(substr($value, 4, 2));
-    };
-
-    $alphaFromColor = static function (?string $value): float {
-        $value = trim((string) $value);
-        if (preg_match('/^rgba\(([^)]+)\)$/i', $value, $matches)) {
-            $parts = array_map('trim', explode(',', $matches[1]));
-            return isset($parts[3]) ? max(0, min(1, (float) $parts[3])) : 1.0;
-        }
-
-        return $value === 'transparent' ? 0.0 : 1.0;
-    };
-
-    $svgFill = static function (?string $value) use ($hexToRgb, $alphaFromColor): array {
-        $value = trim((string) $value);
-        if ($value === '' || $value === 'transparent') {
-            return ['fill' => 'transparent', 'opacity' => 0];
-        }
-
-        if (str_starts_with($value, 'rgb')) {
-            return ['fill' => 'rgb('.$hexToRgb($value).')', 'opacity' => $alphaFromColor($value)];
-        }
-
-        return ['fill' => $value, 'opacity' => $alphaFromColor($value)];
-    };
-
-    $imageAspect = static fn (string $fit): string => $fit === 'contain' ? 'xMidYMid meet' : 'xMidYMid slice';
-
-    $textAnchor = static fn (string $align): string => $align === 'center' ? 'middle' : ($align === 'right' ? 'end' : 'start');
-    $textX = static function (array $element): int {
-        return $element['textAlign'] === 'center'
-            ? (int) round($element['x'] + ($element['width'] / 2))
-            : ($element['textAlign'] === 'right'
-                ? (int) round($element['x'] + $element['width'] - 12)
-                : (int) round($element['x'] + 12));
-    };
-    $textY = static function (array $element, array $lines): int {
-        $fontSize = (int) $element['fontSize'];
-        $lineHeight = (int) round($fontSize * 1.08);
-        $contentHeight = max($lineHeight, count($lines) * $lineHeight);
-        return (int) round($element['y'] + (($element['height'] - $contentHeight) / 2) + $fontSize);
-    };
-    $normalizeLines = static function (?string $text): array {
-        $text = trim(str_replace(["\r\n", "\r"], "\n", (string) $text));
-        return $text === '' ? [''] : explode("\n", $text);
-    };
-
-    $background = $svgFill($template['backgroundColor'] ?? '#ffffff');
-@endphp
 <body>
     <div class="preview-stack">
         <div class="preview-meta">
             <span>Kaart: {{ $card->rfid_uid }}</span>
             <span>Type: {{ $card->voucherTemplate?->name ?? 'Onbekend' }}</span>
-            <span>300 dpi render · 1011 × 638 px</span>
+            <span>PNG render · {{ (int) ($template['width'] ?? 1011) }} × {{ (int) ($template['height'] ?? 638) }} px</span>
         </div>
 
         <div class="print-sheet">
-            <img class="print-raster" alt="Print raster" />
-
-            <svg
-                class="print-svg"
-                xmlns="http://www.w3.org/2000/svg"
-                xmlns:xlink="http://www.w3.org/1999/xlink"
-                viewBox="0 0 {{ $svgWidth }} {{ $svgHeight }}"
-                width="85.60mm"
-                height="53.98mm"
-                preserveAspectRatio="none"
-                shape-rendering="geometricPrecision"
-                text-rendering="geometricPrecision"
-            >
-                <rect x="0" y="0" width="{{ $svgWidth }}" height="{{ $svgHeight }}" fill="{{ $background['fill'] }}" fill-opacity="{{ $background['opacity'] }}" />
-
-                @if(!empty($template['backgroundImageUrl']))
-                    <image
-                        x="0"
-                        y="0"
-                        width="{{ $svgWidth }}"
-                        height="{{ $svgHeight }}"
-                        href="{{ $template['backgroundImageUrl'] }}"
-                        preserveAspectRatio="xMidYMid slice"
-                    />
-                @endif
-
-                @foreach(($template['elements'] ?? []) as $element)
-                    @php
-                        $type = $element['type'] ?? 'text';
-                        $x = (int) ($element['x'] ?? 0);
-                        $y = (int) ($element['y'] ?? 0);
-                        $width = max(1, (int) ($element['width'] ?? 1));
-                        $height = max(1, (int) ($element['height'] ?? 1));
-                        $radius = max(0, (int) ($element['borderRadius'] ?? 0));
-                        $opacity = max(0, min(1, (float) ($element['opacity'] ?? 1)));
-                        $fill = $svgFill($element['backgroundColor'] ?? 'transparent');
-                        $textFill = $svgFill($element['color'] ?? '#ffffff');
-                        $lines = $normalizeLines($element['displayText'] ?? '');
-                    @endphp
-
-                    <g opacity="{{ $opacity }}">
-                        @if($type === 'shape')
-                            <rect x="{{ $x }}" y="{{ $y }}" width="{{ $width }}" height="{{ $height }}" rx="{{ $radius }}" ry="{{ $radius }}" fill="{{ $fill['fill'] }}" fill-opacity="{{ $fill['opacity'] }}" />
-                        @elseif(in_array($type, ['image', 'logo', 'photo'], true))
-                            @if(!empty($element['imageUrl']))
-                                @if($radius > 0)
-                                    <defs>
-                                        <clipPath id="clip-{{ $loop->index }}">
-                                            <rect x="{{ $x }}" y="{{ $y }}" width="{{ $width }}" height="{{ $height }}" rx="{{ $radius }}" ry="{{ $radius }}" />
-                                        </clipPath>
-                                    </defs>
-                                @endif
-                                @if($fill['opacity'] > 0)
-                                    <rect x="{{ $x }}" y="{{ $y }}" width="{{ $width }}" height="{{ $height }}" rx="{{ $radius }}" ry="{{ $radius }}" fill="{{ $fill['fill'] }}" fill-opacity="{{ $fill['opacity'] }}" />
-                                @endif
-                                <image
-                                    x="{{ $x }}"
-                                    y="{{ $y }}"
-                                    width="{{ $width }}"
-                                    height="{{ $height }}"
-                                    href="{{ $element['imageUrl'] }}"
-                                    preserveAspectRatio="{{ $imageAspect($element['fit'] ?? 'cover') }}"
-                                    @if($radius > 0) clip-path="url(#clip-{{ $loop->index }})" @endif
-                                />
-                            @else
-                                <rect x="{{ $x }}" y="{{ $y }}" width="{{ $width }}" height="{{ $height }}" rx="{{ $radius }}" ry="{{ $radius }}" fill="{{ $fill['opacity'] > 0 ? $fill['fill'] : '#1e293b' }}" fill-opacity="{{ $fill['opacity'] > 0 ? $fill['opacity'] : 1 }}" />
-                                <text
-                                    x="{{ (int) round($x + ($width / 2)) }}"
-                                    y="{{ (int) round($y + ($height / 2) + 6) }}"
-                                    text-anchor="middle"
-                                    font-size="16"
-                                    font-weight="700"
-                                    fill="{{ $textFill['fill'] }}"
-                                    fill-opacity="{{ $textFill['opacity'] }}"
-                                    font-family="Arial, Helvetica, sans-serif"
-                                >{{ $escape($element['label'] ?? 'Afbeelding') }}</text>
-                            @endif
-                        @elseif($type === 'qr')
-                            <rect x="{{ $x }}" y="{{ $y }}" width="{{ $width }}" height="{{ $height }}" rx="{{ $radius }}" ry="{{ $radius }}" fill="#ffffff" />
-                            <rect x="{{ $x + 24 }}" y="{{ $y + 24 }}" width="{{ max(1, $width - 48) }}" height="{{ max(1, $height - 48) }}" rx="16" ry="16" fill="none" stroke="#0f172a" stroke-width="10" />
-                            <text
-                                x="{{ (int) round($x + ($width / 2)) }}"
-                                y="{{ (int) round($y + ($height / 2) - 12) }}"
-                                text-anchor="middle"
-                                font-size="26"
-                                font-weight="700"
-                                fill="#0f172a"
-                                font-family="Arial, Helvetica, sans-serif"
-                            >QR</text>
-                            <text
-                                x="{{ (int) round($x + ($width / 2)) }}"
-                                y="{{ (int) round($y + ($height / 2) + 24) }}"
-                                text-anchor="middle"
-                                font-size="15"
-                                font-weight="600"
-                                fill="#0f172a"
-                                font-family="Arial, Helvetica, sans-serif"
-                            >{{ $escape($fields['voucher_code'] ?? ($card->rfid_uid ?? 'KAART')) }}</text>
-                        @else
-                            @if($fill['opacity'] > 0)
-                                <rect x="{{ $x }}" y="{{ $y }}" width="{{ $width }}" height="{{ $height }}" rx="{{ $radius }}" ry="{{ $radius }}" fill="{{ $fill['fill'] }}" fill-opacity="{{ $fill['opacity'] }}" />
-                            @endif
-
-                            @php
-                                $fontSize = (int) ($element['fontSize'] ?? 32);
-                                $lineHeight = (int) round($fontSize * 1.08);
-                                $anchor = $textAnchor($element['textAlign'] ?? 'left');
-                                $textStartX = $textX($element);
-                                $textStartY = $textY($element, $lines);
-                            @endphp
-                            <text
-                                x="{{ $textStartX }}"
-                                y="{{ $textStartY }}"
-                                text-anchor="{{ $anchor }}"
-                                font-size="{{ $fontSize }}"
-                                font-weight="{{ (int) ($element['fontWeight'] ?? 700) }}"
-                                fill="{{ $textFill['fill'] }}"
-                                fill-opacity="{{ $textFill['opacity'] }}"
-                                font-family="Arial, Helvetica, sans-serif"
-                                letter-spacing="0"
-                            >
-                                @foreach($lines as $line)
-                                    <tspan x="{{ $textStartX }}" dy="{{ $loop->first ? 0 : $lineHeight }}">{{ $escape($line) }}</tspan>
-                                @endforeach
-                            </text>
-                        @endif
-                    </g>
-                @endforeach
-            </svg>
+            <canvas id="renderCanvas" class="render-canvas" width="{{ (int) ($template['width'] ?? 1011) }}" height="{{ (int) ($template['height'] ?? 638) }}"></canvas>
+            <img id="printImage" class="print-image" alt="Kaart preview" />
+            <div id="renderError" class="render-error">De kaart kon niet gerenderd worden voor print.</div>
         </div>
     </div>
 
     <script>
-        const wait = (ms) => new Promise(resolve => window.setTimeout(resolve, ms))
+        const template = @json($template);
+        const fields = @json($fields);
+        const card = @json([
+            'id' => $card->id,
+            'rfid_uid' => $card->rfid_uid,
+        ]);
 
-        const waitForImages = async (root) => {
-            const images = Array.from(root.querySelectorAll('image'))
+        const canvas = document.getElementById('renderCanvas')
+        const image = document.getElementById('printImage')
+        const errorBox = document.getElementById('renderError')
+        const ctx = canvas.getContext('2d')
 
-            await Promise.all(images.map((image) => new Promise((resolve) => {
-                const href = image.getAttribute('href') || image.getAttributeNS('http://www.w3.org/1999/xlink', 'href')
+        function roundedRectPath(context, x, y, width, height, radius) {
+            const r = Math.max(0, Math.min(radius || 0, width / 2, height / 2))
+            context.beginPath()
+            context.moveTo(x + r, y)
+            context.arcTo(x + width, y, x + width, y + height, r)
+            context.arcTo(x + width, y + height, x, y + height, r)
+            context.arcTo(x, y + height, x, y, r)
+            context.arcTo(x, y, x + width, y, r)
+            context.closePath()
+        }
 
-                if (!href) {
-                    resolve()
+        function parseColor(value, fallback = 'transparent') {
+            if (!value || value === 'transparent') {
+                return fallback
+            }
+            return value
+        }
+
+        function loadImage(src) {
+            return new Promise((resolve, reject) => {
+                if (!src) {
+                    resolve(null)
                     return
                 }
 
-                const probe = new Image()
-                probe.decoding = 'sync'
-                probe.loading = 'eager'
-                probe.crossOrigin = 'anonymous'
-                probe.onload = () => resolve()
-                probe.onerror = () => resolve()
-                probe.src = href
-
-                if (probe.complete) {
-                    resolve()
-                }
-            })))
-        }
-
-        const rasterizeCard = async () => {
-            const sheet = document.querySelector('.print-sheet')
-            const svg = sheet?.querySelector('.print-svg')
-            const raster = sheet?.querySelector('.print-raster')
-
-            if (!sheet || !svg || !raster) {
-                return false
-            }
-
-            try {
-                await waitForImages(svg)
-                await wait(80)
-
-                const serializer = new XMLSerializer()
-                const markup = serializer.serializeToString(svg)
-                const blob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' })
-                const url = URL.createObjectURL(blob)
-
-                const image = await new Promise((resolve, reject) => {
-                    const img = new Image()
-                    img.decoding = 'sync'
-                    img.loading = 'eager'
+                const img = new Image()
+                if (/^https?:/i.test(src) && !src.startsWith(window.location.origin)) {
                     img.crossOrigin = 'anonymous'
-                    img.onload = () => resolve(img)
-                    img.onerror = reject
-                    img.src = url
-                })
+                }
+                img.onload = () => resolve(img)
+                img.onerror = () => reject(new Error(`Afbeelding kon niet geladen worden: ${src}`))
+                img.src = src
+            })
+        }
 
-                const viewBox = (svg.getAttribute('viewBox') || '0 0 1011 638').split(/\s+/).map(Number)
-                const width = Number.isFinite(viewBox[2]) && viewBox[2] > 0 ? viewBox[2] : 1011
-                const height = Number.isFinite(viewBox[3]) && viewBox[3] > 0 ? viewBox[3] : 638
-                const canvas = document.createElement('canvas')
-                canvas.width = width
-                canvas.height = height
+        function drawFittedImage(context, img, x, y, width, height, fit = 'cover') {
+            const imageRatio = img.width / img.height
+            const targetRatio = width / height
 
-                const context = canvas.getContext('2d', { alpha: false })
-                context.imageSmoothingEnabled = true
-                context.imageSmoothingQuality = 'high'
-                context.fillStyle = '#ffffff'
-                context.fillRect(0, 0, width, height)
-                context.drawImage(image, 0, 0, width, height)
+            let drawWidth
+            let drawHeight
+            let offsetX = x
+            let offsetY = y
 
-                raster.src = canvas.toDataURL('image/png')
-                sheet.classList.add('is-rasterized')
+            if (fit === 'contain') {
+                if (imageRatio > targetRatio) {
+                    drawWidth = width
+                    drawHeight = width / imageRatio
+                    offsetY += (height - drawHeight) / 2
+                } else {
+                    drawHeight = height
+                    drawWidth = height * imageRatio
+                    offsetX += (width - drawWidth) / 2
+                }
+            } else {
+                if (imageRatio > targetRatio) {
+                    drawHeight = height
+                    drawWidth = height * imageRatio
+                    offsetX -= (drawWidth - width) / 2
+                } else {
+                    drawWidth = width
+                    drawHeight = width / imageRatio
+                    offsetY -= (drawHeight - height) / 2
+                }
+            }
 
-                URL.revokeObjectURL(url)
-                return true
+            context.drawImage(img, offsetX, offsetY, drawWidth, drawHeight)
+        }
+
+        function drawBackground(context, img, width, height, size = 'cover') {
+            drawFittedImage(context, img, 0, 0, width, height, size === 'contain' ? 'contain' : 'cover')
+        }
+
+        function getDisplayText(element) {
+            if (element.type === 'field') {
+                return element.displayText || `{{ ${element.source || 'veld'} }}`
+            }
+            if (element.type === 'text') {
+                return element.displayText || element.text || 'Tekst'
+            }
+            return element.displayText || element.label || ''
+        }
+
+        function drawTextElement(context, element) {
+            const x = Number(element.x || 0)
+            const y = Number(element.y || 0)
+            const width = Number(element.width || 1)
+            const height = Number(element.height || 1)
+            const radius = Number(element.borderRadius || 0)
+            const fontSize = Number(element.fontSize || 32)
+            const fontWeight = Number(element.fontWeight || 700)
+            const backgroundColor = parseColor(element.backgroundColor)
+            const color = parseColor(element.color, '#ffffff')
+            const align = element.textAlign || 'left'
+            const text = String(getDisplayText(element) || '')
+            const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
+            const horizontalPadding = 12
+            const lineHeight = Math.round(fontSize * 1.08)
+            const contentHeight = Math.max(lineHeight, lines.length * lineHeight)
+            const startY = y + ((height - contentHeight) / 2) + fontSize
+
+            context.save()
+            context.globalAlpha = Number(element.opacity ?? 1)
+
+            if (backgroundColor !== 'transparent') {
+                roundedRectPath(context, x, y, width, height, radius)
+                context.fillStyle = backgroundColor
+                context.fill()
+            }
+
+            context.fillStyle = color
+            context.font = `${fontWeight} ${fontSize}px Arial, Helvetica, sans-serif`
+            context.textBaseline = 'alphabetic'
+            context.textAlign = align === 'center' ? 'center' : (align === 'right' ? 'right' : 'left')
+
+            const textX = align === 'center'
+                ? x + (width / 2)
+                : (align === 'right' ? x + width - horizontalPadding : x + horizontalPadding)
+
+            lines.forEach((line, index) => {
+                context.fillText(line, textX, startY + (index * lineHeight))
+            })
+
+            context.restore()
+        }
+
+        function drawShapeElement(context, element) {
+            const x = Number(element.x || 0)
+            const y = Number(element.y || 0)
+            const width = Number(element.width || 1)
+            const height = Number(element.height || 1)
+            const radius = Number(element.borderRadius || 0)
+
+            context.save()
+            context.globalAlpha = Number(element.opacity ?? 1)
+            roundedRectPath(context, x, y, width, height, radius)
+            context.fillStyle = parseColor(element.backgroundColor, '#7c3aed')
+            context.fill()
+            context.restore()
+        }
+
+        async function drawMediaElement(context, element) {
+            const x = Number(element.x || 0)
+            const y = Number(element.y || 0)
+            const width = Number(element.width || 1)
+            const height = Number(element.height || 1)
+            const radius = Number(element.borderRadius || 0)
+            const backgroundColor = parseColor(element.backgroundColor)
+
+            context.save()
+            context.globalAlpha = Number(element.opacity ?? 1)
+
+            if (backgroundColor !== 'transparent') {
+                roundedRectPath(context, x, y, width, height, radius)
+                context.fillStyle = backgroundColor
+                context.fill()
+            }
+
+            if (element.imageUrl) {
+                const img = await loadImage(element.imageUrl)
+                if (img) {
+                    roundedRectPath(context, x, y, width, height, radius)
+                    context.clip()
+                    drawFittedImage(context, img, x, y, width, height, element.fit || (element.type === 'logo' ? 'contain' : 'cover'))
+                }
+            } else {
+                roundedRectPath(context, x, y, width, height, radius)
+                context.fillStyle = backgroundColor !== 'transparent' ? backgroundColor : '#1e293b'
+                context.fill()
+                context.fillStyle = '#e2e8f0'
+                context.font = '700 16px Arial, Helvetica, sans-serif'
+                context.textAlign = 'center'
+                context.textBaseline = 'middle'
+                context.fillText(element.label || 'Afbeelding', x + (width / 2), y + (height / 2))
+            }
+
+            context.restore()
+        }
+
+        function drawQrPlaceholder(context, element) {
+            const x = Number(element.x || 0)
+            const y = Number(element.y || 0)
+            const width = Number(element.width || 1)
+            const height = Number(element.height || 1)
+            const radius = Number(element.borderRadius || 0)
+            const code = fields.voucher_code || card.rfid_uid || 'KAART'
+
+            context.save()
+            context.globalAlpha = Number(element.opacity ?? 1)
+            roundedRectPath(context, x, y, width, height, radius)
+            context.fillStyle = '#ffffff'
+            context.fill()
+
+            context.strokeStyle = '#0f172a'
+            context.lineWidth = 10
+            roundedRectPath(context, x + 24, y + 24, Math.max(1, width - 48), Math.max(1, height - 48), 16)
+            context.stroke()
+
+            context.fillStyle = '#0f172a'
+            context.textAlign = 'center'
+            context.textBaseline = 'middle'
+            context.font = '700 26px Arial, Helvetica, sans-serif'
+            context.fillText('QR', x + (width / 2), y + (height / 2) - 12)
+            context.font = '600 15px Arial, Helvetica, sans-serif'
+            context.fillText(code, x + (width / 2), y + (height / 2) + 24)
+            context.restore()
+        }
+
+        async function renderCard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+            ctx.save()
+            ctx.fillStyle = parseColor(template.backgroundColor, '#ffffff')
+            ctx.fillRect(0, 0, canvas.width, canvas.height)
+            ctx.restore()
+
+            if (template.backgroundImageUrl) {
+                const bg = await loadImage(template.backgroundImageUrl)
+                if (bg) {
+                    drawBackground(ctx, bg, canvas.width, canvas.height, template.backgroundSize || 'cover')
+                }
+            }
+
+            const elements = [...(template.elements || [])].sort((a, b) => (a.zIndex || 1) - (b.zIndex || 1))
+
+            for (const element of elements) {
+                if (element.type === 'shape') {
+                    drawShapeElement(ctx, element)
+                } else if (['image', 'logo', 'photo'].includes(element.type)) {
+                    await drawMediaElement(ctx, element)
+                } else if (element.type === 'qr') {
+                    drawQrPlaceholder(ctx, element)
+                } else {
+                    drawTextElement(ctx, element)
+                }
+            }
+
+            const dataUrl = canvas.toDataURL('image/png')
+            image.src = dataUrl
+            await new Promise((resolve, reject) => {
+                image.onload = () => resolve()
+                image.onerror = () => reject(new Error('PNG preview kon niet geladen worden.'))
+            })
+        }
+
+        async function bootstrapPrint() {
+            try {
+                await renderCard()
+                setTimeout(() => window.print(), 160)
             } catch (error) {
-                console.error('Rasterize print failed', error)
-                return false
+                console.error(error)
+                errorBox.style.display = 'flex'
             }
         }
 
-        window.addEventListener('load', async () => {
-            await rasterizeCard()
-            await wait(120)
-            window.print()
-        })
+        window.addEventListener('load', bootstrapPrint)
     </script>
 </body>
 </html>
