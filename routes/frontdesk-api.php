@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Frontdesk\GiftVoucherController;
 use App\Http\Controllers\Api\Frontdesk\LocationSearchController;
 use App\Http\Controllers\Api\Frontdesk\MemberController;
 use App\Http\Controllers\Api\Frontdesk\OrderController;
+use App\Http\Controllers\Api\Frontdesk\PhysicalCardController;
 use App\Http\Controllers\Api\Frontdesk\PricingController;
 use App\Http\Controllers\Api\Frontdesk\RegistrationController;
 use App\Http\Controllers\Api\Frontdesk\SalesController;
@@ -59,6 +60,11 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::get('/vouchers', [GiftVoucherController::class, 'index']);
         Route::post('/vouchers', [GiftVoucherController::class, 'store']);
         Route::put('/vouchers/{voucher}', [GiftVoucherController::class, 'update']);
+
+        Route::get('/cards', [PhysicalCardController::class, 'index']);
+        Route::post('/cards', [PhysicalCardController::class, 'store']);
+        Route::put('/cards/{card}', [PhysicalCardController::class, 'update']);
+        Route::post('/cards/{card}/mark-printed', [PhysicalCardController::class, 'markPrinted']);
 
         Route::post('/display/sync', [DisplayDeviceController::class, 'sync']);
 

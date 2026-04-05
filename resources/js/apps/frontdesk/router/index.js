@@ -4,6 +4,7 @@ import DashboardPage from '../modules/dashboard/pages/DashboardPage.vue'
 import PosPage from '../modules/pos/pages/PosPage.vue'
 import SalesPage from '../modules/sales/pages/SalesPage.vue'
 import VouchersPage from '../modules/vouchers/pages/VouchersPage.vue'
+import CardsPage from '../modules/cards/pages/CardsPage.vue'
 import AgendaPage from '../modules/agenda/pages/AgendaPage.vue'
 import StaffPage from '../modules/staff/pages/StaffPage.vue'
 import MembersPage from '../modules/members/pages/MembersPage.vue'
@@ -14,6 +15,7 @@ const routes = [
     { path: '/pos', name: 'frontdesk.pos', component: PosPage },
     { path: '/sales', name: 'frontdesk.sales', component: SalesPage },
     { path: '/vouchers', name: 'frontdesk.vouchers', component: VouchersPage },
+    { path: '/cards', name: 'frontdesk.cards', component: CardsPage },
     { path: '/agenda', name: 'frontdesk.agenda', component: AgendaPage },
     { path: '/staff', name: 'frontdesk.staff', component: StaffPage },
     { path: '/members', name: 'frontdesk.members', component: MembersPage },
