@@ -9,8 +9,6 @@
             --card-width: 85.60mm;
             --card-height: 53.98mm;
             --safe-margin: 1.35mm;
-            --printable-width: calc(var(--card-width) - (var(--safe-margin) * 2));
-            --printable-height: calc(var(--card-height) - (var(--safe-margin) * 2));
             --preview-width: min(92vw, 980px);
             --preview-ratio: 85.60 / 53.98;
         }
@@ -89,17 +87,13 @@
             border-radius: 14px;
         }
 
-        .card-safe {
+        .safe-zone {
             position: absolute;
             inset: var(--safe-margin);
-            overflow: hidden;
-            background: #ffffff;
+            border: 1px dashed rgba(15, 23, 42, 0.14);
             border-radius: 2.4mm;
-        }
-
-        .preview-frame .card-safe {
-            outline: 1px dashed rgba(15, 23, 42, 0.12);
-            outline-offset: -1px;
+            pointer-events: none;
+            z-index: 1000;
         }
 
         .card-surface {
@@ -227,7 +221,8 @@
                 display: block;
             }
 
-            .screen-note {
+            .screen-note,
+            .safe-zone {
                 display: none !important;
             }
 
@@ -237,128 +232,123 @@
                 box-shadow: none;
                 border-radius: 0;
             }
-
-            .preview-frame .card-safe {
-                outline: none;
-                border-radius: 0;
-            }
         }
     </style>
 </head>
 <body>
     <div class="screen-shell">
         <div class="screen-note">
-            <strong>Badgy 100 printmodus.</strong> Deze pagina staat nu op echt kaartformaat.
+            <strong>Badgy 100 printmodus.</strong> De kaart wordt nu <strong>full bleed</strong> gerenderd op CR-80 formaat.
+            De stippellijn in de preview is enkel de <strong>veilige zone</strong> voor belangrijke tekst en is <strong>geen extra witte rand</strong>.
             Zet in Firefox nog wel <strong>kopteksten/voetteksten uit</strong> en laat de schaal op <strong>100%</strong> of <strong>werkelijke grootte</strong> staan.
-            De buitenste witte rand van 1,35 mm is bewust voorzien voor de Badgy 100.
         </div>
 
         <div class="preview-frame">
             <div class="print-page">
-                <div class="card-safe">
-                    <div class="card-surface">
+                <div class="card-surface">
+                    @php
+                        $templateWidth = max(1, (float) ($template['width'] ?? 1016));
+                        $templateHeight = max(1, (float) ($template['height'] ?? 638));
+                    @endphp
+
+                    @foreach(($template['elements'] ?? []) as $element)
                         @php
-                            $templateWidth = max(1, (float) ($template['width'] ?? 1016));
-                            $templateHeight = max(1, (float) ($template['height'] ?? 638));
+                            $type = $element['type'] ?? 'text';
+                            $left = (float) ($element['x'] ?? 0);
+                            $top = (float) ($element['y'] ?? 0);
+                            $width = max(1, (float) ($element['width'] ?? 1));
+                            $height = max(1, (float) ($element['height'] ?? 1));
+                            $radius = (float) ($element['borderRadius'] ?? 0);
+                            $opacity = (float) ($element['opacity'] ?? 1);
+                            $zIndex = (int) ($element['zIndex'] ?? 1);
+                            $bg = $element['backgroundColor'] ?? 'transparent';
+                            $color = $element['color'] ?? '#ffffff';
+                            $fontSize = (float) ($element['fontSize'] ?? 32);
+                            $fontWeight = (int) ($element['fontWeight'] ?? 700);
+                            $textAlign = $element['textAlign'] ?? 'left';
+                            $fit = $element['fit'] ?? (in_array($type, ['logo'], true) ? 'contain' : 'cover');
+                            $imageUrl = $element['imageUrl'] ?? '';
+                            $source = $element['source'] ?? '';
+                            $fieldValue = $fields[$source] ?? null;
+                            $displayText = $type === 'field'
+                                ? ($fieldValue ?: '{{ ' . ($source ?: 'veld') . ' }}')
+                                : (($element['text'] ?? '') !== '' ? $element['text'] : ($element['label'] ?? ''));
+                            $justify = $textAlign === 'center' ? 'center' : ($textAlign === 'right' ? 'flex-end' : 'flex-start');
+                            $leftPercent = ($left / $templateWidth) * 100;
+                            $topPercent = ($top / $templateHeight) * 100;
+                            $widthPercent = ($width / $templateWidth) * 100;
+                            $heightPercent = ($height / $templateHeight) * 100;
                         @endphp
 
-                        @foreach(($template['elements'] ?? []) as $element)
-                            @php
-                                $type = $element['type'] ?? 'text';
-                                $left = (float) ($element['x'] ?? 0);
-                                $top = (float) ($element['y'] ?? 0);
-                                $width = max(1, (float) ($element['width'] ?? 1));
-                                $height = max(1, (float) ($element['height'] ?? 1));
-                                $radius = (float) ($element['borderRadius'] ?? 0);
-                                $opacity = (float) ($element['opacity'] ?? 1);
-                                $zIndex = (int) ($element['zIndex'] ?? 1);
-                                $bg = $element['backgroundColor'] ?? 'transparent';
-                                $color = $element['color'] ?? '#ffffff';
-                                $fontSize = (float) ($element['fontSize'] ?? 32);
-                                $fontWeight = (int) ($element['fontWeight'] ?? 700);
-                                $textAlign = $element['textAlign'] ?? 'left';
-                                $fit = $element['fit'] ?? (in_array($type, ['logo'], true) ? 'contain' : 'cover');
-                                $imageUrl = $element['imageUrl'] ?? '';
-                                $source = $element['source'] ?? '';
-                                $fieldValue = $fields[$source] ?? null;
-                                $displayText = $type === 'field'
-                                    ? ($fieldValue ?: '{{ ' . ($source ?: 'veld') . ' }}')
-                                    : (($element['text'] ?? '') !== '' ? $element['text'] : ($element['label'] ?? ''));
-                                $justify = $textAlign === 'center' ? 'center' : ($textAlign === 'right' ? 'flex-end' : 'flex-start');
-                                $leftPercent = ($left / $templateWidth) * 100;
-                                $topPercent = ($top / $templateHeight) * 100;
-                                $widthPercent = ($width / $templateWidth) * 100;
-                                $heightPercent = ($height / $templateHeight) * 100;
-                            @endphp
-
-                            <div
-                                class="element element--{{ $type }}"
-                                style="
-                                    left: {{ $leftPercent }}%;
-                                    top: {{ $topPercent }}%;
-                                    width: {{ $widthPercent }}%;
-                                    height: {{ $heightPercent }}%;
-                                    border-radius: calc(var(--printable-width) * {{ $radius }} / {{ $templateWidth }});
-                                    opacity: {{ $opacity }};
-                                    z-index: {{ $zIndex }};
-                                "
-                            >
-                                @if($type === 'shape')
-                                    <div
-                                        class="shape-box"
+                        <div
+                            class="element element--{{ $type }}"
+                            style="
+                                left: {{ $leftPercent }}%;
+                                top: {{ $topPercent }}%;
+                                width: {{ $widthPercent }}%;
+                                height: {{ $heightPercent }}%;
+                                border-radius: calc(var(--card-width) * {{ $radius }} / {{ $templateWidth }});
+                                opacity: {{ $opacity }};
+                                z-index: {{ $zIndex }};
+                            "
+                        >
+                            @if($type === 'shape')
+                                <div
+                                    class="shape-box"
+                                    style="
+                                        background: {{ $bg }};
+                                        border-radius: calc(var(--card-width) * {{ $radius }} / {{ $templateWidth }});
+                                    "
+                                ></div>
+                            @elseif(in_array($type, ['image', 'logo', 'photo'], true))
+                                @if($imageUrl)
+                                    <img
+                                        src="{{ $imageUrl }}"
+                                        alt=""
                                         style="
+                                            object-fit: {{ $fit }};
+                                            border-radius: calc(var(--card-width) * {{ $radius }} / {{ $templateWidth }});
                                             background: {{ $bg }};
-                                            border-radius: calc(var(--printable-width) * {{ $radius }} / {{ $templateWidth }});
-                                        "
-                                    ></div>
-                                @elseif(in_array($type, ['image', 'logo', 'photo'], true))
-                                    @if($imageUrl)
-                                        <img
-                                            src="{{ $imageUrl }}"
-                                            alt=""
-                                            style="
-                                                object-fit: {{ $fit }};
-                                                border-radius: calc(var(--printable-width) * {{ $radius }} / {{ $templateWidth }});
-                                                background: {{ $bg }};
-                                            "
-                                        >
-                                    @else
-                                        <div
-                                            class="missing-image"
-                                            style="
-                                                border-radius: calc(var(--printable-width) * {{ $radius }} / {{ $templateWidth }});
-                                                background: {{ $bg !== 'transparent' ? $bg : '#1e293b' }};
-                                                color: {{ $color }};
-                                            "
-                                        >
-                                            {{ $element['label'] ?? 'Afbeelding' }}
-                                        </div>
-                                    @endif
-                                @elseif($type === 'qr')
-                                    <div class="qr-placeholder">
-                                        <div class="qr-placeholder__title">QR</div>
-                                        <div class="qr-placeholder__value">{{ $fields['voucher_code'] ?? ($card->rfid_uid ?? 'KAART') }}</div>
-                                    </div>
-                                @else
-                                    <div
-                                        class="element-text-box"
-                                        style="
-                                            justify-content: {{ $justify }};
-                                            color: {{ $color }};
-                                            background: {{ $bg }};
-                                            font-size: calc(var(--printable-height) * {{ $fontSize }} / {{ $templateHeight }});
-                                            font-weight: {{ $fontWeight }};
-                                            text-align: {{ $textAlign }};
-                                            border-radius: calc(var(--printable-width) * {{ $radius }} / {{ $templateWidth }});
                                         "
                                     >
-                                        {{ $displayText }}
+                                @else
+                                    <div
+                                        class="missing-image"
+                                        style="
+                                            border-radius: calc(var(--card-width) * {{ $radius }} / {{ $templateWidth }});
+                                            background: {{ $bg !== 'transparent' ? $bg : '#1e293b' }};
+                                            color: {{ $color }};
+                                        "
+                                    >
+                                        {{ $element['label'] ?? 'Afbeelding' }}
                                     </div>
                                 @endif
-                            </div>
-                        @endforeach
-                    </div>
+                            @elseif($type === 'qr')
+                                <div class="qr-placeholder">
+                                    <div class="qr-placeholder__title">QR</div>
+                                    <div class="qr-placeholder__value">{{ $fields['voucher_code'] ?? ($card->rfid_uid ?? 'KAART') }}</div>
+                                </div>
+                            @else
+                                <div
+                                    class="element-text-box"
+                                    style="
+                                        justify-content: {{ $justify }};
+                                        color: {{ $color }};
+                                        background: {{ $bg }};
+                                        font-size: calc(var(--card-height) * {{ $fontSize }} / {{ $templateHeight }});
+                                        font-weight: {{ $fontWeight }};
+                                        text-align: {{ $textAlign }};
+                                        border-radius: calc(var(--card-width) * {{ $radius }} / {{ $templateWidth }});
+                                    "
+                                >
+                                    {{ $displayText }}
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
                 </div>
+
+                <div class="safe-zone"></div>
             </div>
         </div>
     </div>
