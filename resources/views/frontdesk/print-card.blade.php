@@ -37,10 +37,23 @@
             background: #ffffff;
         }
 
-        .print-svg {
+        .print-svg,
+        .print-raster {
             display: block;
             width: 85.60mm;
             height: 53.98mm;
+        }
+
+        .print-raster {
+            object-fit: fill;
+        }
+
+        .is-rasterized .print-svg {
+            display: none;
+        }
+
+        .print-sheet:not(.is-rasterized) .print-raster {
+            display: none;
         }
 
         @media screen {
@@ -177,6 +190,8 @@
         </div>
 
         <div class="print-sheet">
+            <img class="print-raster" alt="Print raster" />
+
             <svg
                 class="print-svg"
                 xmlns="http://www.w3.org/2000/svg"
@@ -308,8 +323,90 @@
     </div>
 
     <script>
-        window.addEventListener('load', () => {
-            setTimeout(() => window.print(), 120)
+        const wait = (ms) => new Promise(resolve => window.setTimeout(resolve, ms))
+
+        const waitForImages = async (root) => {
+            const images = Array.from(root.querySelectorAll('image'))
+
+            await Promise.all(images.map((image) => new Promise((resolve) => {
+                const href = image.getAttribute('href') || image.getAttributeNS('http://www.w3.org/1999/xlink', 'href')
+
+                if (!href) {
+                    resolve()
+                    return
+                }
+
+                const probe = new Image()
+                probe.decoding = 'sync'
+                probe.loading = 'eager'
+                probe.crossOrigin = 'anonymous'
+                probe.onload = () => resolve()
+                probe.onerror = () => resolve()
+                probe.src = href
+
+                if (probe.complete) {
+                    resolve()
+                }
+            })))
+        }
+
+        const rasterizeCard = async () => {
+            const sheet = document.querySelector('.print-sheet')
+            const svg = sheet?.querySelector('.print-svg')
+            const raster = sheet?.querySelector('.print-raster')
+
+            if (!sheet || !svg || !raster) {
+                return false
+            }
+
+            try {
+                await waitForImages(svg)
+                await wait(80)
+
+                const serializer = new XMLSerializer()
+                const markup = serializer.serializeToString(svg)
+                const blob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' })
+                const url = URL.createObjectURL(blob)
+
+                const image = await new Promise((resolve, reject) => {
+                    const img = new Image()
+                    img.decoding = 'sync'
+                    img.loading = 'eager'
+                    img.crossOrigin = 'anonymous'
+                    img.onload = () => resolve(img)
+                    img.onerror = reject
+                    img.src = url
+                })
+
+                const viewBox = (svg.getAttribute('viewBox') || '0 0 1011 638').split(/\s+/).map(Number)
+                const width = Number.isFinite(viewBox[2]) && viewBox[2] > 0 ? viewBox[2] : 1011
+                const height = Number.isFinite(viewBox[3]) && viewBox[3] > 0 ? viewBox[3] : 638
+                const canvas = document.createElement('canvas')
+                canvas.width = width
+                canvas.height = height
+
+                const context = canvas.getContext('2d', { alpha: false })
+                context.imageSmoothingEnabled = true
+                context.imageSmoothingQuality = 'high'
+                context.fillStyle = '#ffffff'
+                context.fillRect(0, 0, width, height)
+                context.drawImage(image, 0, 0, width, height)
+
+                raster.src = canvas.toDataURL('image/png')
+                sheet.classList.add('is-rasterized')
+
+                URL.revokeObjectURL(url)
+                return true
+            } catch (error) {
+                console.error('Rasterize print failed', error)
+                return false
+            }
+        }
+
+        window.addEventListener('load', async () => {
+            await rasterizeCard()
+            await wait(120)
+            window.print()
         })
     </script>
 </body>
