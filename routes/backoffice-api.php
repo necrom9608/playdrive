@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Backoffice\AuthController;
+use App\Http\Controllers\Api\Backoffice\BadgeTemplateController;
 use App\Http\Controllers\Api\Backoffice\CateringOptionController;
 use App\Http\Controllers\Api\Backoffice\CateringOptionProductController;
 use App\Http\Controllers\Api\Backoffice\OptionController;
@@ -32,11 +33,6 @@ Route::prefix('api/backoffice')->group(function () {
         Route::post('/products/reorder', [ProductController::class, 'reorder']);
         Route::delete('/products/{product}', [ProductController::class, 'destroy']);
 
-        Route::get('/voucher-templates', [VoucherTemplateController::class, 'index']);
-        Route::post('/voucher-templates', [VoucherTemplateController::class, 'store']);
-        Route::put('/voucher-templates/{voucherTemplate}', [VoucherTemplateController::class, 'update']);
-        Route::delete('/voucher-templates/{voucherTemplate}', [VoucherTemplateController::class, 'destroy']);
-
         Route::get('/options/{type}', [OptionController::class, 'index']);
         Route::post('/options/{type}', [OptionController::class, 'store']);
         Route::put('/options/{type}/{item}', [OptionController::class, 'update']);
@@ -58,6 +54,12 @@ Route::prefix('api/backoffice')->group(function () {
         Route::get('/analytics/reporting', [AnalyticsController::class, 'reporting']);
         Route::get('/day-totals', [DayTotalsController::class, 'index']);
         Route::get('/day-totals/export', [DayTotalsController::class, 'export']);
+
+        Route::get('/badge-templates', [BadgeTemplateController::class, 'index']);
+        Route::post('/badge-templates', [BadgeTemplateController::class, 'store']);
+        Route::post('/badge-templates/media', [BadgeTemplateController::class, 'uploadMedia']);
+        Route::put('/badge-templates/{badgeTemplate}', [BadgeTemplateController::class, 'update']);
+        Route::delete('/badge-templates/{badgeTemplate}', [BadgeTemplateController::class, 'destroy']);
 
         Route::get('/devices', [DeviceManagementController::class, 'index']);
         Route::post('/devices/pair', [DeviceManagementController::class, 'pair']);
@@ -83,5 +85,16 @@ Route::prefix('api/backoffice')->group(function () {
 
         Route::put('/catering-option-products/{cateringOptionProduct}', [CateringOptionProductController::class, 'update']);
         Route::delete('/catering-option-products/{cateringOptionProduct}', [CateringOptionProductController::class, 'destroy']);
+
+        Route::get('/badge-templates', [BadgeTemplateController::class, 'index']);
+        Route::post('/badge-templates', [BadgeTemplateController::class, 'store']);
+        Route::post('/badge-templates/media', [BadgeTemplateController::class, 'uploadMedia']);
+        Route::put('/badge-templates/{badgeTemplate}', [BadgeTemplateController::class, 'update']);
+        Route::delete('/badge-templates/{badgeTemplate}', [BadgeTemplateController::class, 'destroy']);
+
+        Route::get('/voucher-templates', [VoucherTemplateController::class, 'index']);
+        Route::post('/voucher-templates', [VoucherTemplateController::class, 'store']);
+        Route::put('/voucher-templates/{voucherTemplate}', [VoucherTemplateController::class, 'update']);
+        Route::delete('/voucher-templates/{voucherTemplate}', [VoucherTemplateController::class, 'destroy']);
     });
 });

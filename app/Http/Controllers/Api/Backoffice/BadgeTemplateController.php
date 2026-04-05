@@ -113,7 +113,7 @@ class BadgeTemplateController extends Controller
 
         return response()->json([
             'path' => $path,
-            'url' => $this->storagePathToPublicUrl($path),
+            'url' => Storage::disk('public')->url($path),
         ], 201);
     }
 
@@ -159,20 +159,12 @@ class BadgeTemplateController extends Controller
     private function mapTemplate(BadgeTemplate $template): array
     {
         $config = $template->config_json ?? [];
-
         $config['backgroundImagePath'] = $config['backgroundImagePath'] ?? '';
-        $config['backgroundImageUrl'] = $this->resolvePublicUrl(
-            $config['backgroundImagePath'] ?? null,
-            $config['backgroundImageUrl'] ?? null
-        );
-
+        $config['backgroundImageUrl'] = $this->resolvePublicUrl($config['backgroundImagePath'] ?? null, $config['backgroundImageUrl'] ?? null);
         $config['elements'] = collect($config['elements'] ?? [])
             ->map(function (array $element) {
                 $element['imagePath'] = $element['imagePath'] ?? '';
-                $element['imageUrl'] = $this->resolvePublicUrl(
-                    $element['imagePath'] ?? null,
-                    $element['imageUrl'] ?? null
-                );
+                $element['imageUrl'] = $this->resolvePublicUrl($element['imagePath'] ?? null, $element['imageUrl'] ?? null);
                 $element['fit'] = $element['fit'] ?? (($element['type'] ?? null) === 'logo' ? 'contain' : 'cover');
 
                 return $element;
@@ -193,40 +185,13 @@ class BadgeTemplateController extends Controller
 
     private function resolvePublicUrl(?string $path, ?string $fallbackUrl = null): ?string
     {
-        $path = $this->nullableString($path);
-
-        if ($path !== null) {
-            return $this->storagePathToPublicUrl($path);
+        if (is_string($path) && $path !== '') {
+            return Storage::disk('public')->url($path);
         }
 
         $fallbackUrl = $this->nullableString($fallbackUrl);
 
-        if ($fallbackUrl === null) {
-            return null;
-        }
-
-        if (str_starts_with($fallbackUrl, 'http://') || str_starts_with($fallbackUrl, 'https://')) {
-            $parsedPath = parse_url($fallbackUrl, PHP_URL_PATH);
-
-            return is_string($parsedPath) && $parsedPath !== ''
-                ? $parsedPath
-                : $fallbackUrl;
-        }
-
-        if (str_starts_with($fallbackUrl, '/storage/')) {
-            return $fallbackUrl;
-        }
-
-        if (str_starts_with($fallbackUrl, 'storage/')) {
-            return '/' . ltrim($fallbackUrl, '/');
-        }
-
         return $fallbackUrl;
-    }
-
-    private function storagePathToPublicUrl(string $path): string
-    {
-        return '/storage/' . ltrim($path, '/');
     }
 
     private function nullableString(mixed $value): ?string
