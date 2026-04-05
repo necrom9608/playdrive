@@ -211,7 +211,7 @@
 
     function getDisplayText(element) {
         if (element.type === 'field') {
-            return element.displayText || ('{{ ' + (element.source || 'veld') + ' }}')
+            return element.displayText || ('[[ ' + (element.source || 'veld') + ' ]]')
         }
         if (element.type === 'text') {
             return element.displayText || element.text || 'Tekst'
