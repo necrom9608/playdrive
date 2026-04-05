@@ -5,388 +5,311 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Kaart printen</title>
     <style>
-        :root {
-            --card-width: 85.60mm;
-            --card-height: 53.98mm;
-            --safe-margin: 1.35mm;
-            --preview-width: min(92vw, 980px);
-            --preview-ratio: 85.60 / 53.98;
-        }
-
         @page {
             size: 85.60mm 53.98mm;
             margin: 0;
         }
 
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         html,
         body {
             margin: 0;
             padding: 0;
+            width: 85.60mm;
+            height: 53.98mm;
+            overflow: hidden;
+            background: #ffffff;
             font-family: Arial, Helvetica, sans-serif;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
-            background: #0f172a;
-            color: #e2e8f0;
         }
 
         body {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
+            display: block;
         }
 
-        .screen-shell {
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-            align-items: center;
-            width: 100%;
-        }
-
-        .screen-note {
-            max-width: 980px;
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            background: rgba(15, 23, 42, 0.78);
-            border-radius: 16px;
-            padding: 12px 16px;
-            font-size: 13px;
-            line-height: 1.45;
-            box-shadow: 0 18px 48px rgba(15, 23, 42, 0.35);
-        }
-
-        .screen-note strong {
-            color: #f8fafc;
-        }
-
-        .preview-frame {
-            width: var(--preview-width);
-            aspect-ratio: var(--preview-ratio);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .print-page {
-            width: var(--card-width);
-            height: var(--card-height);
-            background: #ffffff;
+        .print-sheet {
+            width: 85.60mm;
+            height: 53.98mm;
             overflow: hidden;
             position: relative;
-        }
-
-        .preview-frame .print-page {
-            width: 100%;
-            height: 100%;
-            box-shadow: 0 28px 80px rgba(15, 23, 42, 0.48);
-            border-radius: 14px;
-        }
-
-        .safe-zone {
-            position: absolute;
-            inset: var(--safe-margin);
-            border: 1px dashed rgba(15, 23, 42, 0.14);
-            border-radius: 2.4mm;
-            pointer-events: none;
-            z-index: 1000;
-        }
-
-        .card-surface {
-            position: absolute;
-            inset: 0;
-            overflow: hidden;
-            background: {{ $template['backgroundColor'] ?? '#111827' }};
-            background-image: @if(!empty($template['backgroundImageUrl'])) url('{{ $template['backgroundImageUrl'] }}') @else none @endif;
-            background-size: {{ $template['backgroundSize'] ?? 'cover' }};
-            background-position: {{ $template['backgroundPosition'] ?? 'center' }};
-            background-repeat: no-repeat;
-        }
-
-        .element {
-            position: absolute;
-            overflow: hidden;
-            display: block;
-        }
-
-        .element--image img,
-        .element--logo img,
-        .element--photo img {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-
-        .element--shape .shape-box {
-            width: 100%;
-            height: 100%;
-        }
-
-        .element--text,
-        .element--field,
-        .element--shape,
-        .element--qr,
-        .element--image,
-        .element--logo,
-        .element--photo {
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-        }
-
-        .element-text-box {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            line-height: 1.08;
-            white-space: pre-wrap;
-            word-break: break-word;
-            padding: 0.8mm 1.1mm;
-        }
-
-        .element--qr {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 8%;
             background: #ffffff;
         }
 
-        .qr-placeholder {
-            width: 100%;
-            height: 100%;
-            border: 0.45mm solid #0f172a;
-            border-radius: 1.8mm;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 0.8mm;
-            color: #0f172a;
-            text-align: center;
-            padding: 1.2mm;
-            background: #ffffff;
+        .print-svg {
+            display: block;
+            width: 85.60mm;
+            height: 53.98mm;
         }
 
-        .qr-placeholder__title {
-            font-size: 2.2mm;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
+        @media screen {
+            html,
+            body {
+                background: #0f172a;
+                width: 100%;
+                height: 100%;
+            }
 
-        .qr-placeholder__value {
-            font-size: 1.7mm;
-            font-weight: 600;
-            word-break: break-all;
-        }
+            body {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 24px;
+            }
 
-        .missing-image {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 1.2mm;
-            font-size: 1.8mm;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
+            .preview-stack {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 14px;
+            }
+
+            .preview-meta {
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+                justify-content: center;
+                color: #cbd5e1;
+                font-size: 12px;
+            }
+
+            .preview-meta span {
+                border: 1px solid rgba(148, 163, 184, 0.25);
+                background: rgba(15, 23, 42, 0.65);
+                border-radius: 999px;
+                padding: 6px 10px;
+            }
+
+            .print-sheet {
+                box-shadow: 0 24px 80px rgba(15, 23, 42, 0.55);
+            }
         }
 
         @media print {
-            html,
-            body {
-                width: var(--card-width);
-                height: var(--card-height);
-                background: #ffffff;
-                overflow: hidden;
-            }
-
-            body {
-                display: block;
-                min-height: 0;
-                padding: 0;
-            }
-
-            .screen-shell,
-            .preview-frame {
-                width: auto;
-                height: auto;
-                display: block;
-            }
-
-            .screen-note,
-            .safe-zone {
-                display: none !important;
-            }
-
-            .preview-frame .print-page {
-                width: var(--card-width);
-                height: var(--card-height);
-                box-shadow: none;
-                border-radius: 0;
+            .preview-meta {
+                display: none;
             }
         }
     </style>
 </head>
+@php
+    $svgWidth = (int) ($template['width'] ?? 1011);
+    $svgHeight = (int) ($template['height'] ?? 638);
+
+    $escape = static fn (?string $value): string => e($value ?? '');
+
+    $hexToRgb = static function (?string $value): string {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return '0 0 0';
+        }
+
+        if (preg_match('/^rgba?\(([^)]+)\)$/i', $value, $matches)) {
+            $parts = array_map('trim', explode(',', $matches[1]));
+            return implode(' ', array_slice($parts, 0, 3));
+        }
+
+        $value = ltrim($value, '#');
+        if (strlen($value) === 3) {
+            $value = $value[0].$value[0].$value[1].$value[1].$value[2].$value[2];
+        }
+
+        if (strlen($value) !== 6 || ! ctype_xdigit($value)) {
+            return '0 0 0';
+        }
+
+        return hexdec(substr($value, 0, 2)).' '.hexdec(substr($value, 2, 2)).' '.hexdec(substr($value, 4, 2));
+    };
+
+    $alphaFromColor = static function (?string $value): float {
+        $value = trim((string) $value);
+        if (preg_match('/^rgba\(([^)]+)\)$/i', $value, $matches)) {
+            $parts = array_map('trim', explode(',', $matches[1]));
+            return isset($parts[3]) ? max(0, min(1, (float) $parts[3])) : 1.0;
+        }
+
+        return $value === 'transparent' ? 0.0 : 1.0;
+    };
+
+    $svgFill = static function (?string $value) use ($hexToRgb, $alphaFromColor): array {
+        $value = trim((string) $value);
+        if ($value === '' || $value === 'transparent') {
+            return ['fill' => 'transparent', 'opacity' => 0];
+        }
+
+        if (str_starts_with($value, 'rgb')) {
+            return ['fill' => 'rgb('.$hexToRgb($value).')', 'opacity' => $alphaFromColor($value)];
+        }
+
+        return ['fill' => $value, 'opacity' => $alphaFromColor($value)];
+    };
+
+    $imageAspect = static fn (string $fit): string => $fit === 'contain' ? 'xMidYMid meet' : 'xMidYMid slice';
+
+    $textAnchor = static fn (string $align): string => $align === 'center' ? 'middle' : ($align === 'right' ? 'end' : 'start');
+    $textX = static function (array $element): int {
+        return $element['textAlign'] === 'center'
+            ? (int) round($element['x'] + ($element['width'] / 2))
+            : ($element['textAlign'] === 'right'
+                ? (int) round($element['x'] + $element['width'] - 12)
+                : (int) round($element['x'] + 12));
+    };
+    $textY = static function (array $element, array $lines): int {
+        $fontSize = (int) $element['fontSize'];
+        $lineHeight = (int) round($fontSize * 1.08);
+        $contentHeight = max($lineHeight, count($lines) * $lineHeight);
+        return (int) round($element['y'] + (($element['height'] - $contentHeight) / 2) + $fontSize);
+    };
+    $normalizeLines = static function (?string $text): array {
+        $text = trim(str_replace(["\r\n", "\r"], "\n", (string) $text));
+        return $text === '' ? [''] : explode("\n", $text);
+    };
+
+    $background = $svgFill($template['backgroundColor'] ?? '#ffffff');
+@endphp
 <body>
-    <div class="screen-shell">
-        <div class="screen-note">
-            <strong>Badgy 100 printmodus.</strong> De kaart wordt nu <strong>full bleed</strong> gerenderd op CR-80 formaat.
-            De stippellijn in de preview is enkel de <strong>veilige zone</strong> voor belangrijke tekst en is <strong>geen extra witte rand</strong>.
-            Zet in Firefox nog wel <strong>kopteksten/voetteksten uit</strong> en laat de schaal op <strong>100%</strong> of <strong>werkelijke grootte</strong> staan.
+    <div class="preview-stack">
+        <div class="preview-meta">
+            <span>Kaart: {{ $card->rfid_uid }}</span>
+            <span>Type: {{ $card->voucherTemplate?->name ?? 'Onbekend' }}</span>
+            <span>300 dpi render · 1011 × 638 px</span>
         </div>
 
-        <div class="preview-frame">
-            <div class="print-page">
-                <div class="card-surface">
+        <div class="print-sheet">
+            <svg
+                class="print-svg"
+                xmlns="http://www.w3.org/2000/svg"
+                xmlns:xlink="http://www.w3.org/1999/xlink"
+                viewBox="0 0 {{ $svgWidth }} {{ $svgHeight }}"
+                width="85.60mm"
+                height="53.98mm"
+                preserveAspectRatio="none"
+                shape-rendering="geometricPrecision"
+                text-rendering="geometricPrecision"
+            >
+                <rect x="0" y="0" width="{{ $svgWidth }}" height="{{ $svgHeight }}" fill="{{ $background['fill'] }}" fill-opacity="{{ $background['opacity'] }}" />
+
+                @if(!empty($template['backgroundImageUrl']))
+                    <image
+                        x="0"
+                        y="0"
+                        width="{{ $svgWidth }}"
+                        height="{{ $svgHeight }}"
+                        href="{{ $template['backgroundImageUrl'] }}"
+                        preserveAspectRatio="xMidYMid slice"
+                    />
+                @endif
+
+                @foreach(($template['elements'] ?? []) as $element)
                     @php
-                        $templateWidth = max(1, (float) ($template['width'] ?? 1016));
-                        $templateHeight = max(1, (float) ($template['height'] ?? 638));
+                        $type = $element['type'] ?? 'text';
+                        $x = (int) ($element['x'] ?? 0);
+                        $y = (int) ($element['y'] ?? 0);
+                        $width = max(1, (int) ($element['width'] ?? 1));
+                        $height = max(1, (int) ($element['height'] ?? 1));
+                        $radius = max(0, (int) ($element['borderRadius'] ?? 0));
+                        $opacity = max(0, min(1, (float) ($element['opacity'] ?? 1)));
+                        $fill = $svgFill($element['backgroundColor'] ?? 'transparent');
+                        $textFill = $svgFill($element['color'] ?? '#ffffff');
+                        $lines = $normalizeLines($element['displayText'] ?? '');
                     @endphp
 
-                    @foreach(($template['elements'] ?? []) as $element)
-                        @php
-                            $type = $element['type'] ?? 'text';
-                            $left = (float) ($element['x'] ?? 0);
-                            $top = (float) ($element['y'] ?? 0);
-                            $width = max(1, (float) ($element['width'] ?? 1));
-                            $height = max(1, (float) ($element['height'] ?? 1));
-                            $radius = (float) ($element['borderRadius'] ?? 0);
-                            $opacity = (float) ($element['opacity'] ?? 1);
-                            $zIndex = (int) ($element['zIndex'] ?? 1);
-                            $bg = $element['backgroundColor'] ?? 'transparent';
-                            $color = $element['color'] ?? '#ffffff';
-                            $fontSize = (float) ($element['fontSize'] ?? 32);
-                            $fontWeight = (int) ($element['fontWeight'] ?? 700);
-                            $textAlign = $element['textAlign'] ?? 'left';
-                            $fit = $element['fit'] ?? (in_array($type, ['logo'], true) ? 'contain' : 'cover');
-                            $imageUrl = $element['imageUrl'] ?? '';
-                            $source = $element['source'] ?? '';
-                            $fieldValue = $fields[$source] ?? null;
-                            $displayText = $type === 'field'
-                                ? ($fieldValue ?: '{{ ' . ($source ?: 'veld') . ' }}')
-                                : (($element['text'] ?? '') !== '' ? $element['text'] : ($element['label'] ?? ''));
-                            $justify = $textAlign === 'center' ? 'center' : ($textAlign === 'right' ? 'flex-end' : 'flex-start');
-                            $leftPercent = ($left / $templateWidth) * 100;
-                            $topPercent = ($top / $templateHeight) * 100;
-                            $widthPercent = ($width / $templateWidth) * 100;
-                            $heightPercent = ($height / $templateHeight) * 100;
-                        @endphp
-
-                        <div
-                            class="element element--{{ $type }}"
-                            style="
-                                left: {{ $leftPercent }}%;
-                                top: {{ $topPercent }}%;
-                                width: {{ $widthPercent }}%;
-                                height: {{ $heightPercent }}%;
-                                border-radius: calc(var(--card-width) * {{ $radius }} / {{ $templateWidth }});
-                                opacity: {{ $opacity }};
-                                z-index: {{ $zIndex }};
-                            "
-                        >
-                            @if($type === 'shape')
-                                <div
-                                    class="shape-box"
-                                    style="
-                                        background: {{ $bg }};
-                                        border-radius: calc(var(--card-width) * {{ $radius }} / {{ $templateWidth }});
-                                    "
-                                ></div>
-                            @elseif(in_array($type, ['image', 'logo', 'photo'], true))
-                                @if($imageUrl)
-                                    <img
-                                        src="{{ $imageUrl }}"
-                                        alt=""
-                                        style="
-                                            object-fit: {{ $fit }};
-                                            border-radius: calc(var(--card-width) * {{ $radius }} / {{ $templateWidth }});
-                                            background: {{ $bg }};
-                                        "
-                                    >
-                                @else
-                                    <div
-                                        class="missing-image"
-                                        style="
-                                            border-radius: calc(var(--card-width) * {{ $radius }} / {{ $templateWidth }});
-                                            background: {{ $bg !== 'transparent' ? $bg : '#1e293b' }};
-                                            color: {{ $color }};
-                                        "
-                                    >
-                                        {{ $element['label'] ?? 'Afbeelding' }}
-                                    </div>
+                    <g opacity="{{ $opacity }}">
+                        @if($type === 'shape')
+                            <rect x="{{ $x }}" y="{{ $y }}" width="{{ $width }}" height="{{ $height }}" rx="{{ $radius }}" ry="{{ $radius }}" fill="{{ $fill['fill'] }}" fill-opacity="{{ $fill['opacity'] }}" />
+                        @elseif(in_array($type, ['image', 'logo', 'photo'], true))
+                            @if(!empty($element['imageUrl']))
+                                @if($radius > 0)
+                                    <defs>
+                                        <clipPath id="clip-{{ $loop->index }}">
+                                            <rect x="{{ $x }}" y="{{ $y }}" width="{{ $width }}" height="{{ $height }}" rx="{{ $radius }}" ry="{{ $radius }}" />
+                                        </clipPath>
+                                    </defs>
                                 @endif
-                            @elseif($type === 'qr')
-                                <div class="qr-placeholder">
-                                    <div class="qr-placeholder__title">QR</div>
-                                    <div class="qr-placeholder__value">{{ $fields['voucher_code'] ?? ($card->rfid_uid ?? 'KAART') }}</div>
-                                </div>
+                                @if($fill['opacity'] > 0)
+                                    <rect x="{{ $x }}" y="{{ $y }}" width="{{ $width }}" height="{{ $height }}" rx="{{ $radius }}" ry="{{ $radius }}" fill="{{ $fill['fill'] }}" fill-opacity="{{ $fill['opacity'] }}" />
+                                @endif
+                                <image
+                                    x="{{ $x }}"
+                                    y="{{ $y }}"
+                                    width="{{ $width }}"
+                                    height="{{ $height }}"
+                                    href="{{ $element['imageUrl'] }}"
+                                    preserveAspectRatio="{{ $imageAspect($element['fit'] ?? 'cover') }}"
+                                    @if($radius > 0) clip-path="url(#clip-{{ $loop->index }})" @endif
+                                />
                             @else
-                                <div
-                                    class="element-text-box"
-                                    style="
-                                        justify-content: {{ $justify }};
-                                        color: {{ $color }};
-                                        background: {{ $bg }};
-                                        font-size: calc(var(--card-height) * {{ $fontSize }} / {{ $templateHeight }});
-                                        font-weight: {{ $fontWeight }};
-                                        text-align: {{ $textAlign }};
-                                        border-radius: calc(var(--card-width) * {{ $radius }} / {{ $templateWidth }});
-                                    "
-                                >
-                                    {{ $displayText }}
-                                </div>
+                                <rect x="{{ $x }}" y="{{ $y }}" width="{{ $width }}" height="{{ $height }}" rx="{{ $radius }}" ry="{{ $radius }}" fill="{{ $fill['opacity'] > 0 ? $fill['fill'] : '#1e293b' }}" fill-opacity="{{ $fill['opacity'] > 0 ? $fill['opacity'] : 1 }}" />
+                                <text
+                                    x="{{ (int) round($x + ($width / 2)) }}"
+                                    y="{{ (int) round($y + ($height / 2) + 6) }}"
+                                    text-anchor="middle"
+                                    font-size="16"
+                                    font-weight="700"
+                                    fill="{{ $textFill['fill'] }}"
+                                    fill-opacity="{{ $textFill['opacity'] }}"
+                                    font-family="Arial, Helvetica, sans-serif"
+                                >{{ $escape($element['label'] ?? 'Afbeelding') }}</text>
                             @endif
-                        </div>
-                    @endforeach
-                </div>
+                        @elseif($type === 'qr')
+                            <rect x="{{ $x }}" y="{{ $y }}" width="{{ $width }}" height="{{ $height }}" rx="{{ $radius }}" ry="{{ $radius }}" fill="#ffffff" />
+                            <rect x="{{ $x + 24 }}" y="{{ $y + 24 }}" width="{{ max(1, $width - 48) }}" height="{{ max(1, $height - 48) }}" rx="16" ry="16" fill="none" stroke="#0f172a" stroke-width="10" />
+                            <text
+                                x="{{ (int) round($x + ($width / 2)) }}"
+                                y="{{ (int) round($y + ($height / 2) - 12) }}"
+                                text-anchor="middle"
+                                font-size="26"
+                                font-weight="700"
+                                fill="#0f172a"
+                                font-family="Arial, Helvetica, sans-serif"
+                            >QR</text>
+                            <text
+                                x="{{ (int) round($x + ($width / 2)) }}"
+                                y="{{ (int) round($y + ($height / 2) + 24) }}"
+                                text-anchor="middle"
+                                font-size="15"
+                                font-weight="600"
+                                fill="#0f172a"
+                                font-family="Arial, Helvetica, sans-serif"
+                            >{{ $escape($fields['voucher_code'] ?? ($card->rfid_uid ?? 'KAART')) }}</text>
+                        @else
+                            @if($fill['opacity'] > 0)
+                                <rect x="{{ $x }}" y="{{ $y }}" width="{{ $width }}" height="{{ $height }}" rx="{{ $radius }}" ry="{{ $radius }}" fill="{{ $fill['fill'] }}" fill-opacity="{{ $fill['opacity'] }}" />
+                            @endif
 
-                <div class="safe-zone"></div>
-            </div>
+                            @php
+                                $fontSize = (int) ($element['fontSize'] ?? 32);
+                                $lineHeight = (int) round($fontSize * 1.08);
+                                $anchor = $textAnchor($element['textAlign'] ?? 'left');
+                                $textStartX = $textX($element);
+                                $textStartY = $textY($element, $lines);
+                            @endphp
+                            <text
+                                x="{{ $textStartX }}"
+                                y="{{ $textStartY }}"
+                                text-anchor="{{ $anchor }}"
+                                font-size="{{ $fontSize }}"
+                                font-weight="{{ (int) ($element['fontWeight'] ?? 700) }}"
+                                fill="{{ $textFill['fill'] }}"
+                                fill-opacity="{{ $textFill['opacity'] }}"
+                                font-family="Arial, Helvetica, sans-serif"
+                                letter-spacing="0"
+                            >
+                                @foreach($lines as $line)
+                                    <tspan x="{{ $textStartX }}" dy="{{ $loop->first ? 0 : $lineHeight }}">{{ $escape($line) }}</tspan>
+                                @endforeach
+                            </text>
+                        @endif
+                    </g>
+                @endforeach
+            </svg>
         </div>
     </div>
 
     <script>
-        function waitForImages() {
-            const images = Array.from(document.images || [])
-
-            if (!images.length) {
-                return Promise.resolve()
-            }
-
-            return Promise.all(images.map((image) => {
-                if (image.complete) {
-                    return Promise.resolve()
-                }
-
-                return new Promise((resolve) => {
-                    image.addEventListener('load', resolve, { once: true })
-                    image.addEventListener('error', resolve, { once: true })
-                })
-            }))
-        }
-
-        window.addEventListener('load', async () => {
-            await waitForImages()
-            window.focus()
-            setTimeout(() => window.print(), 180)
-        })
-
-        window.addEventListener('afterprint', () => {
-            setTimeout(() => {
-                try {
-                    window.close()
-                } catch (error) {
-                    // ignore
-                }
-            }, 180)
+        window.addEventListener('load', () => {
+            setTimeout(() => window.print(), 120)
         })
     </script>
 </body>
