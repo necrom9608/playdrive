@@ -28,7 +28,6 @@ const navigation = [
     { label: 'AGENDA', to: '/agenda', icon: 'calendar-days' },
     { label: 'TAKEN', to: '/tasks', icon: 'clipboard-document-check' },
     { label: 'CADEAUBONNEN', to: '/vouchers', icon: 'ticket' },
-    { label: 'KAARTEN', to: '/cards', icon: 'identification' },
     { label: 'ABONNEMENTEN', to: '/members', icon: 'identification' },
     { label: 'PERSONEEL', to: '/staff', icon: 'users' },
 ]

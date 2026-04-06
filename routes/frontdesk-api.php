@@ -61,11 +61,6 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::post('/vouchers', [GiftVoucherController::class, 'store']);
         Route::put('/vouchers/{voucher}', [GiftVoucherController::class, 'update']);
 
-        Route::get('/cards', [PhysicalCardController::class, 'index']);
-        Route::post('/cards', [PhysicalCardController::class, 'store']);
-        Route::put('/cards/{card}', [PhysicalCardController::class, 'update']);
-        Route::post('/cards/{card}/render-image', [PhysicalCardController::class, 'uploadRenderImage']);
-        Route::post('/cards/{card}/mark-printed', [PhysicalCardController::class, 'markPrinted']);
 
         Route::post('/display/sync', [DisplayDeviceController::class, 'sync']);
 

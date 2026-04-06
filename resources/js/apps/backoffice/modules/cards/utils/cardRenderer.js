@@ -84,7 +84,108 @@ function getDisplayText(element) {
     return element.displayText || element.label || ''
 }
 
-function drawTextElement(context, element) {
+function escapeXml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+}
+
+function buildHtmlLayerMarkup({ template, fields, card }) {
+    const elements = [...(template.elements || [])].sort((a, b) => (a.zIndex || 1) - (b.zIndex || 1))
+
+    const html = elements.map((element) => {
+        const x = Number(element.x || 0)
+        const y = Number(element.y || 0)
+        const width = Number(element.width || 1)
+        const height = Number(element.height || 1)
+        const radius = Number(element.borderRadius || 0)
+        const opacity = Number(element.opacity ?? 1)
+        const zIndex = Number(element.zIndex || 1)
+        const background = parseColor(element.backgroundColor)
+
+        const wrapperStyle = [
+            'position:absolute',
+            `left:${x}px`,
+            `top:${y}px`,
+            `width:${width}px`,
+            `height:${height}px`,
+            `z-index:${zIndex}`,
+            'overflow:hidden',
+            `border-radius:${radius}px`,
+            `opacity:${opacity}`,
+            'box-sizing:border-box',
+        ].join(';')
+
+        if (element.type === 'shape') {
+            return `<div style="${wrapperStyle};background:${escapeXml(background !== 'transparent' ? background : '#7c3aed')};"></div>`
+        }
+
+        if (['image', 'logo', 'photo'].includes(element.type)) {
+            const fit = element.fit || (element.type === 'logo' ? 'contain' : 'cover')
+            const imgTag = element.imageUrl
+                ? `<img src="${escapeXml(element.imageUrl)}" style="width:100%;height:100%;object-fit:${escapeXml(fit)};display:block;" />`
+                : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:${escapeXml(background !== 'transparent' ? background : '#1e293b')};color:#e2e8f0;font:700 16px Arial, Helvetica, sans-serif;text-transform:uppercase;letter-spacing:.12em;">${escapeXml(element.label || 'Afbeelding')}</div>`
+
+            const bgStyle = background !== 'transparent' ? `background:${escapeXml(background)};` : ''
+            return `<div style="${wrapperStyle};${bgStyle}">${imgTag}</div>`
+        }
+
+        if (element.type === 'qr') {
+            const code = fields?.voucher_code || card?.rfid_uid || 'KAART'
+            return `
+                <div style="${wrapperStyle};background:#ffffff;border-radius:${radius}px;display:flex;align-items:center;justify-content:center;">
+                    <div style="width:72%;height:72%;border:10px solid #0f172a;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;color:#0f172a;font-family:Arial, Helvetica, sans-serif;">
+                        <div style="font-size:26px;font-weight:700;line-height:1;">QR</div>
+                        <div style="margin-top:8px;font-size:15px;font-weight:600;line-height:1;">${escapeXml(code)}</div>
+                    </div>
+                </div>
+            `
+        }
+
+        const textAlign = element.textAlign || 'left'
+        const justifyContent = textAlign === 'center' ? 'center' : (textAlign === 'right' ? 'flex-end' : 'flex-start')
+        const fontSize = Number(element.fontSize || 32)
+        const fontWeight = Number(element.fontWeight || 700)
+        const color = parseColor(element.color, '#ffffff')
+        const text = escapeXml(getDisplayText(element)).replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n/g, '<br/>')
+        const bgStyle = background !== 'transparent' ? `background:${escapeXml(background)};` : ''
+
+        return `
+            <div style="${wrapperStyle};${bgStyle}display:flex;align-items:center;justify-content:${justifyContent};padding:8px 12px;box-sizing:border-box;color:${escapeXml(color)};font-size:${fontSize}px;font-weight:${fontWeight};font-family:Arial, Helvetica, sans-serif;text-align:${textAlign};line-height:1.1;white-space:pre-wrap;word-break:break-word;">
+                <div style="width:100%;text-align:${textAlign};">${text}</div>
+            </div>
+        `
+    }).join('')
+
+    return `
+        <div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:${Number(template.width || 1016)}px;height:${Number(template.height || 638)}px;box-sizing:border-box;overflow:hidden;">
+            ${html}
+        </div>
+    `
+}
+
+async function drawHtmlLayer(context, { template, fields, card }) {
+    const width = Number(template.width || 1016)
+    const height = Number(template.height || 638)
+    const html = buildHtmlLayerMarkup({ template, fields, card })
+    const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+            <foreignObject x="0" y="0" width="100%" height="100%">${html}</foreignObject>
+        </svg>
+    `
+    const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+    const img = await loadImage(dataUrl)
+    if (img) {
+        context.drawImage(img, 0, 0, width, height)
+        return true
+    }
+    return false
+}
+
+function drawTextElementFallback(context, element) {
     const x = Number(element.x || 0)
     const y = Number(element.y || 0)
     const width = Number(element.width || 1)
@@ -97,20 +198,10 @@ function drawTextElement(context, element) {
     const align = element.textAlign || 'left'
     const text = String(getDisplayText(element) || '')
     const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
-    const horizontalPadding = Number(element.paddingX ?? 12)
-    const verticalPadding = Number(element.paddingY ?? 8)
-    const lineHeight = Math.round(fontSize * Number(element.lineHeight ?? 1.1))
+    const horizontalPadding = 12
+    const lineHeight = Math.round(fontSize * 1.1)
     const contentHeight = Math.max(lineHeight, lines.length * lineHeight)
-    const verticalAlign = element.verticalAlign || element.textVerticalAlign || 'middle'
-
-    let startY
-    if (verticalAlign === 'top') {
-        startY = y + verticalPadding + fontSize
-    } else if (verticalAlign === 'bottom') {
-        startY = y + height - verticalPadding - contentHeight + fontSize
-    } else {
-        startY = y + ((height - contentHeight) / 2) + fontSize
-    }
+    const startY = y + ((height - contentHeight) / 2) + fontSize
 
     context.save()
     context.globalAlpha = Number(element.opacity ?? 1)
@@ -134,88 +225,6 @@ function drawTextElement(context, element) {
         context.fillText(line, textX, startY + (index * lineHeight))
     })
 
-    context.restore()
-}
-
-function drawShapeElement(context, element) {
-    const x = Number(element.x || 0)
-    const y = Number(element.y || 0)
-    const width = Number(element.width || 1)
-    const height = Number(element.height || 1)
-    const radius = Number(element.borderRadius || 0)
-
-    context.save()
-    context.globalAlpha = Number(element.opacity ?? 1)
-    roundedRectPath(context, x, y, width, height, radius)
-    context.fillStyle = parseColor(element.backgroundColor, '#7c3aed')
-    context.fill()
-    context.restore()
-}
-
-async function drawMediaElement(context, element) {
-    const x = Number(element.x || 0)
-    const y = Number(element.y || 0)
-    const width = Number(element.width || 1)
-    const height = Number(element.height || 1)
-    const radius = Number(element.borderRadius || 0)
-    const backgroundColor = parseColor(element.backgroundColor)
-
-    context.save()
-    context.globalAlpha = Number(element.opacity ?? 1)
-
-    if (backgroundColor !== 'transparent') {
-        roundedRectPath(context, x, y, width, height, radius)
-        context.fillStyle = backgroundColor
-        context.fill()
-    }
-
-    if (element.imageUrl) {
-        const img = await loadImage(element.imageUrl)
-        if (img) {
-            roundedRectPath(context, x, y, width, height, radius)
-            context.clip()
-            drawFittedImage(context, img, x, y, width, height, element.fit || (element.type === 'logo' ? 'contain' : 'cover'))
-        }
-    } else {
-        roundedRectPath(context, x, y, width, height, radius)
-        context.fillStyle = backgroundColor !== 'transparent' ? backgroundColor : '#1e293b'
-        context.fill()
-        context.fillStyle = '#e2e8f0'
-        context.font = '700 16px Arial, Helvetica, sans-serif'
-        context.textAlign = 'center'
-        context.textBaseline = 'middle'
-        context.fillText(element.label || 'Afbeelding', x + (width / 2), y + (height / 2))
-    }
-
-    context.restore()
-}
-
-function drawQrPlaceholder(context, element, fields, card) {
-    const x = Number(element.x || 0)
-    const y = Number(element.y || 0)
-    const width = Number(element.width || 1)
-    const height = Number(element.height || 1)
-    const radius = Number(element.borderRadius || 0)
-    const code = fields?.voucher_code || card?.rfid_uid || 'KAART'
-
-    context.save()
-    context.globalAlpha = Number(element.opacity ?? 1)
-    roundedRectPath(context, x, y, width, height, radius)
-    context.fillStyle = '#ffffff'
-    context.fill()
-
-    context.strokeStyle = '#0f172a'
-    context.lineWidth = 10
-    roundedRectPath(context, x + 24, y + 24, Math.max(1, width - 48), Math.max(1, height - 48), 16)
-    context.stroke()
-
-    context.fillStyle = '#0f172a'
-    context.textAlign = 'center'
-    context.textBaseline = 'middle'
-    context.font = '700 26px Arial, Helvetica, sans-serif'
-    context.fillText('QR', x + (width / 2), y + (height / 2) - 12)
-    context.font = '600 15px Arial, Helvetica, sans-serif'
-    context.fillText(code, x + (width / 2), y + (height / 2) + 24)
     context.restore()
 }
 
@@ -243,17 +252,72 @@ export async function renderCardToCanvas({ template, fields, card }) {
         }
     }
 
+    try {
+        const drawn = await drawHtmlLayer(ctx, { template, fields, card })
+        if (drawn) {
+            return canvas
+        }
+    } catch (error) {
+        console.warn('HTML kaartlaag kon niet gerenderd worden, fallback wordt gebruikt.', error)
+    }
+
     const elements = [...(template.elements || [])].sort((a, b) => (a.zIndex || 1) - (b.zIndex || 1))
 
     for (const element of elements) {
         if (element.type === 'shape') {
-            drawShapeElement(ctx, element)
+            const x = Number(element.x || 0)
+            const y = Number(element.y || 0)
+            const width = Number(element.width || 1)
+            const height = Number(element.height || 1)
+            const radius = Number(element.borderRadius || 0)
+            ctx.save()
+            ctx.globalAlpha = Number(element.opacity ?? 1)
+            roundedRectPath(ctx, x, y, width, height, radius)
+            ctx.fillStyle = parseColor(element.backgroundColor, '#7c3aed')
+            ctx.fill()
+            ctx.restore()
         } else if (['image', 'logo', 'photo'].includes(element.type)) {
-            await drawMediaElement(ctx, element)
+            const x = Number(element.x || 0)
+            const y = Number(element.y || 0)
+            const width = Number(element.width || 1)
+            const height = Number(element.height || 1)
+            const radius = Number(element.borderRadius || 0)
+            const backgroundColor = parseColor(element.backgroundColor)
+            ctx.save()
+            ctx.globalAlpha = Number(element.opacity ?? 1)
+            if (backgroundColor !== 'transparent') {
+                roundedRectPath(ctx, x, y, width, height, radius)
+                ctx.fillStyle = backgroundColor
+                ctx.fill()
+            }
+            if (element.imageUrl) {
+                const img = await loadImage(element.imageUrl)
+                if (img) {
+                    roundedRectPath(ctx, x, y, width, height, radius)
+                    ctx.clip()
+                    drawFittedImage(ctx, img, x, y, width, height, element.fit || (element.type === 'logo' ? 'contain' : 'cover'))
+                }
+            }
+            ctx.restore()
         } else if (element.type === 'qr') {
-            drawQrPlaceholder(ctx, element, fields, card)
+            // minimal fallback
+            const x = Number(element.x || 0)
+            const y = Number(element.y || 0)
+            const width = Number(element.width || 1)
+            const height = Number(element.height || 1)
+            const radius = Number(element.borderRadius || 0)
+            ctx.save()
+            roundedRectPath(ctx, x, y, width, height, radius)
+            ctx.fillStyle = '#ffffff'
+            ctx.fill()
+            ctx.fillStyle = '#0f172a'
+            ctx.font = '700 26px Arial, Helvetica, sans-serif'
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'middle'
+            ctx.fillText('QR', x + (width / 2), y + (height / 2))
+            ctx.restore()
         } else {
-            drawTextElement(ctx, element)
+            drawTextElementFallback(ctx, element)
         }
     }
 
