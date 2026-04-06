@@ -274,6 +274,17 @@ class PhysicalCardController extends Controller
         ]);
     }
 
+
+    protected function frontdeskUserId(Request $request): ?int
+    {
+        return $request->attributes->get('frontdesk_user')?->id;
+    }
+
+    protected function nullableValue(mixed $value): mixed
+    {
+        return filled($value) ? $value : null;
+    }
+
     protected function decodePngDataUrl(string $dataUrl): ?string
     {
         if (! preg_match('/^data:image\/png;base64,(.+)$/', $dataUrl, $matches)) {
