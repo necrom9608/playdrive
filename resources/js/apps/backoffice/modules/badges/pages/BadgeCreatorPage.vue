@@ -1,9 +1,9 @@
 <template>
-    <div class="flex h-[calc(100vh-7rem)] min-h-0 flex-col gap-4 overflow-hidden">
+    <div class="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
         <div>
             <h1 class="text-3xl font-bold text-white">Badge creator</h1>
             <p class="mt-2 max-w-3xl text-slate-400">
-                Bouw staff-, member- en vouchertemplates visueel op, vertrek van een starttemplate en sla tenant-specifieke ontwerpen op voor later gebruik.
+                Bouw personeel-, leden- en cadeaubontemplates visueel op en sla tenant-specifieke ontwerpen op voor later gebruik.
             </p>
         </div>
 

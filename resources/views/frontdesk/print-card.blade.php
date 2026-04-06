@@ -321,7 +321,8 @@
         const width = Number(element.width || 1)
         const height = Number(element.height || 1)
         const radius = Number(element.borderRadius || 0)
-        const code = fields.voucher_code || card.rfid_uid || 'KAART'
+        const source = element.source || 'voucher_code'
+        const code = fields[source] || fields.voucher_code || fields.badge_number || fields.rfid_uid || card.rfid_uid || 'KAART'
 
         context.save()
         context.globalAlpha = Number(element.opacity ?? 1)

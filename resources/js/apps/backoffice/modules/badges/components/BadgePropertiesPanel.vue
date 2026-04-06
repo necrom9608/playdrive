@@ -57,7 +57,7 @@
                             <textarea v-model="selectedElement.text" rows="3" class="w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30" />
                         </div>
 
-                        <div v-if="selectedElement.type === 'field'" class="space-y-2">
+                        <div v-if="['field', 'qr'].includes(selectedElement.type)" class="space-y-2">
                             <label class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Dataveld</label>
                             <select v-model="selectedElement.source" class="w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30">
                                 <option v-for="field in availableFields" :key="field.value" :value="field.value">{{ field.label }}</option>
@@ -244,6 +244,7 @@ function typeName(type) {
         text: 'Tekst',
         photo: 'Foto',
         image: 'Afbeelding',
+        logo: 'Logo',
         qr: 'QR-code',
         shape: 'Vorm',
     }[type] || type

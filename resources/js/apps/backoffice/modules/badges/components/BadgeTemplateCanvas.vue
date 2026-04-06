@@ -22,7 +22,7 @@
             <div class="relative flex items-center justify-center" :style="scaledStageBoundsStyle">
                 <div
                     ref="viewportRef"
-                    class="absolute left-1/2 top-1/2 overflow-visible rounded-[28px] border border-slate-700 bg-slate-900 shadow-2xl"
+                    class="absolute left-1/2 top-1/2 overflow-visible rounded-[28px] border border-slate-700 bg-slate-900 shadow-[0_18px_40px_rgba(2,6,23,0.28)]"
                     :style="viewportStyle"
                     @pointermove="handlePointerMove"
                     @pointerup="stopInteraction"
@@ -52,14 +52,17 @@
                             </template>
 
                             <template v-else-if="element.type === 'qr'">
-                                <div class="flex h-full w-full items-center justify-center" :style="mediaStyle(element)">
-                                    <div class="grid h-[72%] w-[72%] grid-cols-5 gap-1">
+                                <div class="flex h-full w-full flex-col items-center justify-center gap-2 overflow-hidden px-3 py-3" :style="mediaStyle(element)">
+                                    <div class="grid h-[62%] w-[62%] grid-cols-5 gap-1">
                                         <div
                                             v-for="index in 25"
                                             :key="index"
                                             class="rounded-sm"
                                             :class="index % 2 === 0 || index % 5 === 0 ? 'bg-slate-950' : 'bg-white'"
                                         />
+                                    </div>
+                                    <div class="w-full truncate text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700">
+                                        {{ qrPreviewText(element) }}
                                     </div>
                                 </div>
                             </template>
@@ -142,8 +145,8 @@ const canvasStyle = computed(() => ({
 }))
 
 const workspaceGridStyle = computed(() => ({
-    backgroundImage: 'linear-gradient(rgba(148,163,184,0.22) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.22) 1px, transparent 1px)',
-    backgroundSize: '24px 24px',
+    backgroundImage: 'linear-gradient(rgba(148,163,184,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.08) 1px, transparent 1px)',
+    backgroundSize: '28px 28px',
     backgroundPosition: 'center center',
 }))
 
@@ -399,6 +402,11 @@ function displayText(element) {
     if (element.type === 'text') return element.text || 'Tekst'
     if (element.type === 'field') return props.sampleData[element.source] || `{{ ${element.source || 'veld'} }}`
     return element.label || ''
+}
+
+function qrPreviewText(element) {
+    const source = element.source || 'badge_number'
+    return props.sampleData[source] || `{{ ${source} }}`
 }
 
 function mediaLabel(element) {
