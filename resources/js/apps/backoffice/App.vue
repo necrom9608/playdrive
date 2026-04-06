@@ -26,6 +26,7 @@ const navigation = [
     { label: 'Productbeheer', to: '/catalog', group: 'Verkoop' },
     { label: 'Badge designer', to: '/badges', group: 'Verkoop' },
     { label: 'Voucher types', to: '/voucher-templates', group: 'Verkoop' },
+    { label: 'Kaartenbeheer', to: '/cards', group: 'Verkoop' },
     { label: 'Cateringopties', to: '/catering-options', group: 'Verkoop' },
     { label: 'Personeel', to: '/staff', group: 'Beheer' },
     { label: 'Displays & POS', to: '/devices', group: 'Beheer' },

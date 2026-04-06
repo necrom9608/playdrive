@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import axios from '@/lib/http'
 
-export const useCardsStore = defineStore('frontdeskCards', {
+export const useCardsStore = defineStore('backofficeCards', {
     state: () => ({
         loading: false,
         saving: false,
@@ -34,7 +34,7 @@ export const useCardsStore = defineStore('frontdeskCards', {
             this.error = null
 
             try {
-                const response = await axios.get('/api/frontdesk/cards', {
+                const response = await axios.get('/api/backoffice/cards', {
                     params: {
                         search: this.search || undefined,
                         statuses: this.statuses.length ? this.statuses : undefined,
@@ -65,9 +65,9 @@ export const useCardsStore = defineStore('frontdeskCards', {
 
             try {
                 if (payload.id) {
-                    await axios.put(`/api/frontdesk/cards/${payload.id}`, payload)
+                    await axios.put(`/api/backoffice/cards/${payload.id}`, payload)
                 } else {
-                    await axios.post('/api/frontdesk/cards', payload)
+                    await axios.post('/api/backoffice/cards', payload)
                 }
 
                 await this.fetchCards()
@@ -89,50 +89,16 @@ export const useCardsStore = defineStore('frontdeskCards', {
             this.printing = true
             this.error = null
 
-            const printWindow = typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null
-
-            if (printWindow?.document) {
-                printWindow.document.open()
-                printWindow.document.write(`<!DOCTYPE html>
-<html lang="nl">
-<head>
-    <meta charset="utf-8">
-    <title>Kaart voorbereiden...</title>
-    <style>
-        body {
-            margin: 0;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #0f172a;
-            color: #e2e8f0;
-            font-family: Arial, Helvetica, sans-serif;
-        }
-        .card {
-            padding: 18px 22px;
-            border-radius: 18px;
-            border: 1px solid rgba(148, 163, 184, 0.25);
-            background: rgba(15, 23, 42, 0.88);
-            box-shadow: 0 16px 48px rgba(15, 23, 42, 0.45);
-        }
-    </style>
-</head>
-<body>
-    <div class="card">Printweergave wordt voorbereid...</div>
-</body>
-</html>`)
-                printWindow.document.close()
-            }
+            const printWindow = typeof window !== 'undefined' ? window.open('', '_blank', 'noopener,noreferrer') : null
 
             try {
-                const response = await axios.post(`/api/frontdesk/cards/${cardId}/mark-printed`)
-                const printUrl = response.data?.data?.print_url || `/frontdesk/cards/${cardId}/print`
+                const response = await axios.post(`/api/backoffice/cards/${cardId}/mark-printed`)
+                const printUrl = response.data?.data?.print_url || `/backoffice/cards/${cardId}/print`
 
-                if (printWindow && !printWindow.closed) {
-                    printWindow.location.replace(printUrl)
+                if (printWindow) {
+                    printWindow.location.href = printUrl
                 } else if (typeof window !== 'undefined') {
-                    window.open(printUrl, '_blank')
+                    window.open(printUrl, '_blank', 'noopener,noreferrer')
                 }
 
                 await this.fetchCards()

@@ -11,6 +11,7 @@ import StayOptionsPage from '../modules/options/pages/StayOptionsPage.vue'
 import StaffPage from '../modules/staff/pages/StaffPage.vue'
 import DevicesPage from '../modules/devices/pages/DevicesPage.vue'
 import VoucherTemplatesPage from '../modules/voucher-templates/pages/VoucherTemplatesPage.vue'
+import CardsPage from '../modules/cards/pages/CardsPage.vue'
 
 const routes = [
     { path: '/', name: 'backoffice.dashboard', component: DashboardPage },
@@ -19,6 +20,7 @@ const routes = [
     { path: '/catalog', name: 'backoffice.product-management', component: ProductManagementPage },
     { path: '/badges', name: 'backoffice.badges', component: BadgeCreatorPage },
     { path: '/voucher-templates', name: 'backoffice.voucher-templates', component: VoucherTemplatesPage },
+    { path: '/cards', name: 'backoffice.cards', component: CardsPage },
     {
         path: '/products',
         redirect: {

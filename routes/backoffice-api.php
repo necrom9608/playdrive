@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Backoffice\DeviceManagementController;
 use App\Http\Controllers\Api\Backoffice\AnalyticsController;
 use App\Http\Controllers\Api\Backoffice\DayTotalsController;
 use App\Http\Controllers\Api\Backoffice\VoucherTemplateController;
+use App\Http\Controllers\Api\Backoffice\PhysicalCardController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api/backoffice')->group(function () {
@@ -96,5 +97,10 @@ Route::prefix('api/backoffice')->group(function () {
         Route::post('/voucher-templates', [VoucherTemplateController::class, 'store']);
         Route::put('/voucher-templates/{voucherTemplate}', [VoucherTemplateController::class, 'update']);
         Route::delete('/voucher-templates/{voucherTemplate}', [VoucherTemplateController::class, 'destroy']);
+
+        Route::get('/cards', [PhysicalCardController::class, 'index']);
+        Route::post('/cards', [PhysicalCardController::class, 'store']);
+        Route::put('/cards/{card}', [PhysicalCardController::class, 'update']);
+        Route::post('/cards/{card}/mark-printed', [PhysicalCardController::class, 'markPrinted']);
     });
 });
