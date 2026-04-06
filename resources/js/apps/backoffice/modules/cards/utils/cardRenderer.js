@@ -97,10 +97,20 @@ function drawTextElement(context, element) {
     const align = element.textAlign || 'left'
     const text = String(getDisplayText(element) || '')
     const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
-    const horizontalPadding = 12
-    const lineHeight = Math.round(fontSize * 1.08)
+    const horizontalPadding = Number(element.paddingX ?? 12)
+    const verticalPadding = Number(element.paddingY ?? 8)
+    const lineHeight = Math.round(fontSize * Number(element.lineHeight ?? 1.1))
     const contentHeight = Math.max(lineHeight, lines.length * lineHeight)
-    const startY = y + ((height - contentHeight) / 2) + fontSize
+    const verticalAlign = element.verticalAlign || element.textVerticalAlign || 'middle'
+
+    let startY
+    if (verticalAlign === 'top') {
+        startY = y + verticalPadding + fontSize
+    } else if (verticalAlign === 'bottom') {
+        startY = y + height - verticalPadding - contentHeight + fontSize
+    } else {
+        startY = y + ((height - contentHeight) / 2) + fontSize
+    }
 
     context.save()
     context.globalAlpha = Number(element.opacity ?? 1)
@@ -215,7 +225,7 @@ export async function renderCardToCanvas({ template, fields, card }) {
     }
 
     const canvas = document.createElement('canvas')
-    canvas.width = Number(template.width || 1011)
+    canvas.width = Number(template.width || 1016)
     canvas.height = Number(template.height || 638)
 
     const ctx = canvas.getContext('2d')
