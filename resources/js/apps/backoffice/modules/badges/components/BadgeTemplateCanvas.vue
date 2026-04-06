@@ -182,6 +182,7 @@ function elementStyle(element) {
         zIndex: element.zIndex ?? 1,
         borderRadius: `${element.borderRadius ?? 0}px`,
         opacity: element.opacity ?? 1,
+        boxSizing: 'border-box',
     }
 }
 
@@ -192,14 +193,17 @@ function textStyle(element) {
         justifyContent: element.textAlign === 'center' ? 'center' : element.textAlign === 'right' ? 'flex-end' : 'flex-start',
         width: '100%',
         height: '100%',
+        boxSizing: 'border-box',
         color: element.color || '#ffffff',
         background: element.backgroundColor || 'transparent',
         fontSize: `${element.fontSize || 32}px`,
         fontWeight: element.fontWeight || 700,
-        padding: '8px 12px',
+        fontFamily: 'Arial, Helvetica, sans-serif',
+        padding: '0 12px',
         textAlign: element.textAlign || 'left',
-        lineHeight: 1.1,
+        lineHeight: 1.08,
         whiteSpace: 'pre-wrap',
+        overflow: 'hidden',
     }
 }
 
