@@ -192,6 +192,22 @@ class PhysicalCardController extends Controller
         return response()->json(['data' => $this->transformCard($card)]);
     }
 
+
+    public function destroy(Request $request, CurrentTenant $currentTenant, PhysicalCard $card): JsonResponse
+    {
+        abort_unless((int) $card->tenant_id === (int) $currentTenant->id(), 404);
+
+        if (filled($card->render_image_path) && Storage::disk('public')->exists($card->render_image_path)) {
+            Storage::disk('public')->delete($card->render_image_path);
+        }
+
+        $card->delete();
+
+        return response()->json([
+            'message' => 'Kaart verwijderd.',
+        ]);
+    }
+
     public function uploadRenderImage(Request $request, CurrentTenant $currentTenant, PhysicalCard $card): JsonResponse
     {
         abort_unless((int) $card->tenant_id === (int) $currentTenant->id(), 404);
@@ -263,7 +279,7 @@ class PhysicalCardController extends Controller
             'holder_id' => ['nullable', 'integer'],
             'label' => ['nullable', 'string', 'max:255'],
             'internal_reference' => ['nullable', 'string', 'max:255'],
-            'rfid_uid' => ['required', 'string', 'max:255', 'unique:physical_cards,rfid_uid,' . ($cardId ?? 'NULL') . ',id,tenant_id,' . $currentTenant->id()],
+            'rfid_uid' => ['nullable', 'string', 'max:255', 'unique:physical_cards,rfid_uid,' . ($cardId ?? 'NULL') . ',id,tenant_id,' . $currentTenant->id()],
             'status' => ['nullable', 'in:' . implode(',', array_keys(PhysicalCard::statusOptions()))],
             'notes' => ['nullable', 'string', 'max:5000'],
             'printed_at' => ['nullable', 'date'],
@@ -326,6 +342,8 @@ class PhysicalCardController extends Controller
                 'Ongeldig lid geselecteerd.'
             );
         }
+
+        $data['rfid_uid'] = $this->resolvedRfidUid($data, $currentTenant);
 
         return $data;
     }
@@ -439,6 +457,35 @@ class PhysicalCardController extends Controller
         $binary = base64_decode($matches[1], true);
 
         return $binary === false ? null : $binary;
+    }
+
+    protected function resolvedRfidUid(array $data, CurrentTenant $currentTenant): string
+    {
+        $rfidUid = trim((string) ($data['rfid_uid'] ?? ''));
+
+        if ($rfidUid !== '') {
+            return $rfidUid;
+        }
+
+        $holderId = (int) ($data['holder_id'] ?? 0);
+
+        if (($data['card_type'] ?? null) === PhysicalCard::TYPE_STAFF && $holderId > 0) {
+            $rfidUid = trim((string) User::query()
+                ->where('tenant_id', $currentTenant->id())
+                ->where('id', $holderId)
+                ->value('rfid_uid'));
+        }
+
+        if (($data['card_type'] ?? null) === PhysicalCard::TYPE_MEMBER && $holderId > 0) {
+            $rfidUid = trim((string) Member::query()
+                ->where('tenant_id', $currentTenant->id())
+                ->where('id', $holderId)
+                ->value('rfid_uid'));
+        }
+
+        abort_if($rfidUid === '', 422, 'Scan eerst een RFID-kaart of koppel een lid/medewerker met een bestaande RFID UID.');
+
+        return $rfidUid;
     }
 
     protected function holderTypeForCardType(string $cardType): ?string

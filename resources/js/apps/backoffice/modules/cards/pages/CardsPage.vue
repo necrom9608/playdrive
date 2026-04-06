@@ -147,6 +147,7 @@
                         <div class="flex flex-wrap justify-end gap-3">
                             <button type="button" class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 disabled:opacity-50" :disabled="!store.selectedCard || store.printing" @click="handlePrint">{{ store.printing ? 'PDF openen...' : 'Afdrukken' }}</button>
                             <button type="button" class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 disabled:opacity-50" :disabled="!store.selectedCard" @click="openEdit">Bewerken</button>
+                            <button type="button" class="rounded-2xl border border-rose-700/70 bg-rose-950/40 px-4 py-3 text-sm font-semibold text-rose-200 disabled:opacity-50" :disabled="!store.selectedCard || store.deleting" @click="removeSelected">{{ store.deleting ? 'Verwijderen...' : 'Verwijderen' }}</button>
                         </div>
                     </div>
                 </div>
@@ -165,12 +166,18 @@
                     </button>
                 </div>
 
+                <div v-if="store.formErrorMessage || Object.keys(store.formErrors || {}).length" class="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-100">
+                    <div class="font-semibold">Opslaan mislukt</div>
+                    <p class="mt-1">{{ store.formErrorMessage || 'Controleer de ingevulde gegevens.' }}</p>
+                </div>
+
                 <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     <label class="space-y-2 text-sm text-slate-300">
                         <span>Kaarttype</span>
                         <select v-model="form.card_type" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" required>
                             <option v-for="type in store.cardTypes" :key="type.value" :value="type.value">{{ type.label }}</option>
                         </select>
+                        <p v-if="store.formErrors.card_type?.[0]" class="text-xs text-rose-300">{{ store.formErrors.card_type[0] }}</p>
                     </label>
 
                     <label v-if="form.card_type === 'voucher'" class="space-y-2 text-sm text-slate-300">
@@ -179,6 +186,7 @@
                             <option value="">Selecteer voucher type</option>
                             <option v-for="template in store.voucherTemplates" :key="template.id" :value="template.id">{{ template.name }}</option>
                         </select>
+                        <p v-if="store.formErrors.voucher_template_id?.[0]" class="text-xs text-rose-300">{{ store.formErrors.voucher_template_id[0] }}</p>
                     </label>
 
                     <label v-else class="space-y-2 text-sm text-slate-300">
@@ -187,6 +195,7 @@
                             <option value="">Selecteer badge template</option>
                             <option v-for="template in modalBadgeTemplates" :key="template.id" :value="template.id">{{ template.name }}</option>
                         </select>
+                        <p v-if="store.formErrors.badge_template_id?.[0]" class="text-xs text-rose-300">{{ store.formErrors.badge_template_id[0] }}</p>
                     </label>
 
                     <label v-if="form.card_type === 'staff'" class="space-y-2 text-sm text-slate-300">
@@ -195,6 +204,7 @@
                             <option value="">Selecteer medewerker</option>
                             <option v-for="staff in store.staffOptions" :key="staff.id" :value="staff.id">{{ staff.name }}</option>
                         </select>
+                        <p v-if="store.formErrors.holder_id?.[0]" class="text-xs text-rose-300">{{ store.formErrors.holder_id[0] }}</p>
                     </label>
 
                     <label v-if="form.card_type === 'member'" class="space-y-2 text-sm text-slate-300">
@@ -203,11 +213,13 @@
                             <option value="">Selecteer lid</option>
                             <option v-for="member in store.memberOptions" :key="member.id" :value="member.id">{{ member.name }}</option>
                         </select>
+                        <p v-if="store.formErrors.holder_id?.[0]" class="text-xs text-rose-300">{{ store.formErrors.holder_id[0] }}</p>
                     </label>
 
                     <div class="space-y-2 text-sm text-slate-300">
                         <span>RFID UID</span>
                         <ScanRfidButton v-model="form.rfid_uid" label="Scan RFID" title="RFID-kaart scannen" description="Scan de RFID-kaart die je aan deze fysieke kaart wilt koppelen." confirm-label="RFID koppelen" :show-value="true" />
+                        <p v-if="store.formErrors.rfid_uid?.[0]" class="text-xs text-rose-300">{{ store.formErrors.rfid_uid[0] }}</p>
                     </div>
 
                     <label class="space-y-2 text-sm text-slate-300">
@@ -248,9 +260,12 @@
                     <textarea v-model="form.notes" rows="4" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" placeholder="Extra info over deze kaart, batch of fysieke staat"></textarea>
                 </label>
 
-                <div class="mt-6 flex justify-end gap-3">
+                <div class="mt-6 flex items-center justify-between gap-3">
+                    <button v-if="form.id" type="button" class="rounded-2xl border border-rose-700/70 bg-rose-950/40 px-4 py-3 text-sm font-semibold text-rose-200 disabled:opacity-50" :disabled="store.deleting" @click="removeFromModal">{{ store.deleting ? 'Verwijderen...' : 'Verwijderen' }}</button>
+                    <div class="flex justify-end gap-3">
                     <button type="button" class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200" @click="closeModal">Annuleren</button>
                     <button type="submit" class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white" :disabled="store.saving">{{ store.saving ? 'Opslaan...' : 'Opslaan' }}</button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -336,6 +351,25 @@ watch(() => form.card_type, (newType) => {
     form.holder_id = newType === 'staff' || newType === 'member' ? form.holder_id : ''
 })
 
+watch(() => form.holder_id, (holderId) => {
+    if (!holderId || form.rfid_uid) return
+
+    if (form.card_type === 'staff') {
+        const selected = store.staffOptions.find(option => String(option.id) === String(holderId))
+        if (selected?.rfid_uid) {
+            form.rfid_uid = selected.rfid_uid
+        }
+        return
+    }
+
+    if (form.card_type === 'member') {
+        const selected = store.memberOptions.find(option => String(option.id) === String(holderId))
+        if (selected?.rfid_uid) {
+            form.rfid_uid = selected.rfid_uid
+        }
+    }
+})
+
 watch(() => store.selectedCard?.id, async () => {
     if (store.selectedCard && !store.selectedCard.preview_image_url && !previewBusy.value) {
         await generatePreviewForSelected()
@@ -365,27 +399,69 @@ function emptyForm() {
 }
 
 function openCreate() {
+    store.clearFormErrors()
     Object.assign(form, emptyForm())
     showModal.value = true
 }
 
 function openEdit() {
     if (!store.selectedCard) return
+    store.clearFormErrors()
     Object.assign(form, { ...emptyForm(), ...store.selectedCard })
     showModal.value = true
 }
 
 function closeModal() {
+    store.clearFormErrors()
     showModal.value = false
 }
 
 async function submit() {
-    const payload = { ...form }
-    payload.voucher_template_id = payload.voucher_template_id || null
-    payload.badge_template_id = payload.badge_template_id || null
-    payload.holder_id = payload.holder_id || null
-    await store.saveCard(payload)
-    closeModal()
+    try {
+        const payload = { ...form }
+        payload.voucher_template_id = payload.voucher_template_id || null
+        payload.badge_template_id = payload.badge_template_id || null
+        payload.holder_id = payload.holder_id || null
+        await store.saveCard(payload)
+        closeModal()
+    } catch (error) {
+        // Validatiefouten blijven in de modal zichtbaar.
+    }
+}
+
+async function removeSelected() {
+    if (!store.selectedCard) {
+        return
+    }
+
+    const label = store.selectedCard.label || `kaart #${store.selectedCard.id}`
+    if (!window.confirm(`Weet je zeker dat je ${label} wilt verwijderen?`)) {
+        return
+    }
+
+    try {
+        await store.deleteCard(store.selectedCard.id)
+    } catch (error) {
+        // Algemene foutmelding staat in de module.
+    }
+}
+
+async function removeFromModal() {
+    if (!form.id) {
+        return
+    }
+
+    const label = form.label || `kaart #${form.id}`
+    if (!window.confirm(`Weet je zeker dat je ${label} wilt verwijderen?`)) {
+        return
+    }
+
+    try {
+        await store.deleteCard(form.id)
+        closeModal()
+    } catch (error) {
+        // Algemene foutmelding staat in de module.
+    }
 }
 
 async function generatePreviewForSelected() {

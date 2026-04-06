@@ -8,6 +8,9 @@ export const useCardsStore = defineStore('backofficeCards', {
         saving: false,
         printing: false,
         error: null,
+        deleting: false,
+        formErrors: {},
+        formErrorMessage: '',
         search: '',
         statuses: [],
         cardType: '',
@@ -39,6 +42,16 @@ export const useCardsStore = defineStore('backofficeCards', {
     },
 
     actions: {
+        clearFormErrors() {
+            this.formErrors = {}
+            this.formErrorMessage = ''
+        },
+
+        setFormErrors(error) {
+            this.formErrors = error?.response?.data?.errors ?? {}
+            this.formErrorMessage = error?.response?.data?.message ?? 'Controleer de ingevulde gegevens.'
+        },
+
         async fetchCards() {
             this.loading = true
             this.error = null
@@ -78,6 +91,7 @@ export const useCardsStore = defineStore('backofficeCards', {
         async saveCard(payload) {
             this.saving = true
             this.error = null
+            this.clearFormErrors()
 
             try {
                 const response = payload.id
@@ -95,7 +109,13 @@ export const useCardsStore = defineStore('backofficeCards', {
                 return true
             } catch (error) {
                 console.error('Failed to save card', error)
-                this.error = error?.response?.data?.message ?? 'Kaart opslaan mislukt.'
+
+                if (error?.response?.status === 422) {
+                    this.setFormErrors(error)
+                } else {
+                    this.error = error?.response?.data?.message ?? 'Kaart opslaan mislukt.'
+                }
+
                 throw error
             } finally {
                 this.saving = false
@@ -136,6 +156,35 @@ export const useCardsStore = defineStore('backofficeCards', {
             }
 
             return updatedCard
+        },
+
+
+        async deleteCard(cardId) {
+            if (!cardId || this.deleting) {
+                return false
+            }
+
+            this.deleting = true
+            this.error = null
+            this.clearFormErrors()
+
+            try {
+                await axios.delete(`/api/backoffice/cards/${cardId}`)
+                this.cards = this.cards.filter(card => card.id !== cardId)
+
+                if (this.selectedCardId === cardId) {
+                    this.selectedCardId = this.cards[0]?.id ?? null
+                }
+
+                await this.fetchCards()
+                return true
+            } catch (error) {
+                console.error('Failed to delete card', error)
+                this.error = error?.response?.data?.message ?? 'Kaart verwijderen mislukt.'
+                throw error
+            } finally {
+                this.deleting = false
+            }
         },
 
         async printCard(cardId) {
