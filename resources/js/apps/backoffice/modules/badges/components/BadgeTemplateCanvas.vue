@@ -1,33 +1,33 @@
 <template>
     <div class="flex h-full min-h-0 flex-col gap-4">
-        <div class="flex items-center justify-between gap-3">
-            <div>
-                <h3 class="text-lg font-semibold text-white">Live preview</h3>
-                <p class="mt-1 text-sm text-slate-400">Sleep elementen op de badge en verfijn hun eigenschappen rechts.</p>
-            </div>
-
-            <div class="flex items-center gap-2 text-xs text-slate-400">
-                <span class="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5">{{ template.width }} × {{ template.height }}</span>
-                <span class="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5">safe zone zichtbaar</span>
-            </div>
+        <div class="flex items-center justify-end gap-2">
+            <button type="button" class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-700 bg-slate-950/80 text-slate-200 transition hover:border-slate-600 hover:bg-slate-800" @click="zoomOut">
+                <MinusIcon class="h-4 w-4" />
+            </button>
+            <button type="button" class="min-w-[5rem] rounded-2xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-600 hover:bg-slate-800" @click="resetZoom">
+                {{ Math.round(zoom * 100) }}%
+            </button>
+            <button type="button" class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-700 bg-slate-950/80 text-slate-200 transition hover:border-slate-600 hover:bg-slate-800" @click="zoomIn">
+                <PlusIcon class="h-4 w-4" />
+            </button>
+            <button type="button" class="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-950/80 px-3 text-sm font-semibold text-slate-200 transition hover:border-slate-600 hover:bg-slate-800" @click="fitToWorkspace">
+                <ArrowsPointingOutIcon class="h-4 w-4" />
+                Passend
+            </button>
         </div>
 
-        <div class="flex min-h-0 flex-1 items-center justify-center rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
-            <div ref="viewportRef" class="mx-auto w-full max-w-[860px]">
+        <div ref="workspaceRef" class="relative flex min-h-0 flex-1 items-center justify-center overflow-auto rounded-3xl border border-slate-800 bg-slate-950/70 p-6">
+            <div class="pointer-events-none absolute inset-0 opacity-100" :style="workspaceGridStyle" />
+
+            <div class="relative flex items-center justify-center" :style="scaledStageBoundsStyle">
                 <div
-                    class="relative w-full overflow-hidden rounded-[28px] border border-slate-700 bg-slate-900 shadow-2xl"
+                    ref="viewportRef"
+                    class="absolute left-1/2 top-1/2 overflow-hidden rounded-[28px] border border-slate-700 bg-slate-900 shadow-2xl"
                     :style="viewportStyle"
                     @pointermove="handlePointerMove"
                     @pointerup="stopDragging"
                     @pointerleave="stopDragging"
                 >
-                    <div class="absolute inset-0 opacity-40" :style="gridStyle" />
-
-                    <div
-                        class="pointer-events-none absolute border border-dashed border-slate-500/70"
-                        :style="safeZoneStyle"
-                    />
-
                     <div class="absolute inset-0" :style="canvasStyle">
                         <div
                             v-for="element in orderedElements"
@@ -80,8 +80,9 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { resolveImageUrl } from '../utils/badgeEditor'
+import { ArrowsPointingOutIcon, MinusIcon, PlusIcon } from '@heroicons/vue/24/outline'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { clamp, resolveImageUrl } from '../utils/badgeEditor'
 
 const props = defineProps({
     template: {
@@ -100,17 +101,14 @@ const props = defineProps({
 
 const emit = defineEmits(['select', 'update:position'])
 
+const workspaceRef = ref(null)
 const viewportRef = ref(null)
 const dragState = ref(null)
+const zoom = ref(0.75)
 
 const orderedElements = computed(() => {
     return [...(props.template.elements ?? [])].sort((left, right) => (left.zIndex ?? 1) - (right.zIndex ?? 1))
 })
-
-const viewportStyle = computed(() => ({
-    aspectRatio: `${props.template.width} / ${props.template.height}`,
-}))
-
 
 const backgroundImageSource = computed(() => resolveImageUrl(props.template.backgroundImagePath, props.template.backgroundImageUrl))
 
@@ -122,18 +120,62 @@ const canvasStyle = computed(() => ({
     backgroundRepeat: 'no-repeat',
 }))
 
-const safeZoneStyle = computed(() => ({
-    top: '4.5%',
-    left: '4.5%',
-    right: '4.5%',
-    bottom: '4.5%',
-    borderRadius: '20px',
+const workspaceGridStyle = computed(() => ({
+    backgroundImage: 'linear-gradient(rgba(148,163,184,0.14) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.14) 1px, transparent 1px)',
+    backgroundSize: '28px 28px',
+    backgroundPosition: 'center center',
 }))
 
-const gridStyle = computed(() => ({
-    backgroundImage: 'linear-gradient(rgba(148,163,184,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.08) 1px, transparent 1px)',
-    backgroundSize: '24px 24px',
+const scaledStageBoundsStyle = computed(() => ({
+    width: `${Math.round(props.template.width * zoom.value)}px`,
+    height: `${Math.round(props.template.height * zoom.value)}px`,
+    minWidth: `${Math.round(props.template.width * zoom.value)}px`,
+    minHeight: `${Math.round(props.template.height * zoom.value)}px`,
 }))
+
+const viewportStyle = computed(() => ({
+    width: `${props.template.width}px`,
+    height: `${props.template.height}px`,
+    transform: `translate(-50%, -50%) scale(${zoom.value})`,
+    transformOrigin: 'center center',
+}))
+
+watch(
+    () => [props.template.width, props.template.height],
+    async () => {
+        await nextTick()
+        fitToWorkspace()
+    }
+)
+
+onMounted(async () => {
+    await nextTick()
+    fitToWorkspace()
+})
+
+function fitToWorkspace() {
+    const workspace = workspaceRef.value
+    if (!workspace) {
+        return
+    }
+
+    const availableWidth = Math.max(workspace.clientWidth - 48, 240)
+    const availableHeight = Math.max(workspace.clientHeight - 48, 180)
+    const nextZoom = Math.min(1, availableWidth / props.template.width, availableHeight / props.template.height)
+    zoom.value = clamp(Number.isFinite(nextZoom) ? nextZoom : 1, 0.25, 2)
+}
+
+function zoomIn() {
+    zoom.value = clamp(Math.round((zoom.value + 0.1) * 100) / 100, 0.25, 2)
+}
+
+function zoomOut() {
+    zoom.value = clamp(Math.round((zoom.value - 0.1) * 100) / 100, 0.25, 2)
+}
+
+function resetZoom() {
+    zoom.value = 1
+}
 
 function startDragging(event, element) {
     const bounds = viewportRef.value?.getBoundingClientRect()
@@ -206,7 +248,6 @@ function textStyle(element) {
         overflow: 'hidden',
     }
 }
-
 
 function mediaSource(element) {
     return resolveImageUrl(element.imagePath, element.imageUrl)

@@ -1,5 +1,5 @@
 <template>
-    <div class="space-y-4">
+    <div class="flex h-[calc(100vh-8.5rem)] min-h-[760px] flex-col gap-4">
         <div>
             <h1 class="text-3xl font-bold text-white">Badge creator</h1>
             <p class="mt-2 max-w-3xl text-slate-400">
@@ -15,7 +15,7 @@
             {{ successMessage }}
         </div>
 
-        <div class="grid h-[calc(100vh-13rem)] min-h-[720px] gap-6 xl:grid-cols-[320px_minmax(0,1fr)_360px] overflow-hidden">
+        <div class="grid min-h-0 flex-1 items-stretch gap-6 xl:grid-cols-[320px_minmax(0,1fr)_360px] overflow-hidden">
             <BadgeTemplateSidebar
                 :filters="typeFilters"
                 :active-filter="activeTypeFilter"
@@ -37,11 +37,11 @@
                 :template="editorTemplate"
                 :selected-element-id="selectedElementId"
                 :sample-data="sampleDataForType"
-                :is-preset="editorMeta.isPreset"
                 :has-stored-template="!!editorMeta.id"
                 :saving="saving"
                 @duplicate="duplicateCurrent"
                 @reset="resetToBlank"
+                @delete="deleteCurrentTemplate"
                 @save="saveTemplate"
                 @select-element="selectElement"
                 @update-element-position="updateElementPosition"
@@ -54,17 +54,6 @@
                 :sample-data="sampleDataForType"
                 @remove-selected="removeSelectedElement"
             />
-        </div>
-
-        <div class="flex items-center justify-end gap-3">
-            <button
-                v-if="editorMeta.id"
-                type="button"
-                class="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/20"
-                @click="deleteCurrentTemplate"
-            >
-                Template verwijderen
-            </button>
         </div>
     </div>
 </template>

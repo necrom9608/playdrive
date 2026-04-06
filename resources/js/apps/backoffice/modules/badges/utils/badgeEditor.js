@@ -16,10 +16,9 @@ import {
 export const TEMPLATE_TYPES = ['staff', 'member', 'voucher']
 
 export const typeFilters = [
-    { label: 'Alles', value: 'all' },
-    { label: 'Staff', value: 'staff' },
-    { label: 'Member', value: 'member' },
-    { label: 'Voucher', value: 'voucher' },
+    { label: 'Personeel', value: 'staff', icon: BriefcaseIcon },
+    { label: 'Leden', value: 'member', icon: IdentificationIcon },
+    { label: 'Cadeaubonnen', value: 'voucher', icon: BanknotesIcon },
 ]
 
 export const fieldCatalog = {
@@ -81,7 +80,6 @@ export const elementTools = [
     { type: 'text', label: 'Tekst', icon: DocumentTextIcon, group: 'static' },
     { type: 'photo', label: 'Foto', icon: PhotoIcon, group: 'dynamic' },
     { type: 'image', label: 'Afbeelding', icon: PhotoIcon, group: 'static' },
-    { type: 'logo', label: 'Logo', icon: ShieldCheckIcon, group: 'static' },
     { type: 'qr', label: 'QR', icon: QrCodeIcon, group: 'dynamic' },
     { type: 'shape', label: 'Vorm', icon: RectangleGroupIcon, group: 'static' },
 ]
@@ -89,9 +87,9 @@ export const elementTools = [
 export function blankTemplate(type) {
     const safeType = TEMPLATE_TYPES.includes(type) ? type : 'staff'
     const labels = {
-        staff: 'Nieuwe staff template',
-        member: 'Nieuwe member template',
-        voucher: 'Nieuwe voucher template',
+        staff: 'Nieuwe personeel template',
+        member: 'Nieuwe leden template',
+        voucher: 'Nieuwe cadeaubon template',
     }
 
     const accentColor = safeType === 'member' ? '#7c3aed' : safeType === 'voucher' ? '#f59e0b' : '#2563eb'
@@ -153,9 +151,9 @@ export function createConfigClone(config) {
 }
 
 export function typeLabel(value) {
-    if (value === 'member') return 'Member'
-    if (value === 'voucher') return 'Voucher'
-    return 'Staff'
+    if (value === 'member') return 'Leden'
+    if (value === 'voucher') return 'Cadeaubonnen'
+    return 'Personeel'
 }
 
 export function uid() {
