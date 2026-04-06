@@ -10,15 +10,24 @@ export const useCardsStore = defineStore('backofficeCards', {
         error: null,
         search: '',
         statuses: [],
+        cardType: '',
         voucherTemplateId: '',
+        badgeTemplateId: '',
         summary: {
             total: 0,
+            voucher: 0,
+            staff: 0,
+            member: 0,
             stock: 0,
             in_circulation: 0,
             returned: 0,
             blocked: 0,
         },
+        cardTypes: [],
         voucherTemplates: [],
+        badgeTemplates: [],
+        staffOptions: [],
+        memberOptions: [],
         cards: [],
         selectedCardId: null,
     }),
@@ -39,12 +48,18 @@ export const useCardsStore = defineStore('backofficeCards', {
                     params: {
                         search: this.search || undefined,
                         statuses: this.statuses.length ? this.statuses : undefined,
+                        card_type: this.cardType || undefined,
                         voucher_template_id: this.voucherTemplateId || undefined,
+                        badge_template_id: this.badgeTemplateId || undefined,
                     },
                 })
 
                 this.summary = response.data?.data?.summary ?? this.summary
+                this.cardTypes = response.data?.data?.card_types ?? []
                 this.voucherTemplates = response.data?.data?.voucher_templates ?? []
+                this.badgeTemplates = response.data?.data?.badge_templates ?? []
+                this.staffOptions = response.data?.data?.staff ?? []
+                this.memberOptions = response.data?.data?.members ?? []
                 this.cards = response.data?.data?.cards ?? []
                 this.selectedCardId = this.cards.find(card => card.id === this.selectedCardId)?.id ?? this.cards[0]?.id ?? null
             } catch (error) {

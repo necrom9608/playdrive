@@ -13,8 +13,16 @@ class PhysicalCard extends Model
     public const STATUS_BLOCKED = 'blocked';
     public const STATUS_RETIRED = 'retired';
 
+    public const TYPE_VOUCHER = 'voucher';
+    public const TYPE_STAFF = 'staff';
+    public const TYPE_MEMBER = 'member';
+
     protected $fillable = [
         'tenant_id',
+        'card_type',
+        'badge_template_id',
+        'holder_type',
+        'holder_id',
         'voucher_template_id',
         'current_gift_voucher_id',
         'last_gift_voucher_id',
@@ -51,6 +59,15 @@ class PhysicalCard extends Model
         ];
     }
 
+    public static function typeOptions(): array
+    {
+        return [
+            self::TYPE_VOUCHER => 'Voucher',
+            self::TYPE_STAFF => 'Staff',
+            self::TYPE_MEMBER => 'Member',
+        ];
+    }
+
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
@@ -61,6 +78,11 @@ class PhysicalCard extends Model
         return $this->belongsTo(VoucherTemplate::class);
     }
 
+    public function badgeTemplate(): BelongsTo
+    {
+        return $this->belongsTo(BadgeTemplate::class);
+    }
+
     public function currentGiftVoucher(): BelongsTo
     {
         return $this->belongsTo(GiftVoucher::class, 'current_gift_voucher_id');
@@ -69,5 +91,15 @@ class PhysicalCard extends Model
     public function lastGiftVoucher(): BelongsTo
     {
         return $this->belongsTo(GiftVoucher::class, 'last_gift_voucher_id');
+    }
+
+    public function staffHolder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'holder_id');
+    }
+
+    public function memberHolder(): BelongsTo
+    {
+        return $this->belongsTo(Member::class, 'holder_id');
     }
 }
