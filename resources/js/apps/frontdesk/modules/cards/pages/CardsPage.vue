@@ -91,11 +91,11 @@
                                         {{ card.internal_reference || '—' }}
                                         <div class="mt-1 text-xs text-slate-500">{{ card.badge_template_name || 'Geen template' }}</div>
                                     </td>
-                                    <td class="px-5 py-4 align-top text-slate-200">{{ card.current_voucher_code || 'Geen actieve voucher' }}</td>
+                                    <td class="px-5 py-4 align-top text-slate-200">{{ card.current_voucher_code || '—' }}</td>
                                     <td class="px-5 py-4 align-top">
-                                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold" :class="statusClass(card.status)">{{ card.status_label }}</span>
+                                        <span class="rounded-full px-3 py-1 text-xs font-semibold" :class="statusClass(card.status)">{{ card.status_label }}</span>
                                     </td>
-                                    <td class="px-5 py-4 align-top text-slate-200">{{ card.updated_at_label || '—' }}</td>
+                                    <td class="px-5 py-4 align-top text-slate-400">{{ card.updated_at_label || '—' }}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -105,17 +105,29 @@
 
             <div class="col-span-5 min-h-0">
                 <div class="flex h-full min-h-0 flex-col rounded-3xl border border-slate-800 bg-slate-900 shadow-xl">
-                    <div class="border-b border-slate-800 p-4">
-                        <h2 class="text-base font-semibold text-white">Kaartdetails</h2>
-                    </div>
-
                     <div v-if="store.selectedCard" class="min-h-0 flex-1 space-y-4 overflow-auto p-4">
                         <div class="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-                            <div class="text-sm text-slate-400">RFID UID</div>
-                            <div class="mt-1 text-lg font-bold text-white">{{ store.selectedCard.rfid_uid }}</div>
-                            <div class="mt-2 flex flex-wrap items-center gap-2">
-                                <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold" :class="statusClass(store.selectedCard.status)">{{ store.selectedCard.status_label }}</span>
-                                <span v-if="store.selectedCard.printed_at_label" class="inline-flex rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-200">Gedrukt op {{ store.selectedCard.printed_at_label }}</span>
+                            <div class="mb-3 flex items-center justify-between gap-3">
+                                <div>
+                                    <div class="text-sm font-semibold text-white">Kaart preview</div>
+                                    <div class="mt-1 text-xs text-slate-400">De PNG hieronder wordt gebruikt voor PDF en afdruk.</div>
+                                </div>
+                                <span class="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300">{{ store.selectedCard.label || `CARD #${store.selectedCard.id}` }}</span>
+                            </div>
+
+                            <div class="flex min-h-[260px] items-center justify-center rounded-[1.4rem] border border-slate-800 bg-slate-900/80 p-4">
+                                <img
+                                    v-if="store.selectedCard.preview_image_url"
+                                    :src="store.selectedCard.preview_image_url"
+                                    alt="Kaart preview"
+                                    class="h-auto w-full max-w-[360px] rounded-2xl shadow-2xl"
+                                >
+                                <div v-else class="space-y-3 text-center text-sm text-slate-400">
+                                    <div>{{ previewBusy ? 'Preview wordt opgebouwd…' : 'Nog geen preview beschikbaar voor deze kaart.' }}</div>
+                                    <button type="button" class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200" :disabled="previewBusy" @click="generatePreviewForSelected">
+                                        {{ previewBusy ? 'Bezig...' : 'Preview genereren' }}
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -138,7 +150,7 @@
                             </div>
                             <div class="flex justify-between gap-4 text-sm">
                                 <span class="text-slate-400">Label</span>
-                                <span class="text-right text-white">{{ store.selectedCard.label || '—' }}</span>
+                                <span class="text-right text-white">{{ store.selectedCard.label || `CARD #${store.selectedCard.id}` }}</span>
                             </div>
                             <div class="flex justify-between gap-4 text-sm">
                                 <span class="text-slate-400">Interne referentie</span>
@@ -158,7 +170,7 @@
                             </div>
                             <div class="flex justify-between gap-4 text-sm">
                                 <span class="text-slate-400">Gedrukt op</span>
-                                <span class="text-right text-white">{{ store.selectedCard.printed_at_label || '—' }}</span>
+                                <span class="text-right text-white">{{ store.selectedCard.printed_at_label || 'Nog niet gedrukt' }}</span>
                             </div>
                             <div class="flex justify-between gap-4 text-sm">
                                 <span class="text-slate-400">Uitgegeven op</span>
@@ -183,7 +195,7 @@
                     <div class="border-t border-slate-800 p-4">
                         <div class="flex flex-wrap justify-end gap-3">
                             <button type="button" class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 disabled:opacity-50" :disabled="!store.selectedCard || !store.selectedCard.badge_template_name || store.printing" @click="handlePrint">
-                                {{ store.printing ? 'Printen...' : 'Afdrukken' }}
+                                {{ store.printing ? 'PDF openen...' : 'Afdrukken' }}
                             </button>
                             <button type="button" class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 disabled:opacity-50" :disabled="!store.selectedCard" @click="openEdit">Bewerken</button>
                         </div>
@@ -197,9 +209,11 @@
                 <div class="flex items-start justify-between gap-4">
                     <div>
                         <h2 class="text-xl font-semibold text-white">{{ form.id ? 'Fysieke kaart bewerken' : 'Nieuwe fysieke kaart' }}</h2>
-                        <p class="mt-1 text-sm text-slate-400">Maak een fysieke RFID-kaart aan en koppel ze aan een voucher type.</p>
+                        <p class="mt-1 text-sm text-slate-400">Maak een fysieke RFID-kaart aan. Bij opslaan wordt automatisch een vaste PNG-preview aangemaakt.</p>
                     </div>
-                    <button type="button" class="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200" @click="closeModal">Sluiten</button>
+                    <button type="button" class="rounded-2xl border border-slate-700 bg-slate-800 p-2 text-slate-200 transition hover:border-slate-500 hover:bg-slate-700" aria-label="Sluiten" @click="closeModal">
+                        <XMarkIcon class="h-5 w-5" />
+                    </button>
                 </div>
 
                 <div class="mt-6 grid gap-4 md:grid-cols-2">
@@ -211,14 +225,21 @@
                         </select>
                     </label>
 
-                    <label class="space-y-2 text-sm text-slate-300">
+                    <div class="space-y-2 text-sm text-slate-300">
                         <span>RFID UID</span>
-                        <input v-model="form.rfid_uid" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" placeholder="Scan of plak RFID UID" required>
-                    </label>
+                        <ScanRfidButton
+                            v-model="form.rfid_uid"
+                            label="Scan RFID"
+                            title="RFID-kaart scannen"
+                            description="Scan de RFID-kaart die je aan deze fysieke kaart wilt koppelen."
+                            confirm-label="RFID koppelen"
+                            :show-value="true"
+                        />
+                    </div>
 
                     <label class="space-y-2 text-sm text-slate-300">
                         <span>Label</span>
-                        <input v-model="form.label" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" placeholder="Bijv. Kaart 001 of 25 euro rek 1">
+                        <input v-model="form.label" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" :placeholder="form.id ? `CARD #${form.id}` : 'Wordt automatisch CARD #ID'">
                     </label>
 
                     <label class="space-y-2 text-sm text-slate-300">
@@ -233,10 +254,10 @@
                         </select>
                     </label>
 
-                    <label class="space-y-2 text-sm text-slate-300">
+                    <div class="space-y-2 text-sm text-slate-300">
                         <span>Gedrukt op</span>
-                        <input v-model="form.printed_at" type="date" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white">
-                    </label>
+                        <div class="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white">{{ form.printed_at || 'Nog niet gedrukt' }}</div>
+                    </div>
 
                     <label class="space-y-2 text-sm text-slate-300">
                         <span>Uitgegeven op</span>
@@ -256,7 +277,7 @@
 
                 <div class="mt-6 flex justify-end gap-3">
                     <button type="button" class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200" @click="closeModal">Annuleren</button>
-                    <button type="submit" class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white">{{ store.saving ? 'Opslaan...' : 'Opslaan' }}</button>
+                    <button type="submit" class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white" :disabled="store.saving">{{ store.saving ? 'Opslaan...' : 'Opslaan' }}</button>
                 </div>
             </form>
         </div>
@@ -264,11 +285,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { XMarkIcon } from '@heroicons/vue/24/outline'
+import ScanRfidButton from '@/shared/components/scanners/ScanRfidButton.vue'
 import { useCardsStore } from '../stores/useCardsStore'
 
 const store = useCardsStore()
 const showModal = ref(false)
+const previewBusy = ref(false)
 const form = reactive(emptyForm())
 
 const statusOptions = [
@@ -288,6 +312,16 @@ const summaryCards = computed(() => [
 
 onMounted(() => store.fetchCards())
 
+watch(() => store.selectedCard?.id, async () => {
+    if (store.selectedCard && !store.selectedCard.preview_image_url && !previewBusy.value) {
+        await generatePreviewForSelected()
+    }
+})
+
+function todayIso() {
+    return new Date().toISOString().slice(0, 10)
+}
+
 function emptyForm() {
     return {
         id: null,
@@ -298,7 +332,7 @@ function emptyForm() {
         status: 'stock',
         notes: '',
         printed_at: '',
-        issued_at: '',
+        issued_at: todayIso(),
         returned_at: '',
     }
 }
@@ -321,6 +355,21 @@ function closeModal() {
 async function submit() {
     await store.saveCard({ ...form })
     closeModal()
+}
+
+async function generatePreviewForSelected() {
+    if (!store.selectedCard || previewBusy.value) {
+        return
+    }
+
+    previewBusy.value = true
+
+    try {
+        await store.ensureRenderImage(store.selectedCard)
+        await store.fetchCards()
+    } finally {
+        previewBusy.value = false
+    }
 }
 
 async function handlePrint() {

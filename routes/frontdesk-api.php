@@ -64,6 +64,7 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::get('/cards', [PhysicalCardController::class, 'index']);
         Route::post('/cards', [PhysicalCardController::class, 'store']);
         Route::put('/cards/{card}', [PhysicalCardController::class, 'update']);
+        Route::post('/cards/{card}/render-image', [PhysicalCardController::class, 'uploadRenderImage']);
         Route::post('/cards/{card}/mark-printed', [PhysicalCardController::class, 'markPrinted']);
 
         Route::post('/display/sync', [DisplayDeviceController::class, 'sync']);

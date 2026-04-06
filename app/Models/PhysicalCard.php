@@ -23,6 +23,7 @@ class PhysicalCard extends Model
         'rfid_uid',
         'status',
         'notes',
+        'render_image_path',
         'printed_at',
         'issued_at',
         'returned_at',
