@@ -29,6 +29,7 @@ const navigation = [
     { label: 'Kaartenbeheer', to: '/cards', group: 'Verkoop' },
     { label: 'Cateringopties', to: '/catering-options', group: 'Verkoop' },
     { label: 'Personeel', to: '/staff', group: 'Beheer' },
+    { label: 'Aanwezigheden', to: '/staff-attendance', group: 'Beheer' },
     { label: 'Displays & POS', to: '/devices', group: 'Beheer' },
     { label: 'Event types', to: '/event-types', group: 'Instellingen' },
     { label: 'Verblijfsopties', to: '/stay-options', group: 'Instellingen' },

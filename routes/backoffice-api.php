@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\Backoffice\AnalyticsController;
 use App\Http\Controllers\Api\Backoffice\DayTotalsController;
 use App\Http\Controllers\Api\Backoffice\VoucherTemplateController;
 use App\Http\Controllers\Api\Backoffice\PhysicalCardController;
+use App\Http\Controllers\Api\Backoffice\StaffAttendanceManagementController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api/backoffice')->group(function () {
@@ -73,6 +74,10 @@ Route::prefix('api/backoffice')->group(function () {
         Route::post('/staff/reorder', [StaffController::class, 'reorder']);
         Route::put('/staff/{staff}', [StaffController::class, 'update']);
         Route::delete('/staff/{staff}', [StaffController::class, 'destroy']);
+
+        Route::get('/staff-attendance', [StaffAttendanceManagementController::class, 'index']);
+        Route::put('/staff-attendance/{staffAttendance}', [StaffAttendanceManagementController::class, 'update']);
+        Route::delete('/staff-attendance/{staffAttendance}', [StaffAttendanceManagementController::class, 'destroy']);
 
         Route::get('/catering-options', [CateringOptionController::class, 'index']);
         Route::post('/catering-options', [CateringOptionController::class, 'store']);
