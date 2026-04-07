@@ -4,11 +4,16 @@
         class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm"
         @click.self="$emit('close')"
     >
-        <div class="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl">
+        <div class="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl">
             <div class="flex items-center justify-between border-b border-slate-800 px-6 py-4">
-                <h2 class="text-xl font-semibold text-slate-100">
-                    {{ form.id ? 'Abonnee bewerken' : 'Nieuwe abonnee' }}
-                </h2>
+                <div>
+                    <h2 class="text-xl font-semibold text-slate-100">
+                        {{ form.id ? 'Abonnee bewerken' : 'Nieuwe abonnee' }}
+                    </h2>
+                    <p class="mt-1 text-sm text-slate-400">
+                        Beheer standaardgegevens, adres en kaartinstellingen in aparte onderdelen.
+                    </p>
+                </div>
 
                 <button
                     type="button"
@@ -21,112 +26,47 @@
                 </button>
             </div>
 
-            <form class="min-h-0 flex-1 overflow-y-auto bg-slate-950 p-6" @submit.prevent="submitForm">
-                <div class="grid gap-5 lg:grid-cols-2">
-                    <label class="space-y-2 text-sm text-slate-300">
-                        <span>Voornaam *</span>
-                        <input v-model="form.first_name" type="text" :class="fieldClass">
-                    </label>
-
-                    <label class="space-y-2 text-sm text-slate-300">
-                        <span>Naam *</span>
-                        <input v-model="form.last_name" type="text" :class="fieldClass">
-                    </label>
-
-                    <label class="space-y-2 text-sm text-slate-300">
-                        <span>Type abonnement</span>
-                        <select v-model="form.membership_type" :class="fieldClass">
-                            <option value="child">Kind</option>
-                            <option value="adult">Volwassen</option>
-                            <option value="family">Familie</option>
-                        </select>
-                    </label>
-
-                    <label class="space-y-2 text-sm text-slate-300">
-                        <span>E-mail</span>
-                        <input v-model="form.email" type="email" :class="fieldClass">
-                    </label>
-
-                    <label class="space-y-2 text-sm text-slate-300">
-                        <span>Login</span>
-                        <input v-model="form.login" type="text" :class="fieldClass">
-                    </label>
-
-                    <label class="space-y-2 text-sm text-slate-300">
-                        <span>{{ form.id ? 'Nieuw paswoord (optioneel)' : 'Paswoord' }}</span>
-                        <input v-model="form.password" type="password" :class="fieldClass">
-                    </label>
-
-                    <label class="space-y-2 text-sm text-slate-300">
-                        <span>RFID kaart</span>
-                        <div class="flex gap-3">
-                            <input v-model="form.rfid_uid" type="text" :class="[fieldClass, 'flex-1']" ref="rfidInput">
-                            <button
-                                type="button"
-                                class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-700"
-                                @click="focusRfid"
-                            >
-                                Koppelen
-                            </button>
-                        </div>
-                    </label>
-
-                    <label class="space-y-2 text-sm text-slate-300 lg:col-span-2">
-                        <span>Straat</span>
-                        <input v-model="form.street" type="text" :class="fieldClass">
-                    </label>
-
-                    <label class="space-y-2 text-sm text-slate-300">
-                        <span>Huisnummer</span>
-                        <input v-model="form.house_number" type="text" :class="fieldClass">
-                    </label>
-
-                    <label class="space-y-2 text-sm text-slate-300">
-                        <span>Box</span>
-                        <input v-model="form.box" type="text" :class="fieldClass">
-                    </label>
-
-                    <label class="space-y-2 text-sm text-slate-300">
-                        <span>Postcode</span>
-                        <input v-model="form.postal_code" type="text" :class="fieldClass">
-                    </label>
-
-                    <label class="space-y-2 text-sm text-slate-300">
-                        <span>Gemeente</span>
-                        <input v-model="form.city" type="text" :class="fieldClass">
-                    </label>
-
-                    <label class="space-y-2 text-sm text-slate-300">
-                        <span>Land</span>
-                        <input v-model="form.country" type="text" :class="fieldClass">
-                    </label>
-
-                    <label class="space-y-2 text-sm text-slate-300">
-                        <span>Geldig van</span>
-                        <input v-model="form.membership_starts_at" type="date" :class="fieldClass">
-                    </label>
-
-                    <label class="space-y-2 text-sm text-slate-300">
-                        <span>Geldig tot</span>
-                        <input v-model="form.membership_ends_at" type="date" :class="fieldClass">
-                    </label>
-
-                    <label class="space-y-2 text-sm text-slate-300 lg:col-span-2">
-                        <span>Commentaar</span>
-                        <textarea v-model="form.comment" rows="4" :class="fieldClass"></textarea>
-                    </label>
-
-                    <label class="inline-flex items-center gap-3 text-sm text-slate-300 lg:col-span-2">
-                        <input
-                            v-model="form.is_active"
-                            type="checkbox"
-                            class="h-4 w-4 rounded border-slate-700 bg-slate-900 text-blue-600"
+            <form class="min-h-0 flex-1 overflow-hidden bg-slate-950" @submit.prevent="submitForm">
+                <div class="border-b border-slate-800 px-6 pt-4">
+                    <div class="flex flex-wrap gap-2">
+                        <button
+                            v-for="tab in tabs"
+                            :key="tab.value"
+                            type="button"
+                            class="rounded-t-2xl border border-b-0 px-4 py-3 text-sm font-semibold transition"
+                            :class="activeTab === tab.value ? 'border-slate-700 bg-slate-900 text-white' : 'border-transparent bg-slate-950 text-slate-400 hover:bg-slate-900/70 hover:text-slate-200'"
+                            @click="activeTab = tab.value"
                         >
-                        <span>Abonnement actief</span>
-                    </label>
+                            {{ tab.label }}
+                        </button>
+                    </div>
                 </div>
 
-                <div class="mt-6 flex justify-end gap-3 border-t border-slate-800 pt-6">
+                <div class="min-h-0 overflow-y-auto p-6">
+                    <MemberStandardFields
+                        v-if="activeTab === 'standard'"
+                        :form="form"
+                        :field-class="fieldClass"
+                        @update="updateField"
+                    />
+
+                    <MemberAddressFields
+                        v-else-if="activeTab === 'address'"
+                        :form="form"
+                        :field-class="fieldClass"
+                        @update="updateField"
+                    />
+
+                    <MemberCardFields
+                        v-else
+                        :form="form"
+                        :templates="badgeTemplates"
+                        :field-class="fieldClass"
+                        @update="updateField"
+                    />
+                </div>
+
+                <div class="flex justify-end gap-3 border-t border-slate-800 px-6 py-5">
                     <button
                         type="button"
                         class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-700"
@@ -148,6 +88,9 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import MemberStandardFields from './sections/MemberStandardFields.vue'
+import MemberAddressFields from './sections/MemberAddressFields.vue'
+import MemberCardFields from './sections/MemberCardFields.vue'
 
 const props = defineProps({
     open: {
@@ -158,10 +101,21 @@ const props = defineProps({
         type: Object,
         default: null,
     },
+    badgeTemplates: {
+        type: Array,
+        default: () => [],
+    },
 })
 
 const emit = defineEmits(['close', 'submit'])
-const rfidInput = ref(null)
+
+const tabs = [
+    { value: 'standard', label: 'Standaard gegevens' },
+    { value: 'address', label: 'Adres gegevens' },
+    { value: 'card', label: 'Kaart' },
+]
+
+const activeTab = ref('standard')
 
 function defaultDates() {
     const now = new Date()
@@ -175,39 +129,23 @@ function defaultDates() {
     }
 }
 
-const form = ref({
-    id: null,
-    first_name: '',
-    last_name: '',
-    membership_type: 'adult',
-    email: '',
-    login: '',
-    password: '',
-    street: '',
-    house_number: '',
-    box: '',
-    postal_code: '',
-    city: '',
-    country: '',
-    rfid_uid: '',
-    comment: '',
-    membership_starts_at: defaultDates().membership_starts_at,
-    membership_ends_at: defaultDates().membership_ends_at,
-    is_active: true,
-})
+function defaultBadgeTemplateId() {
+    return props.badgeTemplates.find(template => template.is_default)?.id ?? props.badgeTemplates[0]?.id ?? null
+}
 
+const form = ref({})
 const normalizedMember = computed(() => props.member ?? {})
 
 watch(
-    () => [props.open, normalizedMember.value],
+    () => [props.open, normalizedMember.value, props.badgeTemplates],
     () => {
         const dates = defaultDates()
+        activeTab.value = 'standard'
 
         form.value = {
             id: normalizedMember.value.id ?? null,
             first_name: normalizedMember.value.first_name ?? '',
             last_name: normalizedMember.value.last_name ?? '',
-            membership_type: normalizedMember.value.membership_type ?? 'adult',
             email: normalizedMember.value.email ?? '',
             login: normalizedMember.value.login ?? '',
             password: '',
@@ -216,19 +154,26 @@ watch(
             box: normalizedMember.value.box ?? '',
             postal_code: normalizedMember.value.postal_code ?? '',
             city: normalizedMember.value.city ?? '',
-            country: normalizedMember.value.country ?? '',
+            country: normalizedMember.value.country ?? 'BE',
             rfid_uid: normalizedMember.value.rfid_uid ?? '',
             comment: normalizedMember.value.comment ?? '',
             membership_starts_at: normalizedMember.value.membership_starts_at ?? dates.membership_starts_at,
             membership_ends_at: normalizedMember.value.membership_ends_at ?? dates.membership_ends_at,
             is_active: normalizedMember.value.is_active ?? true,
+            badge_template_id: normalizedMember.value.member_badge_template_id ?? defaultBadgeTemplateId(),
+            member_card_id: normalizedMember.value.member_card_id ?? null,
+            member_card_label: normalizedMember.value.member_card_label ?? '',
+            member_card_badge_template_name: normalizedMember.value.member_card_badge_template_name ?? '',
         }
     },
     { immediate: true }
 )
 
-function focusRfid() {
-    rfidInput.value?.focus()
+function updateField({ field, value }) {
+    form.value = {
+        ...form.value,
+        [field]: value,
+    }
 }
 
 function submitForm() {

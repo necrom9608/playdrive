@@ -27,7 +27,7 @@
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="text-sm text-slate-400">
                         <span v-if="store.selectedMember">
-                            Geselecteerd: <span class="font-semibold text-white">{{ store.selectedMember.full_name }}</span>
+                            Geselecteerd: <span class="font-semibold text-white">#{{ store.selectedMember.id }} · {{ store.selectedMember.full_name }}</span>
                         </span>
                         <span v-else>Geen abonnee geselecteerd.</span>
                     </div>
@@ -85,6 +85,7 @@
         <MemberModal
             :open="showModal"
             :member="editingMember"
+            :badge-templates="store.memberBadgeTemplates"
             @close="closeModal"
             @submit="handleSubmit"
         />
@@ -134,7 +135,7 @@ async function handleSubmit(payload) {
     try {
         await store.saveMember(payload)
         closeModal()
-    } catch (error) {
+    } catch {
         // foutmelding zit al in store
     }
 }

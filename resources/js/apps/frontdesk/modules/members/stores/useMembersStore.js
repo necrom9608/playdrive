@@ -14,6 +14,7 @@ export const useMembersStore = defineStore('members', {
             expiring_soon: 0,
             expired: 0,
         },
+        memberBadgeTemplates: [],
         members: [],
         selectedMemberId: null,
     }),
@@ -44,6 +45,7 @@ export const useMembersStore = defineStore('members', {
                     expired: 0,
                 }
 
+                this.memberBadgeTemplates = response.data?.data?.member_badge_templates ?? []
                 this.members = response.data?.data?.members ?? []
 
                 if (this.selectedMemberId) {
@@ -80,16 +82,20 @@ export const useMembersStore = defineStore('members', {
             this.error = null
 
             try {
+                let response
+
                 if (payload.id) {
-                    await axios.put(`/api/frontdesk/members/${payload.id}`, payload)
+                    response = await axios.put(`/api/frontdesk/members/${payload.id}`, payload)
                 } else {
-                    await axios.post('/api/frontdesk/members', payload)
+                    response = await axios.post('/api/frontdesk/members', payload)
                 }
+
+                const savedId = response?.data?.data?.id ?? payload.id ?? null
 
                 await this.fetchMembers()
 
-                if (payload.id) {
-                    this.selectedMemberId = payload.id
+                if (savedId) {
+                    this.selectedMemberId = savedId
                 }
 
                 return true

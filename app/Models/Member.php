@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Member extends Model
 {
@@ -30,6 +31,7 @@ class Member extends Model
         'confirmation_mail_sent_at',
         'expiry_warning_mail_sent_at',
         'expired_mail_sent_at',
+        'is_active',
     ];
 
     protected $hidden = [
@@ -45,6 +47,14 @@ class Member extends Model
             'expiry_warning_mail_sent_at' => 'datetime',
             'expired_mail_sent_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
+    }
+
+    public function physicalCards(): HasMany
+    {
+        return $this->hasMany(PhysicalCard::class, 'holder_id')
+            ->where('holder_type', PhysicalCard::TYPE_MEMBER)
+            ->where('card_type', PhysicalCard::TYPE_MEMBER);
     }
 }

@@ -1,14 +1,17 @@
 <template>
     <div class="flex h-full min-h-0 flex-col rounded-3xl border border-slate-800 bg-slate-900 shadow-xl">
         <div class="min-h-0 flex-1 overflow-auto">
-            <table class="w-full min-w-[1200px] text-sm">
+            <table class="w-full min-w-[1450px] text-sm">
                 <thead class="sticky top-0 bg-slate-900 text-slate-400">
                 <tr>
+                    <th class="px-5 py-3 text-left font-medium">ID</th>
                     <th class="px-5 py-3 text-left font-medium">Naam</th>
-                    <th class="px-5 py-3 text-left font-medium">Type</th>
                     <th class="px-5 py-3 text-left font-medium">E-mail</th>
                     <th class="px-5 py-3 text-left font-medium">Geldig van</th>
                     <th class="px-5 py-3 text-left font-medium">Geldig tot</th>
+                    <th class="px-5 py-3 text-left font-medium">Laatste keer gespeeld</th>
+                    <th class="px-5 py-3 text-left font-medium">Speeldagen</th>
+                    <th class="px-5 py-3 text-left font-medium">Speeluren</th>
                     <th class="px-5 py-3 text-left font-medium">Resterend</th>
                     <th class="px-5 py-3 text-left font-medium">Status</th>
                 </tr>
@@ -16,7 +19,7 @@
 
                 <tbody>
                 <tr v-if="!members.length">
-                    <td colspan="7" class="px-5 py-10 text-center text-slate-500">
+                    <td colspan="10" class="px-5 py-10 text-center text-slate-500">
                         Geen abonnees gevonden.
                     </td>
                 </tr>
@@ -29,12 +32,14 @@
                     @click="$emit('select', member.id)"
                 >
                     <td class="px-5 py-4 align-top">
-                        <div class="font-semibold text-white">{{ member.full_name }}</div>
-                        <div class="mt-1 text-xs text-slate-500">{{ member.login || 'Geen login' }}</div>
+                        <div class="inline-flex rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-1.5 font-semibold text-white">
+                            #{{ member.id }}
+                        </div>
                     </td>
 
-                    <td class="px-5 py-4 align-top text-slate-200">
-                        {{ member.membership_type_label || member.membership_type || 'Onbekend' }}
+                    <td class="px-5 py-4 align-top">
+                        <div class="font-semibold text-white">{{ member.full_name }}</div>
+                        <div class="mt-1 text-xs text-slate-500">{{ member.login || 'Geen login' }}</div>
                     </td>
 
                     <td class="px-5 py-4 align-top text-slate-200">
@@ -51,22 +56,28 @@
                         <div class="mt-1 text-xs text-slate-500">{{ member.membership_ends_at || 'Geen einddatum' }}</div>
                     </td>
 
-                    <td class="px-5 py-4 align-top">
-                            <span
-                                class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
-                                :class="daysClass(member)"
-                            >
-                                {{ daysLabel(member) }}
-                            </span>
+                    <td class="px-5 py-4 align-top text-slate-200">
+                        {{ member.last_played_label }}
+                    </td>
+
+                    <td class="px-5 py-4 align-top text-slate-200">
+                        {{ member.play_days || 0 }}
+                    </td>
+
+                    <td class="px-5 py-4 align-top text-slate-200">
+                        {{ member.play_hours_label || '0u 00m' }}
                     </td>
 
                     <td class="px-5 py-4 align-top">
-                            <span
-                                class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
-                                :class="statusClass(member.status)"
-                            >
-                                {{ statusLabel(member.status) }}
-                            </span>
+                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold" :class="daysClass(member)">
+                            {{ daysLabel(member) }}
+                        </span>
+                    </td>
+
+                    <td class="px-5 py-4 align-top">
+                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold" :class="statusClass(member.status)">
+                            {{ statusLabel(member.status) }}
+                        </span>
                     </td>
                 </tr>
                 </tbody>
@@ -99,7 +110,7 @@ function statusLabel(status) {
         expiring: 'Vervalt binnenkort',
         expired: 'Vervallen',
         inactive: 'Inactief',
-    }[status] ?? status
+    }[status] ?? 'Onbekend'
 }
 
 function statusClass(status) {
@@ -113,36 +124,30 @@ function statusClass(status) {
 
 function daysLabel(member) {
     if (member.days_until_expiry === null || member.days_until_expiry === undefined) {
-        return 'Onbekend'
+        return 'Geen einddatum'
     }
 
     if (member.days_until_expiry < 0) {
-        return `${Math.abs(member.days_until_expiry)} dagen verlopen`
+        return `${Math.abs(member.days_until_expiry)} dag(en) verlopen`
     }
 
     if (member.days_until_expiry === 0) {
-        return 'Vandaag'
+        return 'Vervalt vandaag'
     }
 
-    if (member.days_until_expiry === 1) {
-        return '1 dag'
-    }
-
-    return `${member.days_until_expiry} dagen`
+    return `${member.days_until_expiry} dag(en)`
 }
 
 function daysClass(member) {
-    const days = member.days_until_expiry
-
-    if (days === null || days === undefined) {
+    if (member.days_until_expiry === null || member.days_until_expiry === undefined) {
         return 'bg-slate-500/15 text-slate-300'
     }
 
-    if (days < 0) {
+    if (member.days_until_expiry < 0) {
         return 'bg-rose-500/15 text-rose-300'
     }
 
-    if (days <= 30) {
+    if (member.days_until_expiry <= 30) {
         return 'bg-amber-500/15 text-amber-300'
     }
 
