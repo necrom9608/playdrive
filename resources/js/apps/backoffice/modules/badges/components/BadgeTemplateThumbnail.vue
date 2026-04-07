@@ -138,9 +138,47 @@ function shapeStyle(element) {
     }
 }
 
+function resolveFieldValue(data, source) {
+    const key = String(source || '').trim()
+
+    if (!key) {
+        return null
+    }
+
+    const directValue = data?.[key]
+    if (directValue !== undefined && directValue !== null && String(directValue).trim() !== '') {
+        return directValue
+    }
+
+    const fullName = String(data?.full_name ?? data?.name ?? '').trim()
+    const firstName = String(data?.first_name ?? '').trim()
+    const lastName = String(data?.last_name ?? '').trim()
+
+    if (key === 'full_name') {
+        const combined = [firstName, lastName].filter(Boolean).join(' ').trim()
+        return fullName || combined || null
+    }
+
+    if (key === 'first_name') {
+        if (firstName) {
+            return firstName
+        }
+        return fullName.split(/\s+/).filter(Boolean)[0] || null
+    }
+
+    if (key === 'last_name') {
+        if (lastName) {
+            return lastName
+        }
+        return fullName.split(/\s+/).filter(Boolean).slice(1).join(' ') || null
+    }
+
+    return null
+}
+
 function displayText(element) {
     if (element.type === 'text') return element.text || 'Tekst'
-    if (element.type === 'field') return previewData.value[element.source] || `{{ ${element.source || 'veld'} }}`
+    if (element.type === 'field') return resolveFieldValue(previewData.value, element.source) ?? `{{ ${element.source || 'veld'} }}`
     return element.label || ''
 }
 

@@ -74,7 +74,12 @@ function drawBackground(context, img, width, height, size = 'cover') {
 
 function getDisplayText(element) {
     if (element.type === 'field') {
-        return element.displayText || (`[[ ${element.source || 'veld'} ]]`)
+        const displayText = element.displayText
+        if (displayText !== undefined && displayText !== null && String(displayText).trim() !== '') {
+            return displayText
+        }
+
+        return `[[ ${element.source || 'veld'} ]]`
     }
 
     if (element.type === 'text') {

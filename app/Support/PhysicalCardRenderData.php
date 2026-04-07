@@ -30,9 +30,8 @@ class PhysicalCardRenderData
             ->map(function (array $element) use ($fields, $scaleX, $scaleY) {
                 $type = (string) ($element['type'] ?? 'text');
                 $source = (string) ($element['source'] ?? '');
-                $fieldValue = $source !== '' ? ($fields[$source] ?? null) : null;
                 $displayText = in_array($type, ['field', 'qr'], true)
-                    ? ($fieldValue ?: '{{ ' . ($source ?: 'veld') . ' }}')
+                    ? self::resolveFieldDisplayText($fields, $source)
                     : (($element['text'] ?? '') !== '' ? (string) $element['text'] : (string) ($element['label'] ?? ''));
 
                 $fit = $element['fit'] ?? ($type === 'logo' ? 'contain' : 'cover');
@@ -139,6 +138,60 @@ class PhysicalCardRenderData
         ];
 
         return [$badgeTemplate, $fields];
+    }
+
+
+    private static function resolveFieldDisplayText(array $fields, string $source): string
+    {
+        $value = self::resolveFieldValue($fields, $source);
+
+        if ($value === null) {
+            return '{{ ' . ($source ?: 'veld') . ' }}';
+        }
+
+        $value = trim((string) $value);
+
+        return $value !== '' ? $value : '{{ ' . ($source ?: 'veld') . ' }}';
+    }
+
+    private static function resolveFieldValue(array $fields, string $source): mixed
+    {
+        $source = trim($source);
+
+        if ($source === '') {
+            return null;
+        }
+
+        if (array_key_exists($source, $fields) && $fields[$source] !== null && trim((string) $fields[$source]) !== '') {
+            return $fields[$source];
+        }
+
+        $fullName = trim((string) ($fields['full_name'] ?? $fields['name'] ?? ''));
+        $firstName = trim((string) ($fields['first_name'] ?? ''));
+        $lastName = trim((string) ($fields['last_name'] ?? ''));
+
+        if ($source === 'full_name') {
+            $combined = trim(implode(' ', array_filter([$firstName, $lastName])));
+            return $fullName !== '' ? $fullName : ($combined !== '' ? $combined : null);
+        }
+
+        if ($source === 'first_name') {
+            if ($firstName !== '') {
+                return $firstName;
+            }
+
+            return self::firstName($fullName);
+        }
+
+        if ($source === 'last_name') {
+            if ($lastName !== '') {
+                return $lastName;
+            }
+
+            return self::lastName($fullName);
+        }
+
+        return $fields[$source] ?? null;
     }
 
     private static function scale(mixed $value, float $factor): int
