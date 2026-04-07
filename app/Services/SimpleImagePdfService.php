@@ -39,13 +39,13 @@ class SimpleImagePdfService
         $pageWidth = $this->mmToPoints($pageWidthMm);
         $pageHeight = $this->mmToPoints($pageHeightMm);
         $imageLength = strlen($jpegBinary);
-        $contentStream = sprintf("q\n%.4F 0 0 %.4F 0 0 cm\n/Im0 Do\nQ\n", $pageWidth, $pageHeight);
+        $contentStream = sprintf("q\n%.6F 0 0 %.6F 0 0 cm\n/Im0 Do\nQ\n", $pageWidth, $pageHeight);
 
         $objects = [];
         $objects[] = "<< /Type /Catalog /Pages 2 0 R >>";
         $objects[] = "<< /Type /Pages /Count 1 /Kids [3 0 R] >>";
         $objects[] = sprintf(
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.4F %.4F] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>",
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.6F %.6F] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>",
             $pageWidth,
             $pageHeight,
         );

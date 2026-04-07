@@ -166,14 +166,14 @@ function buildHtmlLayerMarkup({ template, fields, card }) {
     }).join('')
 
     return `
-        <div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:${Number(template.width || 1016)}px;height:${Number(template.height || 638)}px;box-sizing:border-box;overflow:hidden;">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:${Number(template.width || 1012)}px;height:${Number(template.height || 638)}px;box-sizing:border-box;overflow:hidden;">
             ${html}
         </div>
     `
 }
 
 async function drawHtmlLayer(context, { template, fields, card }) {
-    const width = Number(template.width || 1016)
+    const width = Number(template.width || 1012)
     const height = Number(template.height || 638)
     const html = buildHtmlLayerMarkup({ template, fields, card })
     const svg = `
@@ -239,7 +239,7 @@ export async function renderCardToCanvas({ template, fields, card }) {
     }
 
     const canvas = document.createElement('canvas')
-    canvas.width = Number(template.width || 1016)
+    canvas.width = Number(template.width || 1012)
     canvas.height = Number(template.height || 638)
 
     const ctx = canvas.getContext('2d')

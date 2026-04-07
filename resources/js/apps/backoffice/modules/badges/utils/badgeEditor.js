@@ -114,7 +114,7 @@ export function blankTemplate(type) {
         description: '',
         is_default: false,
         config_json: {
-            width: 1016,
+            width: 1012,
             height: 638,
             backgroundColor,
             backgroundImagePath: '',
@@ -122,7 +122,7 @@ export function blankTemplate(type) {
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             elements: [
-                { id: uid(), type: 'shape', label: 'Accent', x: 0, y: 0, width: 1016, height: 110, backgroundColor: accentColor, borderRadius: 0, opacity: 1, zIndex: 1 },
+                { id: uid(), type: 'shape', label: 'Accent', x: 0, y: 0, width: 1012, height: 110, backgroundColor: accentColor, borderRadius: 0, opacity: 1, zIndex: 1 },
                 { id: uid(), type: safeType === 'voucher' ? 'field' : 'field', label: safeType === 'voucher' ? 'Titel' : 'Naam', source: firstField, x: 60, y: 160, width: 680, height: 90, color: '#ffffff', backgroundColor: 'transparent', fontSize: 52, fontWeight: 800, borderRadius: 0, textAlign: 'left', opacity: 1, zIndex: 2 },
                 { id: uid(), type: secondField ? 'field' : 'text', label: secondLabel, source: secondField, text: secondText, x: 62, y: 270, width: 360, height: 52, color: '#e2e8f0', backgroundColor: 'transparent', fontSize: 26, fontWeight: 700, borderRadius: 0, textAlign: 'left', opacity: 1, zIndex: 2 },
                 { id: uid(), type: 'qr', label: 'QR', source: qrSource, x: 812, y: 416, width: 150, height: 150, backgroundColor: '#ffffff', borderRadius: 24, opacity: 1, zIndex: 2 },
@@ -205,7 +205,7 @@ export const presets = [
         description: 'Donkere staff badge met foto links, groot naamveld en QR rechtsonder.',
         is_default: false,
         config_json: {
-            width: 1016,
+            width: 1012,
             height: 638,
             backgroundColor: '#111827',
             backgroundImagePath: '',
@@ -213,7 +213,7 @@ export const presets = [
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             elements: [
-                { id: uid(), type: 'shape', label: 'Header glow', x: 0, y: 0, width: 1016, height: 120, backgroundColor: '#4f46e5', borderRadius: 0, opacity: 0.95, zIndex: 1 },
+                { id: uid(), type: 'shape', label: 'Header glow', x: 0, y: 0, width: 1012, height: 120, backgroundColor: '#4f46e5', borderRadius: 0, opacity: 0.95, zIndex: 1 },
                 { id: uid(), type: 'logo', label: 'Logo', x: 44, y: 36, width: 180, height: 48, imagePath: '', imageUrl: '', backgroundColor: '#312e81', fit: 'contain', borderRadius: 18, opacity: 1, zIndex: 2 },
                 { id: uid(), type: 'photo', label: 'Foto', x: 54, y: 158, width: 260, height: 336, imagePath: '', imageUrl: '', backgroundColor: '#1e293b', fit: 'cover', borderRadius: 26, opacity: 1, zIndex: 2 },
                 { id: uid(), type: 'text', label: 'Staff tag', text: 'STAFF', x: 348, y: 158, width: 188, height: 56, color: '#c4b5fd', backgroundColor: '#312e81', fontSize: 26, fontWeight: 800, borderRadius: 22, textAlign: 'center', opacity: 1, zIndex: 2 },
@@ -231,7 +231,7 @@ export const presets = [
         description: 'Member badge met foto, premium label en een opvallend onderste accentbalk.',
         is_default: false,
         config_json: {
-            width: 1016,
+            width: 1012,
             height: 638,
             backgroundColor: '#1e1b4b',
             backgroundImagePath: '',
@@ -239,7 +239,7 @@ export const presets = [
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             elements: [
-                { id: uid(), type: 'shape', label: 'Accent', x: 0, y: 520, width: 1016, height: 118, backgroundColor: '#8b5cf6', borderRadius: 0, opacity: 1, zIndex: 1 },
+                { id: uid(), type: 'shape', label: 'Accent', x: 0, y: 520, width: 1012, height: 118, backgroundColor: '#8b5cf6', borderRadius: 0, opacity: 1, zIndex: 1 },
                 { id: uid(), type: 'logo', label: 'Logo', x: 58, y: 50, width: 190, height: 52, imagePath: '', imageUrl: '', backgroundColor: '#5b21b6', fit: 'contain', borderRadius: 18, opacity: 1, zIndex: 2 },
                 { id: uid(), type: 'text', label: 'Member tag', text: 'MEMBER', x: 770, y: 56, width: 188, height: 52, color: '#f5f3ff', backgroundColor: '#5b21b6', fontSize: 24, fontWeight: 800, borderRadius: 20, textAlign: 'center', opacity: 1, zIndex: 2 },
                 { id: uid(), type: 'photo', label: 'Foto', x: 58, y: 154, width: 250, height: 310, imagePath: '', imageUrl: '', backgroundColor: '#312e81', fit: 'cover', borderRadius: 28, opacity: 1, zIndex: 2 },
@@ -258,7 +258,7 @@ export const presets = [
         description: 'Warme voucher lay-out met titel, waarde en QR-code voor cadeaubonnen.',
         is_default: false,
         config_json: {
-            width: 1016,
+            width: 1012,
             height: 638,
             backgroundColor: '#3f1d0a',
             backgroundImagePath: '',
@@ -266,7 +266,7 @@ export const presets = [
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             elements: [
-                { id: uid(), type: 'shape', label: 'Accent', x: 0, y: 0, width: 1016, height: 126, backgroundColor: '#f59e0b', borderRadius: 0, opacity: 0.95, zIndex: 1 },
+                { id: uid(), type: 'shape', label: 'Accent', x: 0, y: 0, width: 1012, height: 126, backgroundColor: '#f59e0b', borderRadius: 0, opacity: 0.95, zIndex: 1 },
                 { id: uid(), type: 'logo', label: 'Logo', x: 56, y: 38, width: 190, height: 50, imagePath: '', imageUrl: '', backgroundColor: '#92400e', fit: 'contain', borderRadius: 18, opacity: 1, zIndex: 2 },
                 { id: uid(), type: 'field', label: 'Titel', source: 'title', x: 60, y: 180, width: 620, height: 92, color: '#ffffff', backgroundColor: 'transparent', fontSize: 52, fontWeight: 800, borderRadius: 0, textAlign: 'left', opacity: 1, zIndex: 2 },
                 { id: uid(), type: 'field', label: 'Waarde', source: 'voucher_value', x: 62, y: 298, width: 260, height: 60, color: '#fde68a', backgroundColor: 'transparent', fontSize: 34, fontWeight: 800, borderRadius: 0, textAlign: 'left', opacity: 1, zIndex: 2 },

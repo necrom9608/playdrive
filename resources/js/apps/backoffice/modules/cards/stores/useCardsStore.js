@@ -195,33 +195,42 @@ export const useCardsStore = defineStore('backofficeCards', {
             this.printing = true
             this.error = null
 
-            const printWindow = typeof window !== 'undefined' ? window.open('', '_blank', 'noopener,noreferrer') : null
-
             try {
                 const selected = this.cards.find(card => card.id === cardId) ?? null
-                if (selected) {
-                    await this.ensureRenderImage(selected)
-                }
+                const preparedCard = selected ? await this.ensureRenderImage(selected) : null
 
                 const response = await axios.post(`/api/backoffice/cards/${cardId}/mark-printed`)
-                const printUrl = response.data?.data?.print_url || selected?.print_url || `/backoffice/cards/${cardId}/print`
+                const updatedCard = response.data?.data?.card ?? preparedCard ?? selected
+                const imageUrl = updatedCard?.preview_image_url || preparedCard?.preview_image_url || selected?.preview_image_url
 
-                if (printWindow) {
-                    printWindow.location.href = printUrl
-                } else if (typeof window !== 'undefined') {
-                    window.open(printUrl, '_blank', 'noopener,noreferrer')
+                if (!imageUrl) {
+                    throw new Error('Geen PNG-preview beschikbaar om te downloaden.')
                 }
+
+                const downloadResponse = await fetch(imageUrl, {
+                    credentials: 'same-origin',
+                    cache: 'no-store',
+                })
+
+                if (!downloadResponse.ok) {
+                    throw new Error('PNG-bestand kon niet gedownload worden.')
+                }
+
+                const blob = await downloadResponse.blob()
+                const objectUrl = window.URL.createObjectURL(blob)
+                const link = document.createElement('a')
+                link.href = objectUrl
+                link.download = updatedCard?.render_image_download_name || `card-${cardId}.png`
+                document.body.appendChild(link)
+                link.click()
+                document.body.removeChild(link)
+                window.URL.revokeObjectURL(objectUrl)
 
                 await this.fetchCards()
                 return true
             } catch (error) {
-                console.error('Failed to print card', error)
-                this.error = error?.response?.data?.message ?? 'Kaart afdrukken mislukt.'
-
-                if (printWindow && !printWindow.closed) {
-                    printWindow.close()
-                }
-
+                console.error('Failed to download card PNG', error)
+                this.error = error?.response?.data?.message ?? error?.message ?? 'PNG downloaden mislukt.'
                 throw error
             } finally {
                 this.printing = false

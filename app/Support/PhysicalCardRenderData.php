@@ -7,7 +7,7 @@ use App\Models\PhysicalCard;
 
 class PhysicalCardRenderData
 {
-    public const PRINT_WIDTH = 1016;
+    public const PRINT_WIDTH = 1012;
     public const PRINT_HEIGHT = 638;
 
     public static function build(PhysicalCard $card): array

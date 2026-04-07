@@ -53,8 +53,8 @@ const props = defineProps({
     width: { type: Number, default: 280 },
 })
 
-const scale = computed(() => props.width / (props.template?.config_json?.width || 1016))
-const config = computed(() => props.template?.config_json || props.template || { width: 1016, height: 638, elements: [] })
+const scale = computed(() => props.width / (props.template?.config_json?.width || 1012))
+const config = computed(() => props.template?.config_json || props.template || { width: 1012, height: 638, elements: [] })
 const ratioHeight = computed(() => Math.round((config.value.height || 638) * scale.value))
 const previewData = computed(() => sampleData[props.template?.template_type] || sampleData.staff)
 
