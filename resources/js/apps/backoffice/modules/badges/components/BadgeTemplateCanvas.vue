@@ -398,53 +398,42 @@ function shapeStyle(element) {
     }
 }
 
-function resolveFieldValue(data, source) {
-    const key = String(source || '').trim()
+function resolveSampleFieldValue(source) {
+    const key = source || ''
+    const fullName = String(props.sampleData.full_name || '').trim()
+    const firstName = String(props.sampleData.first_name || '').trim()
+    const lastName = String(props.sampleData.last_name || '').trim()
 
-    if (!key) {
-        return null
+    if (key && props.sampleData[key]) {
+        return props.sampleData[key]
     }
-
-    const directValue = data?.[key]
-    if (directValue !== undefined && directValue !== null && String(directValue).trim() !== '') {
-        return directValue
-    }
-
-    const fullName = String(data?.full_name ?? data?.name ?? '').trim()
-    const firstName = String(data?.first_name ?? '').trim()
-    const lastName = String(data?.last_name ?? '').trim()
 
     if (key === 'full_name') {
-        const combined = [firstName, lastName].filter(Boolean).join(' ').trim()
-        return fullName || combined || null
+        return fullName || [firstName, lastName].filter(Boolean).join(' ').trim() || ''
     }
 
     if (key === 'first_name') {
-        if (firstName) {
-            return firstName
-        }
-        return fullName.split(/\s+/).filter(Boolean)[0] || null
+        return firstName || fullName.split(/\s+/).filter(Boolean)[0] || ''
     }
 
     if (key === 'last_name') {
-        if (lastName) {
-            return lastName
-        }
-        return fullName.split(/\s+/).filter(Boolean).slice(1).join(' ') || null
+        if (lastName) return lastName
+        const parts = fullName.split(/\s+/).filter(Boolean)
+        return parts.slice(1).join(' ')
     }
 
-    return null
+    return ''
 }
 
 function displayText(element) {
     if (element.type === 'text') return element.text || 'Tekst'
-    if (element.type === 'field') return resolveFieldValue(props.sampleData, element.source) ?? `{{ ${element.source || 'veld'} }}`
+    if (element.type === 'field') return resolveSampleFieldValue(element.source) || `{{ ${element.source || 'veld'} }}`
     return element.label || ''
 }
 
 function qrPreviewText(element) {
     const source = element.source || 'badge_number'
-    return props.sampleData[source] || `{{ ${source} }}`
+    return resolveSampleFieldValue(source) || `{{ ${source} }}`
 }
 
 function mediaLabel(element) {

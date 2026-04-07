@@ -30,8 +30,9 @@ class PhysicalCardRenderData
             ->map(function (array $element) use ($fields, $scaleX, $scaleY) {
                 $type = (string) ($element['type'] ?? 'text');
                 $source = (string) ($element['source'] ?? '');
+                $fieldValue = $source !== '' ? self::resolveFieldValue($fields, $source) : null;
                 $displayText = in_array($type, ['field', 'qr'], true)
-                    ? self::resolveFieldDisplayText($fields, $source)
+                    ? (($fieldValue !== null && $fieldValue !== '') ? $fieldValue : '{{ ' . ($source ?: 'veld') . ' }}')
                     : (($element['text'] ?? '') !== '' ? (string) $element['text'] : (string) ($element['label'] ?? ''));
 
                 $fit = $element['fit'] ?? ($type === 'logo' ? 'contain' : 'cover');
@@ -93,10 +94,11 @@ class PhysicalCardRenderData
 
         if ($type === PhysicalCard::TYPE_STAFF) {
             $staff = $card->staffHolder;
+            $nameFields = self::resolveNameFields($staff, $card->label ?: 'Staff badge');
             $fields = [
-                'full_name' => $staff?->name ?: ($card->label ?: 'Staff badge'),
-                'first_name' => self::firstName($staff?->name),
-                'last_name' => self::lastName($staff?->name),
+                'full_name' => $nameFields['full_name'],
+                'first_name' => $nameFields['first_name'],
+                'last_name' => $nameFields['last_name'],
                 'role' => $staff?->is_admin ? 'Admin' : 'Medewerker',
                 'badge_number' => $card->internal_reference ?: ('S-' . str_pad((string) $card->id, 5, '0', STR_PAD_LEFT)),
                 'rfid_uid' => $card->rfid_uid,
@@ -107,11 +109,11 @@ class PhysicalCardRenderData
 
         if ($type === PhysicalCard::TYPE_MEMBER) {
             $member = $card->memberHolder;
-            $fullName = trim(implode(' ', array_filter([$member?->first_name, $member?->last_name])));
+            $nameFields = self::resolveNameFields($member, $card->label ?: 'Member badge');
             $fields = [
-                'full_name' => $fullName ?: ($card->label ?: 'Member badge'),
-                'first_name' => $member?->first_name ?: self::firstName($fullName),
-                'last_name' => $member?->last_name ?: self::lastName($fullName),
+                'full_name' => $nameFields['full_name'],
+                'first_name' => $nameFields['first_name'],
+                'last_name' => $nameFields['last_name'],
                 'membership_type' => 'Member',
                 'badge_number' => $card->internal_reference ?: ('M-' . str_pad((string) $card->id, 5, '0', STR_PAD_LEFT)),
                 'valid_until' => '—',
@@ -141,57 +143,53 @@ class PhysicalCardRenderData
     }
 
 
-    private static function resolveFieldDisplayText(array $fields, string $source): string
+    private static function resolveFieldValue(array $fields, string $source): ?string
     {
-        $value = self::resolveFieldValue($fields, $source);
+        $value = $fields[$source] ?? null;
 
-        if ($value === null) {
-            return '{{ ' . ($source ?: 'veld') . ' }}';
+        if ($value !== null && trim((string) $value) !== '') {
+            return (string) $value;
         }
 
-        $value = trim((string) $value);
+        $fullName = trim((string) ($fields['full_name'] ?? ''));
 
-        return $value !== '' ? $value : '{{ ' . ($source ?: 'veld') . ' }}';
+        return match ($source) {
+            'full_name' => $fullName !== ''
+                ? $fullName
+                : (trim(implode(' ', array_filter([$fields['first_name'] ?? null, $fields['last_name'] ?? null]))) ?: null),
+            'first_name' => ($fields['first_name'] ?? null) ?: self::firstName($fullName),
+            'last_name' => ($fields['last_name'] ?? null) ?: self::lastName($fullName),
+            default => null,
+        };
     }
 
-    private static function resolveFieldValue(array $fields, string $source): mixed
+    private static function resolveNameFields(object|null $holder, string $fallbackFullName = ''): array
     {
-        $source = trim($source);
+        $firstName = trim((string) data_get($holder, 'first_name', ''));
+        $lastName = trim((string) data_get($holder, 'last_name', ''));
+        $fullName = trim(implode(' ', array_filter([$firstName, $lastName])));
 
-        if ($source === '') {
-            return null;
+        if ($fullName === '') {
+            $fullName = trim((string) data_get($holder, 'name', ''));
         }
 
-        if (array_key_exists($source, $fields) && $fields[$source] !== null && trim((string) $fields[$source]) !== '') {
-            return $fields[$source];
+        if ($fullName === '') {
+            $fullName = trim((string) $fallbackFullName);
         }
 
-        $fullName = trim((string) ($fields['full_name'] ?? $fields['name'] ?? ''));
-        $firstName = trim((string) ($fields['first_name'] ?? ''));
-        $lastName = trim((string) ($fields['last_name'] ?? ''));
-
-        if ($source === 'full_name') {
-            $combined = trim(implode(' ', array_filter([$firstName, $lastName])));
-            return $fullName !== '' ? $fullName : ($combined !== '' ? $combined : null);
+        if ($firstName === '') {
+            $firstName = self::firstName($fullName);
         }
 
-        if ($source === 'first_name') {
-            if ($firstName !== '') {
-                return $firstName;
-            }
-
-            return self::firstName($fullName);
+        if ($lastName === '') {
+            $lastName = self::lastName($fullName);
         }
 
-        if ($source === 'last_name') {
-            if ($lastName !== '') {
-                return $lastName;
-            }
-
-            return self::lastName($fullName);
-        }
-
-        return $fields[$source] ?? null;
+        return [
+            'full_name' => $fullName,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+        ];
     }
 
     private static function scale(mixed $value, float $factor): int
