@@ -102,7 +102,7 @@
                             <div class="mb-3 flex items-center justify-between gap-3">
                                 <div>
                                     <div class="text-sm font-semibold text-white">Kaart preview</div>
-                                    <div class="mt-1 text-xs text-slate-400">De PNG hieronder wordt gebruikt voor PDF en afdruk.</div>
+                                    <div class="mt-1 text-xs text-slate-400">Download de PNG hieronder en druk ze daarna handmatig af voor het meest exacte resultaat.</div>
                                 </div>
                                 <span class="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300">{{ store.selectedCard.label || defaultLabel(store.selectedCard) }}</span>
                             </div>
@@ -145,7 +145,7 @@
 
                     <div class="border-t border-slate-800 p-4">
                         <div class="flex flex-wrap justify-end gap-3">
-                            <button type="button" class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 disabled:opacity-50" :disabled="!store.selectedCard || store.printing" @click="handlePrint">{{ store.printing ? 'PDF openen...' : 'Afdrukken' }}</button>
+                            <button type="button" class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 disabled:opacity-50" :disabled="!store.selectedCard || store.printing" @click="handlePrint">{{ store.printing ? 'PNG downloaden...' : 'PNG downloaden' }}</button>
                             <button type="button" class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 disabled:opacity-50" :disabled="!store.selectedCard" @click="openEdit">Bewerken</button>
                             <button type="button" class="rounded-2xl border border-rose-700/70 bg-rose-950/40 px-4 py-3 text-sm font-semibold text-rose-200 disabled:opacity-50" :disabled="!store.selectedCard || store.deleting" @click="removeSelected">{{ store.deleting ? 'Verwijderen...' : 'Verwijderen' }}</button>
                         </div>

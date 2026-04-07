@@ -250,7 +250,7 @@ class PhysicalCardController extends Controller
             'data' => [
                 'card' => $this->transformCard($card),
                 'pdf_url' => url('/api/backoffice/cards/' . $card->id . '/pdf'),
-                'print_url' => url('/backoffice/cards/' . $card->id . '/print'),
+                'print_url' => null,
             ],
         ]);
     }
@@ -418,8 +418,8 @@ class PhysicalCardController extends Controller
             'last_voucher_code' => $card->lastGiftVoucher?->code,
             'preview_image_url' => $card->render_image_path ? Storage::disk('public')->url($card->render_image_path) . '?v=' . urlencode((string) optional($card->updated_at)->timestamp) : null,
             'render_image_path' => $card->render_image_path,
+            'render_image_download_name' => 'card-' . $card->id . '.png',
             'pdf_url' => $card->render_image_path ? url('/api/backoffice/cards/' . $card->id . '/pdf') : null,
-            'print_url' => url('/backoffice/cards/' . $card->id . '/print'),
             'updated_at_label' => optional($card->updated_at)->format('d/m/Y H:i'),
             'render_template' => $renderData['template'] ?? null,
             'render_fields' => $renderData['fields'] ?? null,
