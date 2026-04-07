@@ -204,12 +204,12 @@ export const useCardsStore = defineStore('backofficeCards', {
                 }
 
                 const response = await axios.post(`/api/backoffice/cards/${cardId}/mark-printed`)
-                const pdfUrl = response.data?.data?.pdf_url || `/api/backoffice/cards/${cardId}/pdf`
+                const printUrl = response.data?.data?.print_url || selected?.print_url || `/backoffice/cards/${cardId}/print`
 
                 if (printWindow) {
-                    printWindow.location.href = pdfUrl
+                    printWindow.location.href = printUrl
                 } else if (typeof window !== 'undefined') {
-                    window.open(pdfUrl, '_blank', 'noopener,noreferrer')
+                    window.open(printUrl, '_blank', 'noopener,noreferrer')
                 }
 
                 await this.fetchCards()
