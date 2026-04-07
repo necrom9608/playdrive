@@ -31,7 +31,7 @@ class PhysicalCardRenderData
                 $type = (string) ($element['type'] ?? 'text');
                 $source = (string) ($element['source'] ?? '');
                 $fieldValue = $source !== '' ? ($fields[$source] ?? null) : null;
-                $displayText = $type === 'field'
+                $displayText = in_array($type, ['field', 'qr'], true)
                     ? ($fieldValue ?: '{{ ' . ($source ?: 'veld') . ' }}')
                     : (($element['text'] ?? '') !== '' ? (string) $element['text'] : (string) ($element['label'] ?? ''));
 
@@ -116,6 +116,7 @@ class PhysicalCardRenderData
                 'membership_type' => 'Member',
                 'badge_number' => $card->internal_reference ?: ('M-' . str_pad((string) $card->id, 5, '0', STR_PAD_LEFT)),
                 'valid_until' => '—',
+                'rfid_uid' => $card->rfid_uid,
             ];
 
             return [$card->badgeTemplate, $fields];

@@ -1,9 +1,9 @@
 <template>
-    <div class="space-y-4">
+    <div class="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
         <div>
             <h1 class="text-3xl font-bold text-white">Badge creator</h1>
             <p class="mt-2 max-w-3xl text-slate-400">
-                Bouw staff-, member- en vouchertemplates visueel op, vertrek van een starttemplate en sla tenant-specifieke ontwerpen op voor later gebruik.
+                Bouw personeel-, leden- en cadeaubontemplates visueel op en sla tenant-specifieke ontwerpen op voor later gebruik.
             </p>
         </div>
 
@@ -15,12 +15,11 @@
             {{ successMessage }}
         </div>
 
-        <div class="grid h-[calc(100vh-13rem)] min-h-[720px] gap-6 xl:grid-cols-[320px_minmax(0,1fr)_360px] overflow-hidden">
+        <div class="grid min-h-0 flex-1 items-stretch gap-6 xl:grid-cols-[320px_minmax(0,1fr)_360px] overflow-hidden">
             <BadgeTemplateSidebar
                 :filters="typeFilters"
                 :active-filter="activeTypeFilter"
-                :presets="filteredPresets"
-                :saved-templates="filteredSavedTemplates"
+                                :saved-templates="filteredSavedTemplates"
                 :loading="loading"
                 :current-template-id="editorMeta.id"
                 :current-source-id="editorMeta.sourceId"
@@ -28,23 +27,24 @@
                 @refresh="loadTemplates"
                 @update:active-filter="activeTypeFilter = $event"
                 @create-template="createBlankTemplate"
-                @load-preset="loadPreset"
                 @load-saved-template="loadSavedTemplate"
-                @add-element="addElement"
             />
 
             <BadgeCanvasWorkspace
                 :template="editorTemplate"
                 :selected-element-id="selectedElementId"
                 :sample-data="sampleDataForType"
-                :is-preset="editorMeta.isPreset"
                 :has-stored-template="!!editorMeta.id"
                 :saving="saving"
+                :element-tools="elementTools"
                 @duplicate="duplicateCurrent"
                 @reset="resetToBlank"
+                @delete="deleteCurrentTemplate"
                 @save="saveTemplate"
+                @add-element="addElement"
                 @select-element="selectElement"
                 @update-element-position="updateElementPosition"
+                @update-element-bounds="updateElementBounds"
             />
 
             <BadgePropertiesPanel
@@ -54,17 +54,6 @@
                 :sample-data="sampleDataForType"
                 @remove-selected="removeSelectedElement"
             />
-        </div>
-
-        <div class="flex items-center justify-end gap-3">
-            <button
-                v-if="editorMeta.id"
-                type="button"
-                class="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/20"
-                @click="deleteCurrentTemplate"
-            >
-                Template verwijderen
-            </button>
         </div>
     </div>
 </template>
@@ -82,7 +71,6 @@ import {
     createEditorTemplate,
     elementTools,
     fieldCatalog,
-    presets,
     sampleData,
     typeFilters,
     uid,
@@ -94,14 +82,13 @@ const saving = ref(false)
 const error = ref('')
 const successMessage = ref('')
 const savedTemplates = ref([])
-const activeTypeFilter = ref('all')
+const activeTypeFilter = ref('staff')
 const selectedElementId = ref(null)
 
 const editorTemplate = ref(createEditorTemplate(blankTemplate('staff')))
 const editorMeta = ref({ id: null, isPreset: true, sourceId: null })
 
-const filteredPresets = computed(() => presets.filter(template => activeTypeFilter.value === 'all' || template.template_type === activeTypeFilter.value))
-const filteredSavedTemplates = computed(() => savedTemplates.value.filter(template => activeTypeFilter.value === 'all' || template.template_type === activeTypeFilter.value))
+const filteredSavedTemplates = computed(() => savedTemplates.value.filter(template => template.template_type === activeTypeFilter.value))
 const selectedElement = computed(() => editorTemplate.value.config_json.elements.find(element => element.id === selectedElementId.value) || null)
 const availableFields = computed(() => fieldCatalog[editorTemplate.value.template_type] ?? [])
 const sampleDataForType = computed(() => sampleData[editorTemplate.value.template_type] ?? {})
@@ -154,16 +141,6 @@ function createBlankTemplate(type) {
 
 function resetToBlank() {
     createBlankTemplate(editorTemplate.value.template_type || 'staff')
-}
-
-function loadPreset(preset) {
-    editorTemplate.value = createEditorTemplate({
-        ...preset,
-        name: `${preset.name}`,
-    })
-    editorMeta.value = { id: null, isPreset: true, sourceId: preset.id }
-    selectedElementId.value = editorTemplate.value.config_json.elements[0]?.id ?? null
-    successMessage.value = ''
 }
 
 function loadSavedTemplate(template) {
@@ -223,6 +200,19 @@ function updateElementPosition({ id, x, y }) {
 
     element.x = clamp(x, 0, editorTemplate.value.config_json.width - element.width)
     element.y = clamp(y, 0, editorTemplate.value.config_json.height - element.height)
+}
+
+
+function updateElementBounds({ id, x, y, width, height }) {
+    const element = editorTemplate.value.config_json.elements.find(item => item.id === id)
+    if (!element) {
+        return
+    }
+
+    element.x = clamp(x, 0, editorTemplate.value.config_json.width - width)
+    element.y = clamp(y, 0, editorTemplate.value.config_json.height - height)
+    element.width = Math.max(24, Math.min(width, editorTemplate.value.config_json.width - element.x))
+    element.height = Math.max(24, Math.min(height, editorTemplate.value.config_json.height - element.y))
 }
 
 function removeSelectedElement() {

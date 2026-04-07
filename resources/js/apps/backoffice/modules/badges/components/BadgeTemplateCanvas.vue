@@ -1,41 +1,39 @@
 <template>
     <div class="flex h-full min-h-0 flex-col gap-4">
-        <div class="flex items-center justify-between gap-3">
-            <div>
-                <h3 class="text-lg font-semibold text-white">Live preview</h3>
-                <p class="mt-1 text-sm text-slate-400">Sleep elementen op de badge en verfijn hun eigenschappen rechts.</p>
-            </div>
-
-            <div class="flex items-center gap-2 text-xs text-slate-400">
-                <span class="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5">{{ template.width }} × {{ template.height }}</span>
-                <span class="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5">safe zone zichtbaar</span>
-            </div>
+        <div class="flex items-center justify-end gap-2">
+            <button type="button" class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-700 bg-slate-950/80 text-slate-200 transition hover:border-slate-600 hover:bg-slate-800" @click="zoomOut">
+                <MinusIcon class="h-4 w-4" />
+            </button>
+            <button type="button" class="min-w-[5rem] rounded-2xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-600 hover:bg-slate-800" @click="resetZoom">
+                {{ Math.round(zoom * 100) }}%
+            </button>
+            <button type="button" class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-700 bg-slate-950/80 text-slate-200 transition hover:border-slate-600 hover:bg-slate-800" @click="zoomIn">
+                <PlusIcon class="h-4 w-4" />
+            </button>
+            <button type="button" class="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-950/80 px-3 text-sm font-semibold text-slate-200 transition hover:border-slate-600 hover:bg-slate-800" @click="fitToWorkspace">
+                <ArrowsPointingOutIcon class="h-4 w-4" />
+                Passend
+            </button>
         </div>
 
-        <div class="flex min-h-0 flex-1 items-center justify-center rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
-            <div ref="viewportRef" class="mx-auto w-full max-w-[860px]">
+        <div ref="workspaceRef" class="relative flex min-h-0 flex-1 items-center justify-center overflow-auto rounded-3xl border border-slate-800 bg-slate-950/70 p-6" @wheel.prevent="handleWheelZoom">
+            <div class="pointer-events-none absolute inset-0" :style="workspaceGridStyle" />
+
+            <div class="relative flex items-center justify-center" :style="scaledStageBoundsStyle">
                 <div
-                    class="relative w-full overflow-hidden rounded-[28px] border border-slate-700 bg-slate-900 shadow-2xl"
+                    ref="viewportRef"
+                    class="absolute left-1/2 top-1/2 overflow-visible rounded-[28px] border border-slate-700 bg-slate-900 shadow-[0_18px_40px_rgba(2,6,23,0.28)]"
                     :style="viewportStyle"
                     @pointermove="handlePointerMove"
-                    @pointerup="stopDragging"
-                    @pointerleave="stopDragging"
+                    @pointerup="stopInteraction"
+                    @pointerleave="stopInteraction"
                 >
-                    <div class="absolute inset-0 opacity-40" :style="gridStyle" />
-
-                    <div
-                        class="pointer-events-none absolute border border-dashed border-slate-500/70"
-                        :style="safeZoneStyle"
-                    />
-
-                    <div class="absolute inset-0" :style="canvasStyle">
+                    <div class="absolute inset-0 overflow-hidden rounded-[28px]" :style="canvasStyle">
                         <div
                             v-for="element in orderedElements"
                             :key="element.id"
-                            class="absolute cursor-move overflow-hidden border transition"
-                            :class="selectedElementId === element.id
-                                ? 'border-sky-400 ring-2 ring-sky-500/40'
-                                : 'border-transparent hover:border-slate-400/50'"
+                            class="absolute overflow-visible border transition"
+                            :class="selectedElementId === element.id ? 'border-sky-400 ring-2 ring-sky-500/40' : 'border-transparent hover:border-slate-400/50'"
                             :style="elementStyle(element)"
                             @pointerdown.stop.prevent="startDragging($event, element)"
                             @click.stop="$emit('select', element.id)"
@@ -54,14 +52,17 @@
                             </template>
 
                             <template v-else-if="element.type === 'qr'">
-                                <div class="flex h-full w-full items-center justify-center" :style="mediaStyle(element)">
-                                    <div class="grid h-[72%] w-[72%] grid-cols-5 gap-1">
+                                <div class="flex h-full w-full flex-col items-center justify-center gap-2 overflow-hidden px-3 py-3" :style="mediaStyle(element)">
+                                    <div class="grid h-[62%] w-[62%] grid-cols-5 gap-1">
                                         <div
                                             v-for="index in 25"
                                             :key="index"
                                             class="rounded-sm"
                                             :class="index % 2 === 0 || index % 5 === 0 ? 'bg-slate-950' : 'bg-white'"
                                         />
+                                    </div>
+                                    <div class="w-full truncate text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700">
+                                        {{ qrPreviewText(element) }}
                                     </div>
                                 </div>
                             </template>
@@ -70,6 +71,17 @@
                                 <div :style="textStyle(element)">
                                     {{ displayText(element) }}
                                 </div>
+                            </template>
+
+                            <template v-if="selectedElementId === element.id">
+                                <button
+                                    v-for="handle in resizeHandles"
+                                    :key="handle.position"
+                                    type="button"
+                                    class="absolute h-3.5 w-3.5 rounded-sm border border-white bg-sky-500 shadow"
+                                    :style="resizeHandleStyle(handle.position)"
+                                    @pointerdown.stop.prevent="startResizing($event, element, handle.position)"
+                                />
                             </template>
                         </div>
                     </div>
@@ -80,8 +92,11 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { resolveImageUrl } from '../utils/badgeEditor'
+import { ArrowsPointingOutIcon, MinusIcon, PlusIcon } from '@heroicons/vue/24/outline'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { clamp, resolveImageUrl } from '../utils/badgeEditor'
+
+const MIN_ELEMENT_SIZE = 24
 
 const props = defineProps({
     template: {
@@ -98,19 +113,26 @@ const props = defineProps({
     },
 })
 
-const emit = defineEmits(['select', 'update:position'])
+const emit = defineEmits(['select', 'update:position', 'update:bounds'])
 
+const workspaceRef = ref(null)
 const viewportRef = ref(null)
-const dragState = ref(null)
+const interactionState = ref(null)
+const zoom = ref(0.75)
+const resizeHandles = [
+    { position: 'nw' },
+    { position: 'n' },
+    { position: 'ne' },
+    { position: 'e' },
+    { position: 'se' },
+    { position: 's' },
+    { position: 'sw' },
+    { position: 'w' },
+]
 
 const orderedElements = computed(() => {
     return [...(props.template.elements ?? [])].sort((left, right) => (left.zIndex ?? 1) - (right.zIndex ?? 1))
 })
-
-const viewportStyle = computed(() => ({
-    aspectRatio: `${props.template.width} / ${props.template.height}`,
-}))
-
 
 const backgroundImageSource = computed(() => resolveImageUrl(props.template.backgroundImagePath, props.template.backgroundImageUrl))
 
@@ -122,55 +144,181 @@ const canvasStyle = computed(() => ({
     backgroundRepeat: 'no-repeat',
 }))
 
-const safeZoneStyle = computed(() => ({
-    top: '4.5%',
-    left: '4.5%',
-    right: '4.5%',
-    bottom: '4.5%',
-    borderRadius: '20px',
-}))
-
-const gridStyle = computed(() => ({
+const workspaceGridStyle = computed(() => ({
     backgroundImage: 'linear-gradient(rgba(148,163,184,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.08) 1px, transparent 1px)',
-    backgroundSize: '24px 24px',
+    backgroundSize: '28px 28px',
+    backgroundPosition: 'center center',
 }))
 
-function startDragging(event, element) {
-    const bounds = viewportRef.value?.getBoundingClientRect()
-    if (!bounds) {
+const scaledStageBoundsStyle = computed(() => ({
+    width: `${Math.round(props.template.width * zoom.value)}px`,
+    height: `${Math.round(props.template.height * zoom.value)}px`,
+    minWidth: `${Math.round(props.template.width * zoom.value)}px`,
+    minHeight: `${Math.round(props.template.height * zoom.value)}px`,
+}))
+
+const viewportStyle = computed(() => ({
+    width: `${props.template.width}px`,
+    height: `${props.template.height}px`,
+    transform: `translate(-50%, -50%) scale(${zoom.value})`,
+    transformOrigin: 'center center',
+}))
+
+watch(
+    () => [props.template.width, props.template.height],
+    async () => {
+        await nextTick()
+        fitToWorkspace()
+    }
+)
+
+onMounted(async () => {
+    await nextTick()
+    fitToWorkspace()
+})
+
+function fitToWorkspace() {
+    const workspace = workspaceRef.value
+    if (!workspace) {
         return
     }
 
+    const availableWidth = Math.max(workspace.clientWidth - 56, 240)
+    const availableHeight = Math.max(workspace.clientHeight - 56, 180)
+    const nextZoom = Math.min(1, availableWidth / props.template.width, availableHeight / props.template.height)
+    zoom.value = clamp(Number.isFinite(nextZoom) ? nextZoom : 1, 0.25, 2)
+}
+
+function zoomIn() {
+    zoom.value = clamp(Math.round((zoom.value + 0.1) * 100) / 100, 0.25, 2)
+}
+
+function zoomOut() {
+    zoom.value = clamp(Math.round((zoom.value - 0.1) * 100) / 100, 0.25, 2)
+}
+
+function resetZoom() {
+    zoom.value = 1
+}
+
+function handleWheelZoom(event) {
+    const delta = event.deltaY < 0 ? 0.05 : -0.05
+    zoom.value = clamp(Math.round((zoom.value + delta) * 100) / 100, 0.25, 2)
+}
+
+function startDragging(event, element) {
+    const bounds = viewportRef.value?.getBoundingClientRect()
+    if (!bounds) return
+
     emit('select', element.id)
 
-    dragState.value = {
+    interactionState.value = {
+        mode: 'drag',
         id: element.id,
         startClientX: event.clientX,
         startClientY: event.clientY,
         startX: Number(element.x || 0),
         startY: Number(element.y || 0),
+        startWidth: Number(element.width || 0),
+        startHeight: Number(element.height || 0),
+        scaleX: props.template.width / bounds.width,
+        scaleY: props.template.height / bounds.height,
+    }
+}
+
+function startResizing(event, element, handle) {
+    const bounds = viewportRef.value?.getBoundingClientRect()
+    if (!bounds) return
+
+    emit('select', element.id)
+
+    interactionState.value = {
+        mode: 'resize',
+        handle,
+        id: element.id,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        startX: Number(element.x || 0),
+        startY: Number(element.y || 0),
+        startWidth: Number(element.width || 0),
+        startHeight: Number(element.height || 0),
         scaleX: props.template.width / bounds.width,
         scaleY: props.template.height / bounds.height,
     }
 }
 
 function handlePointerMove(event) {
-    if (!dragState.value) {
+    if (!interactionState.value) return
+
+    if (interactionState.value.mode === 'drag') {
+        handleDragMove(event)
         return
     }
 
-    const deltaX = (event.clientX - dragState.value.startClientX) * dragState.value.scaleX
-    const deltaY = (event.clientY - dragState.value.startClientY) * dragState.value.scaleY
+    handleResizeMove(event)
+}
+
+function handleDragMove(event) {
+    const deltaX = (event.clientX - interactionState.value.startClientX) * interactionState.value.scaleX
+    const deltaY = (event.clientY - interactionState.value.startClientY) * interactionState.value.scaleY
 
     emit('update:position', {
-        id: dragState.value.id,
-        x: Math.max(0, Math.round(dragState.value.startX + deltaX)),
-        y: Math.max(0, Math.round(dragState.value.startY + deltaY)),
+        id: interactionState.value.id,
+        x: Math.max(0, Math.round(interactionState.value.startX + deltaX)),
+        y: Math.max(0, Math.round(interactionState.value.startY + deltaY)),
     })
 }
 
-function stopDragging() {
-    dragState.value = null
+function handleResizeMove(event) {
+    const state = interactionState.value
+    const dx = (event.clientX - state.startClientX) * state.scaleX
+    const dy = (event.clientY - state.startClientY) * state.scaleY
+
+    let x = state.startX
+    let y = state.startY
+    let width = state.startWidth
+    let height = state.startHeight
+
+    if (state.handle.includes('e')) {
+        width = state.startWidth + dx
+    }
+    if (state.handle.includes('s')) {
+        height = state.startHeight + dy
+    }
+    if (state.handle.includes('w')) {
+        width = state.startWidth - dx
+        x = state.startX + dx
+    }
+    if (state.handle.includes('n')) {
+        height = state.startHeight - dy
+        y = state.startY + dy
+    }
+
+    if (width < MIN_ELEMENT_SIZE) {
+        if (state.handle.includes('w')) x -= MIN_ELEMENT_SIZE - width
+        width = MIN_ELEMENT_SIZE
+    }
+    if (height < MIN_ELEMENT_SIZE) {
+        if (state.handle.includes('n')) y -= MIN_ELEMENT_SIZE - height
+        height = MIN_ELEMENT_SIZE
+    }
+
+    x = clamp(Math.round(x), 0, props.template.width - width)
+    y = clamp(Math.round(y), 0, props.template.height - height)
+    width = clamp(Math.round(width), MIN_ELEMENT_SIZE, props.template.width - x)
+    height = clamp(Math.round(height), MIN_ELEMENT_SIZE, props.template.height - y)
+
+    emit('update:bounds', {
+        id: state.id,
+        x,
+        y,
+        width,
+        height,
+    })
+}
+
+function stopInteraction() {
+    interactionState.value = null
 }
 
 function elementStyle(element) {
@@ -183,7 +331,24 @@ function elementStyle(element) {
         borderRadius: `${element.borderRadius ?? 0}px`,
         opacity: element.opacity ?? 1,
         boxSizing: 'border-box',
+        cursor: 'move',
     }
+}
+
+function resizeHandleStyle(position) {
+    const common = { transform: 'translate(-50%, -50%)' }
+    const map = {
+        nw: { left: '0%', top: '0%', cursor: 'nwse-resize' },
+        n: { left: '50%', top: '0%', cursor: 'ns-resize' },
+        ne: { left: '100%', top: '0%', cursor: 'nesw-resize' },
+        e: { left: '100%', top: '50%', cursor: 'ew-resize' },
+        se: { left: '100%', top: '100%', cursor: 'nwse-resize' },
+        s: { left: '50%', top: '100%', cursor: 'ns-resize' },
+        sw: { left: '0%', top: '100%', cursor: 'nesw-resize' },
+        w: { left: '0%', top: '50%', cursor: 'ew-resize' },
+    }
+
+    return { ...common, ...(map[position] || {}) }
 }
 
 function textStyle(element) {
@@ -204,9 +369,9 @@ function textStyle(element) {
         lineHeight: 1.08,
         whiteSpace: 'pre-wrap',
         overflow: 'hidden',
+        borderRadius: `${element.borderRadius ?? 0}px`,
     }
 }
-
 
 function mediaSource(element) {
     return resolveImageUrl(element.imagePath, element.imageUrl)
@@ -234,15 +399,14 @@ function shapeStyle(element) {
 }
 
 function displayText(element) {
-    if (element.type === 'text') {
-        return element.text || 'Tekst'
-    }
-
-    if (element.type === 'field') {
-        return props.sampleData[element.source] || `{{ ${element.source || 'veld'} }}`
-    }
-
+    if (element.type === 'text') return element.text || 'Tekst'
+    if (element.type === 'field') return props.sampleData[element.source] || `{{ ${element.source || 'veld'} }}`
     return element.label || ''
+}
+
+function qrPreviewText(element) {
+    const source = element.source || 'badge_number'
+    return props.sampleData[source] || `{{ ${source} }}`
 }
 
 function mediaLabel(element) {

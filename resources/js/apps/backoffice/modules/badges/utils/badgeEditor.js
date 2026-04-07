@@ -16,10 +16,9 @@ import {
 export const TEMPLATE_TYPES = ['staff', 'member', 'voucher']
 
 export const typeFilters = [
-    { label: 'Alles', value: 'all' },
-    { label: 'Staff', value: 'staff' },
-    { label: 'Member', value: 'member' },
-    { label: 'Voucher', value: 'voucher' },
+    { label: 'Personeel', value: 'staff', icon: BriefcaseIcon },
+    { label: 'Leden', value: 'member', icon: IdentificationIcon },
+    { label: 'Cadeaubonnen', value: 'voucher', icon: BanknotesIcon },
 ]
 
 export const fieldCatalog = {
@@ -38,6 +37,7 @@ export const fieldCatalog = {
         { label: 'Lidmaatschap', value: 'membership_type', icon: ShieldCheckIcon },
         { label: 'Badge nummer', value: 'badge_number', icon: HashtagIcon },
         { label: 'Geldig tot', value: 'valid_until', icon: CalendarDaysIcon },
+        { label: 'RFID UID', value: 'rfid_uid', icon: IdentificationIcon },
     ],
     voucher: [
         { label: 'Titel', value: 'title', icon: DocumentTextIcon },
@@ -46,6 +46,9 @@ export const fieldCatalog = {
         { label: 'Geldig tot', value: 'valid_until', icon: CalendarDaysIcon },
         { label: 'Omschrijving', value: 'description', icon: DocumentTextIcon },
         { label: 'Voorwaarden', value: 'terms', icon: DocumentTextIcon },
+        { label: 'Badge nummer', value: 'badge_number', icon: HashtagIcon },
+        { label: 'RFID UID', value: 'rfid_uid', icon: IdentificationIcon },
+        { label: 'Kaartlabel', value: 'physical_card_label', icon: IdentificationIcon },
     ],
 }
 
@@ -65,6 +68,7 @@ export const sampleData = {
         membership_type: 'Gold Member',
         badge_number: 'M-000842',
         valid_until: '31/12/2026',
+        rfid_uid: '975C2098',
     },
     voucher: {
         title: 'GAME-INN Cadeaubon',
@@ -73,6 +77,9 @@ export const sampleData = {
         valid_until: '31/12/2026',
         description: 'Vrij te gebruiken voor arcade, VR en snacks.',
         terms: 'Niet inwisselbaar voor cash.',
+        badge_number: 'K-000041',
+        rfid_uid: '975C2098',
+        physical_card_label: 'Baliekaart 01',
     },
 }
 
@@ -81,7 +88,6 @@ export const elementTools = [
     { type: 'text', label: 'Tekst', icon: DocumentTextIcon, group: 'static' },
     { type: 'photo', label: 'Foto', icon: PhotoIcon, group: 'dynamic' },
     { type: 'image', label: 'Afbeelding', icon: PhotoIcon, group: 'static' },
-    { type: 'logo', label: 'Logo', icon: ShieldCheckIcon, group: 'static' },
     { type: 'qr', label: 'QR', icon: QrCodeIcon, group: 'dynamic' },
     { type: 'shape', label: 'Vorm', icon: RectangleGroupIcon, group: 'static' },
 ]
@@ -89,9 +95,9 @@ export const elementTools = [
 export function blankTemplate(type) {
     const safeType = TEMPLATE_TYPES.includes(type) ? type : 'staff'
     const labels = {
-        staff: 'Nieuwe staff template',
-        member: 'Nieuwe member template',
-        voucher: 'Nieuwe voucher template',
+        staff: 'Nieuwe personeel template',
+        member: 'Nieuwe leden template',
+        voucher: 'Nieuwe cadeaubon template',
     }
 
     const accentColor = safeType === 'member' ? '#7c3aed' : safeType === 'voucher' ? '#f59e0b' : '#2563eb'
@@ -100,6 +106,7 @@ export function blankTemplate(type) {
     const secondField = safeType === 'member' ? 'membership_type' : safeType === 'voucher' ? 'voucher_value' : null
     const secondText = safeType === 'member' ? null : safeType === 'voucher' ? null : 'STAFF'
     const secondLabel = safeType === 'member' ? 'Lidmaatschap' : safeType === 'voucher' ? 'Waarde' : 'Label'
+    const qrSource = safeType === 'voucher' ? 'voucher_code' : safeType === 'member' ? 'badge_number' : 'rfid_uid'
 
     return {
         name: labels[safeType],
@@ -118,7 +125,7 @@ export function blankTemplate(type) {
                 { id: uid(), type: 'shape', label: 'Accent', x: 0, y: 0, width: 1016, height: 110, backgroundColor: accentColor, borderRadius: 0, opacity: 1, zIndex: 1 },
                 { id: uid(), type: safeType === 'voucher' ? 'field' : 'field', label: safeType === 'voucher' ? 'Titel' : 'Naam', source: firstField, x: 60, y: 160, width: 680, height: 90, color: '#ffffff', backgroundColor: 'transparent', fontSize: 52, fontWeight: 800, borderRadius: 0, textAlign: 'left', opacity: 1, zIndex: 2 },
                 { id: uid(), type: secondField ? 'field' : 'text', label: secondLabel, source: secondField, text: secondText, x: 62, y: 270, width: 360, height: 52, color: '#e2e8f0', backgroundColor: 'transparent', fontSize: 26, fontWeight: 700, borderRadius: 0, textAlign: 'left', opacity: 1, zIndex: 2 },
-                { id: uid(), type: 'qr', label: 'QR', x: 812, y: 416, width: 150, height: 150, backgroundColor: '#ffffff', borderRadius: 24, opacity: 1, zIndex: 2 },
+                { id: uid(), type: 'qr', label: 'QR', source: qrSource, x: 812, y: 416, width: 150, height: 150, backgroundColor: '#ffffff', borderRadius: 24, opacity: 1, zIndex: 2 },
             ],
         },
     }
@@ -147,15 +154,16 @@ export function createConfigClone(config) {
         imagePath: element.imagePath || '',
         imageUrl: element.imageUrl || '',
         fit: element.fit || (element.type === 'logo' ? 'contain' : 'cover'),
+        source: element.source || ((element.type === 'qr') ? 'badge_number' : ''),
     }))
 
     return clone
 }
 
 export function typeLabel(value) {
-    if (value === 'member') return 'Member'
-    if (value === 'voucher') return 'Voucher'
-    return 'Staff'
+    if (value === 'member') return 'Leden'
+    if (value === 'voucher') return 'Cadeaubonnen'
+    return 'Personeel'
 }
 
 export function uid() {
