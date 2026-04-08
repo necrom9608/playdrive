@@ -165,7 +165,7 @@ class OrderService
                 throw new InvalidArgumentException('Niet alle producten van deze bestelling zijn geldig voor de huidige tenant.');
             }
 
-            $paymentMethod = (string) Arr::get($payload, 'payment_method', 'cash');
+            $paymentMethod = (string) Arr::get($payload, 'payment_method', 'bancontact');
             $notes = Arr::get($payload, 'notes');
 
             return DB::transaction(function () use ($payload, $currentTenant, $registration, $paymentMethod, $notes, $source, $itemsPayload, $products, $actorUserId) {
@@ -268,7 +268,7 @@ class OrderService
 
             $order->update([
                 'status' => Order::STATUS_PAID,
-                'payment_method' => (string) Arr::get($payload, 'payment_method', 'cash'),
+                'payment_method' => (string) Arr::get($payload, 'payment_method', 'bancontact'),
                 'paid_at' => now(),
                 'paid_by' => $actorUserId,
                 'updated_by' => $actorUserId,

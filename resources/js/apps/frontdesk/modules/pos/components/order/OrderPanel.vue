@@ -108,7 +108,7 @@
         />
 
         <Teleport to="body">
-            <div v-if="showReceiptEmailModal" class="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <div v-if="showReceiptEmailModal" class="fixed inset-0 z-[160] flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-slate-950/80" @click="closeReceiptEmailModal" />
 
                 <div class="relative z-10 w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
@@ -156,7 +156,7 @@ const store = usePosStore()
 const listContainer = ref(null)
 const showCheckoutModal = ref(false)
 const showReceiptEmailModal = ref(false)
-const paymentMethod = ref('cash')
+const paymentMethod = ref('bancontact')
 const invoiceRequested = ref(false)
 const voucherCode = ref('')
 const note = ref('')
@@ -174,7 +174,7 @@ function formatPrice(value) {
 }
 
 function resetCheckoutState() {
-    paymentMethod.value = 'cash'
+    paymentMethod.value = 'bancontact'
     invoiceRequested.value = Boolean(store.selectedReservation?.invoice_requested ?? false)
     voucherCode.value = ''
     note.value = ''

@@ -373,7 +373,7 @@ const props = defineProps({
     },
     paymentMethodModel: {
         type: String,
-        default: 'cash',
+        default: 'bancontact',
     },
     invoiceRequestedModel: {
         type: Boolean,

@@ -152,5 +152,25 @@ export const useSalesStore = defineStore('sales', {
                 return false
             }
         },
+
+        async sendReceiptForSelectedOrder(email) {
+            if (!this.selectedOrder?.id) {
+                return false
+            }
+
+            this.error = null
+
+            try {
+                await axios.post(`/api/frontdesk/orders/${this.selectedOrder.id}/send-receipt`, {
+                    email,
+                })
+
+                return true
+            } catch (error) {
+                console.error('Failed to send receipt', error)
+                this.error = error?.response?.data?.message ?? 'Verzenden van de bon mislukte.'
+                throw error
+            }
+        },
     },
 })

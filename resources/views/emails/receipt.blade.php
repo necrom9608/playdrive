@@ -15,7 +15,8 @@
 
             <h1 style="margin:0 0 8px;font-size:22px;line-height:1.2;">{{ $receipt['meta']['tenant_name'] }}</h1>
             @if(!empty($receipt['meta']['address']))<div style="font-size:14px;color:#475569;">{{ $receipt['meta']['address'] }}</div>@endif
-            @if(!empty($receipt['meta']['phone']))<div style="font-size:14px;color:#475569;">{{ $receipt['meta']['phone'] }}</div>@endif
+            @if(!empty($receipt['meta']['phone']))<div style="font-size:14px;color:#475569;">Tel: {{ $receipt['meta']['phone'] }}</div>@endif
+            @if(!empty($receipt['meta']['email']))<div style="font-size:14px;color:#475569;">{{ $receipt['meta']['email'] }}</div>@endif
             @if(!empty($receipt['meta']['vat']))<div style="font-size:14px;color:#475569;">BTW: {{ $receipt['meta']['vat'] }}</div>@endif
         </div>
 
