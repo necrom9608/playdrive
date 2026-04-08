@@ -10,24 +10,38 @@
                 <div class="mt-1 text-lg font-bold text-white">#{{ store.selectedOrder.id }}</div>
             </div>
 
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div class="grid gap-3 sm:grid-cols-2">
                 <button
                     type="button"
-                    class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    :disabled="!store.selectedOrder?.id"
-                    @click="printReceipt"
+                    class="inline-flex items-center justify-center rounded-2xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm font-semibold text-sky-100 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    :disabled="receiptActionLoading"
+                    @click="handlePrintReceipt"
                 >
                     DRUK BON
                 </button>
 
                 <button
                     type="button"
-                    class="rounded-2xl border border-blue-500/40 bg-blue-500/10 px-4 py-3 text-sm font-semibold text-blue-100 transition hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                    :disabled="!store.selectedOrder?.id || sendingReceipt"
-                    @click="openEmailModal"
+                    class="inline-flex items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    :disabled="receiptActionLoading"
+                    @click="openReceiptEmailModal"
                 >
                     MAIL BON
                 </button>
+            </div>
+
+            <div
+                v-if="receiptActionMessage"
+                class="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100"
+            >
+                {{ receiptActionMessage }}
+            </div>
+
+            <div
+                v-if="receiptActionError"
+                class="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100"
+            >
+                {{ receiptActionError }}
             </div>
 
             <div class="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-2">
@@ -96,78 +110,83 @@
         </div>
     </div>
 
-    <div
-        v-if="showEmailModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
-        @click.self="closeEmailModal"
-    >
-        <div class="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
-            <div class="flex items-start justify-between gap-4">
-                <div>
-                    <h3 class="text-lg font-semibold text-white">Bon via e-mail verzenden</h3>
-                    <p class="mt-1 text-sm text-slate-400">Geef het e-mailadres in voor order #{{ store.selectedOrder?.id }}.</p>
+    <teleport to="body">
+        <div
+            v-if="receiptEmailModalOpen"
+            class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/80 px-4"
+            @click.self="closeReceiptEmailModal"
+        >
+            <div class="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">Bon mailen</h3>
+                        <p class="mt-1 text-sm text-slate-400">Geef het e-mailadres in voor bon #{{ store.selectedOrder?.id }}.</p>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="rounded-xl border border-slate-700 px-3 py-1.5 text-sm text-slate-300 transition hover:bg-slate-800"
+                        @click="closeReceiptEmailModal"
+                    >
+                        Sluiten
+                    </button>
                 </div>
 
-                <button
-                    type="button"
-                    class="rounded-xl border border-slate-700 px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-800"
-                    @click="closeEmailModal"
-                >
-                    Sluiten
-                </button>
-            </div>
+                <div class="mt-5 space-y-3">
+                    <label class="block text-sm font-medium text-slate-200" for="sales-receipt-email">
+                        E-mailadres
+                    </label>
+                    <input
+                        id="sales-receipt-email"
+                        v-model="receiptEmail"
+                        type="email"
+                        class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-500"
+                        placeholder="naam@voorbeeld.be"
+                        @keydown.enter.prevent="confirmReceiptEmail"
+                    >
 
-            <div class="mt-5">
-                <label class="mb-2 block text-sm font-medium text-slate-200">E-mailadres</label>
-                <input
-                    v-model="receiptEmail"
-                    type="email"
-                    class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
-                    placeholder="naam@voorbeeld.be"
-                    @keydown.enter.prevent="sendReceiptEmail"
-                >
-                <p v-if="receiptEmailError" class="mt-3 text-sm text-rose-300">{{ receiptEmailError }}</p>
-            </div>
+                    <p v-if="receiptEmailError" class="text-sm text-rose-300">
+                        {{ receiptEmailError }}
+                    </p>
+                </div>
 
-            <div class="mt-6 flex justify-end gap-3">
-                <button
-                    type="button"
-                    class="rounded-2xl border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:bg-slate-800"
-                    :disabled="sendingReceipt"
-                    @click="closeEmailModal"
-                >
-                    Annuleren
-                </button>
-                <button
-                    type="button"
-                    class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-                    :disabled="sendingReceipt"
-                    @click="sendReceiptEmail"
-                >
-                    {{ sendingReceipt ? 'Verzenden...' : 'Verzenden' }}
-                </button>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button
+                        type="button"
+                        class="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-800"
+                        :disabled="receiptActionLoading"
+                        @click="closeReceiptEmailModal"
+                    >
+                        Annuleren
+                    </button>
+
+                    <button
+                        type="button"
+                        class="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                        :disabled="receiptActionLoading"
+                        @click="confirmReceiptEmail"
+                    >
+                        {{ receiptActionLoading ? 'Verzenden...' : 'Verzenden' }}
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
+    </teleport>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
+import axios from '@/lib/http'
 import { useSalesStore } from '../stores/useSalesStore.js'
 
 const store = useSalesStore()
 
-const showEmailModal = ref(false)
+const receiptActionLoading = ref(false)
+const receiptActionError = ref('')
+const receiptActionMessage = ref('')
+const receiptEmailModalOpen = ref(false)
 const receiptEmail = ref('')
 const receiptEmailError = ref('')
-const sendingReceipt = ref(false)
-
-watch(() => store.selectedOrder?.id, () => {
-    receiptEmail.value = store.selectedOrder?.registration?.email ?? ''
-    receiptEmailError.value = ''
-    showEmailModal.value = false
-    sendingReceipt.value = false
-})
 
 function formatPrice(value) {
     return new Intl.NumberFormat('nl-BE', {
@@ -176,47 +195,102 @@ function formatPrice(value) {
     }).format(Number(value ?? 0))
 }
 
-function printReceipt() {
-    if (!store.selectedOrder?.id) {
+function resetReceiptFeedback() {
+    receiptActionError.value = ''
+    receiptActionMessage.value = ''
+}
+
+function openReceiptEmailModal() {
+    resetReceiptFeedback()
+    receiptEmailError.value = ''
+    receiptEmail.value = ''
+    receiptEmailModalOpen.value = true
+}
+
+function closeReceiptEmailModal() {
+    if (receiptActionLoading.value) {
         return
     }
 
-    window.open(`/api/frontdesk/orders/${store.selectedOrder.id}/receipt`, '_blank', 'noopener,noreferrer')
-}
-
-function openEmailModal() {
-    receiptEmail.value = store.selectedOrder?.registration?.email ?? receiptEmail.value ?? ''
+    receiptEmailModalOpen.value = false
     receiptEmailError.value = ''
-    showEmailModal.value = true
 }
 
-function closeEmailModal() {
-    if (sendingReceipt.value) {
+function printInHiddenIframe(url) {
+    const iframe = document.createElement('iframe')
+    iframe.style.position = 'fixed'
+    iframe.style.right = '0'
+    iframe.style.bottom = '0'
+    iframe.style.width = '0'
+    iframe.style.height = '0'
+    iframe.style.border = '0'
+    iframe.setAttribute('aria-hidden', 'true')
+    iframe.src = url
+
+    const cleanup = () => {
+        window.setTimeout(() => {
+            iframe.remove()
+        }, 1000)
+    }
+
+    iframe.onload = () => {
+        const frameWindow = iframe.contentWindow
+
+        if (!frameWindow) {
+            cleanup()
+            return
+        }
+
+        window.setTimeout(() => {
+            frameWindow.focus()
+            cleanup()
+        }, 250)
+    }
+
+    document.body.appendChild(iframe)
+}
+
+function handlePrintReceipt() {
+    const orderId = store.selectedOrder?.id
+
+    if (!orderId || receiptActionLoading.value) {
         return
     }
 
-    showEmailModal.value = false
-    receiptEmailError.value = ''
+    resetReceiptFeedback()
+    printInHiddenIframe(`/api/frontdesk/orders/${orderId}/receipt?auto_print=1`)
 }
 
-async function sendReceiptEmail() {
+async function confirmReceiptEmail() {
+    const orderId = store.selectedOrder?.id
     const email = String(receiptEmail.value ?? '').trim()
+
+    if (!orderId || receiptActionLoading.value) {
+        return
+    }
 
     if (!email) {
         receiptEmailError.value = 'Geef een e-mailadres in.'
         return
     }
 
-    sendingReceipt.value = true
+    resetReceiptFeedback()
     receiptEmailError.value = ''
+    receiptActionLoading.value = true
 
     try {
-        await store.sendReceiptForSelectedOrder(email)
-        showEmailModal.value = false
+        await axios.post(`/api/frontdesk/orders/${orderId}/send-receipt`, {
+            email,
+        })
+
+        receiptActionMessage.value = `Bon #${orderId} werd verzonden naar ${email}.`
+        receiptEmailModalOpen.value = false
+        receiptEmail.value = ''
     } catch (error) {
-        receiptEmailError.value = error?.response?.data?.message ?? store.error ?? 'Verzenden van de bon mislukte.'
+        console.error('Failed to send receipt email', error)
+        receiptEmailError.value = error?.response?.data?.message ?? 'Verzenden van de bon mislukte.'
     } finally {
-        sendingReceipt.value = false
+        receiptActionLoading.value = false
     }
 }
 </script>

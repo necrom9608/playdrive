@@ -108,7 +108,7 @@
         />
 
         <Teleport to="body">
-            <div v-if="showReceiptEmailModal" class="fixed inset-0 z-[160] flex items-center justify-center p-4">
+            <div v-if="showReceiptEmailModal" class="fixed inset-0 z-[70] flex items-center justify-center p-4">
                 <div class="absolute inset-0 bg-slate-950/80" @click="closeReceiptEmailModal" />
 
                 <div class="relative z-10 w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
@@ -156,7 +156,7 @@ const store = usePosStore()
 const listContainer = ref(null)
 const showCheckoutModal = ref(false)
 const showReceiptEmailModal = ref(false)
-const paymentMethod = ref('bancontact')
+const paymentMethod = ref('cash')
 const invoiceRequested = ref(false)
 const voucherCode = ref('')
 const note = ref('')
@@ -165,6 +165,7 @@ const receiptEmailError = ref('')
 const voucherValidationLoading = ref(false)
 const voucherError = ref('')
 const voucherSuccess = ref('')
+const receiptPrintFrameId = 'receipt-print-frame'
 
 function formatPrice(value) {
     return new Intl.NumberFormat('nl-BE', {
@@ -174,7 +175,7 @@ function formatPrice(value) {
 }
 
 function resetCheckoutState() {
-    paymentMethod.value = 'bancontact'
+    paymentMethod.value = 'cash'
     invoiceRequested.value = Boolean(store.selectedReservation?.invoice_requested ?? false)
     voucherCode.value = ''
     note.value = ''
@@ -245,6 +246,31 @@ async function finalizeCheckoutResult(result) {
     store.clearReservationSelection()
 }
 
+function printReceipt(orderId) {
+    if (!orderId || typeof document === 'undefined') {
+        return
+    }
+
+    let frame = document.getElementById(receiptPrintFrameId)
+
+    if (!frame) {
+        frame = document.createElement('iframe')
+        frame.id = receiptPrintFrameId
+        frame.setAttribute('aria-hidden', 'true')
+        frame.style.position = 'fixed'
+        frame.style.right = '0'
+        frame.style.bottom = '0'
+        frame.style.width = '0'
+        frame.style.height = '0'
+        frame.style.border = '0'
+        frame.style.opacity = '0'
+        frame.style.pointerEvents = 'none'
+        document.body.appendChild(frame)
+    }
+
+    frame.src = `/api/frontdesk/orders/${orderId}/receipt?auto_print=1&ts=${Date.now()}`
+}
+
 async function executeCheckout(extraPayload = {}) {
     const result = await store.checkoutCurrentOrder({
         payment_method: extraPayload.payment_method ?? paymentMethod.value,
@@ -254,7 +280,7 @@ async function executeCheckout(extraPayload = {}) {
     })
 
     if (extraPayload.print_receipt && result?.id) {
-        window.open(`/api/frontdesk/orders/${result.id}/receipt`, '_blank', 'noopener,noreferrer')
+        printReceipt(result.id)
     }
 
     if (extraPayload.email_receipt && result?.id && extraPayload.receipt_email) {
