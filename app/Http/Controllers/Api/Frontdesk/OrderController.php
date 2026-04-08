@@ -4,13 +4,15 @@ namespace App\Http\Controllers\Api\Frontdesk;
 
 use App\Domain\Orders\OrderService;
 use App\Http\Controllers\Controller;
+use App\Mail\ReceiptMail;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\User;
-use App\Support\Printing\ReceiptBuilder;
 use App\Support\CurrentTenant;
+use App\Support\Printing\ReceiptBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 class OrderController extends Controller
 {
@@ -122,20 +124,31 @@ class OrderController extends Controller
         ]);
     }
 
-
     public function receipt(CurrentTenant $currentTenant, Order $order)
     {
-        if (! $currentTenant->exists() || (int) $order->tenant_id !== (int) $currentTenant->id()) {
-            abort(404);
-        }
+        $tenant = $this->resolveTenantForOrder($currentTenant, $order);
 
-        $receipt = ReceiptBuilder::build($order, [
-            'name' => config('app.name', 'Playdrive'),
-            'footer' => 'Bedankt voor je bezoek aan Game-INN!',
-        ]);
+        $receipt = ReceiptBuilder::build($order, $tenant);
 
         return response()->view('print.receipt', [
             'receipt' => $receipt,
+        ]);
+    }
+
+    public function sendReceipt(Request $request, CurrentTenant $currentTenant, Order $order): JsonResponse
+    {
+        $tenant = $this->resolveTenantForOrder($currentTenant, $order);
+
+        $data = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $receipt = ReceiptBuilder::build($order, $tenant);
+
+        Mail::to($data['email'])->send(new ReceiptMail($receipt));
+
+        return response()->json([
+            'message' => 'De bon werd via e-mail verzonden.',
         ]);
     }
 
@@ -260,31 +273,52 @@ class OrderController extends Controller
             'subtotal_excl_vat' => (float) $order->subtotal_excl_vat,
             'total_vat' => (float) $order->total_vat,
             'total_incl_vat' => (float) $order->total_incl_vat,
-            'created_by' => $this->transformActor($order->creator),
-            'updated_by' => $this->transformActor($order->updater),
-            'paid_by' => $this->transformActor($order->payer),
-            'cancelled_by' => $this->transformActor($order->canceller),
-            'refunded_by' => $this->transformActor($order->refunder),
+            'payment_method' => $order->payment_method,
+            'notes' => $order->notes,
+            'source' => $order->source,
+            'source_reference' => $order->source_reference,
+            'invoice_requested' => (bool) $order->invoice_requested,
+            'paid_at' => optional($order->paid_at)?->toIso8601String(),
+            'created_at' => optional($order->created_at)?->toIso8601String(),
+            'updated_at' => optional($order->updated_at)?->toIso8601String(),
+            'creator' => $this->transformActor($order->creator),
+            'updater' => $this->transformActor($order->updater),
+            'payer' => $this->transformActor($order->payer),
+            'canceller' => $this->transformActor($order->canceller),
+            'refunder' => $this->transformActor($order->refunder),
             'items' => $order->items
                 ->sortBy('sort_order')
-                ->map(fn ($item) => [
+                ->values()
+                ->map(fn (OrderItem $item) => [
                     'id' => $item->id,
                     'line_id' => 'order-item-' . $item->id,
                     'product_id' => $item->product_id,
                     'name' => $item->name,
+                    'description' => $item->description,
+                    'quantity' => (int) $item->quantity,
+                    'unit_price_excl_vat' => (float) $item->unit_price_excl_vat,
                     'unit_price_incl_vat' => (float) $item->unit_price_incl_vat,
                     'price_incl_vat' => (float) $item->unit_price_incl_vat,
-                    'unit_price' => (float) $item->unit_price_incl_vat,
-                    'quantity' => (int) $item->quantity,
+                    'vat_rate' => (float) $item->vat_rate,
+                    'line_subtotal_excl_vat' => (float) $item->line_subtotal_excl_vat,
+                    'line_vat' => (float) $item->line_vat,
                     'line_total_incl_vat' => (float) $item->line_total_incl_vat,
-                    'line_total' => (float) $item->line_total_incl_vat,
                     'source' => $item->source,
                     'source_reference' => $item->source_reference,
-                    'created_by' => $this->transformActor($item->creator),
-                    'updated_by' => $this->transformActor($item->updater),
+                    'sort_order' => (int) $item->sort_order,
+                    'creator' => $this->transformActor($item->creator),
+                    'updater' => $this->transformActor($item->updater),
                 ])
-                ->values()
                 ->all(),
         ];
+    }
+
+    private function resolveTenantForOrder(CurrentTenant $currentTenant, Order $order)
+    {
+        if (! $currentTenant->exists() || (int) $order->tenant_id !== (int) $currentTenant->id()) {
+            abort(404);
+        }
+
+        return $currentTenant->tenant->fresh();
     }
 }

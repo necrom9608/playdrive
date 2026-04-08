@@ -287,7 +287,7 @@
                             </div>
                         </div>
 
-                        <div class="mt-4 grid grid-cols-3 gap-4">
+                        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
                             <button
                                 type="button"
                                 class="inline-flex items-center justify-center gap-2 rounded-[20px] border border-slate-700 bg-slate-800/90 px-5 py-4 text-sm font-semibold text-white transition hover:bg-slate-700"
@@ -314,7 +314,17 @@
                                 @click="handleConfirm(true)"
                             >
                                 <PrinterIcon class="h-5 w-5" />
-                                <span>{{ confirmLoading ? 'Betaling verwerken...' : 'Print bon' }}</span>
+                                <span>{{ confirmLoading ? 'Betaling verwerken...' : 'Druk bon' }}</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                class="inline-flex items-center justify-center gap-2 rounded-[20px] bg-emerald-600 px-5 py-4 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                :disabled="confirmLoading || normalizedItems.length === 0 || cashPaymentInvalid"
+                                @click="emit('email-receipt')"
+                            >
+                                <DocumentTextIcon class="h-5 w-5" />
+                                <span>{{ confirmLoading ? 'Betaling verwerken...' : 'Verzend bon via e-mail' }}</span>
                             </button>
                         </div>
                     </div>
@@ -404,6 +414,7 @@ const emit = defineEmits([
     'close',
     'confirm',
     'validate-voucher',
+    'email-receipt',
 ])
 
 const paymentMethod = ref(props.paymentMethodModel)

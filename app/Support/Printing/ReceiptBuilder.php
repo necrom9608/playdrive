@@ -3,18 +3,15 @@
 namespace App\Support\Printing;
 
 use App\Models\Order;
+use App\Models\Tenant;
 
 class ReceiptBuilder
 {
-    public static function build(Order $order, ?array $tenant = null): array
+    public static function build(Order $order, Tenant|array|null $tenant = null): array
     {
         $order->loadMissing(['items.product', 'registration']);
 
-        $tenantName = $tenant['name'] ?? config('app.name', 'Playdrive');
-        $footer = $tenant['footer'] ?? 'Bedankt en tot snel!';
-        $address = $tenant['address'] ?? null;
-        $phone = $tenant['phone'] ?? null;
-        $vat = $tenant['vat'] ?? null;
+        $meta = self::resolveTenantMeta($tenant);
 
         $lines = $order->items
             ->sortBy('sort_order')
@@ -30,13 +27,7 @@ class ReceiptBuilder
             ->all();
 
         return [
-            'meta' => [
-                'tenant_name' => $tenantName,
-                'address' => $address,
-                'phone' => $phone,
-                'vat' => $vat,
-                'footer' => $footer,
-            ],
+            'meta' => $meta,
             'order' => [
                 'id' => $order->id,
                 'paid_at' => optional($order->paid_at)->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? now()->format('d/m/Y H:i'),
@@ -53,6 +44,31 @@ class ReceiptBuilder
                 'name' => $order->registration->name,
             ] : null,
             'lines' => $lines,
+        ];
+    }
+
+    protected static function resolveTenantMeta(Tenant|array|null $tenant): array
+    {
+        if ($tenant instanceof Tenant) {
+            return [
+                'tenant_name' => $tenant->display_name,
+                'address' => $tenant->full_address,
+                'phone' => $tenant->phone,
+                'email' => $tenant->email,
+                'vat' => $tenant->vat_number,
+                'logo_url' => $tenant->logo_url,
+                'footer' => $tenant->receipt_footer ?: 'Bedankt en tot snel!',
+            ];
+        }
+
+        return [
+            'tenant_name' => $tenant['name'] ?? config('app.name', 'Playdrive'),
+            'address' => $tenant['address'] ?? null,
+            'phone' => $tenant['phone'] ?? null,
+            'email' => $tenant['email'] ?? null,
+            'vat' => $tenant['vat'] ?? null,
+            'logo_url' => $tenant['logo_url'] ?? null,
+            'footer' => $tenant['footer'] ?? 'Bedankt en tot snel!',
         ];
     }
 
