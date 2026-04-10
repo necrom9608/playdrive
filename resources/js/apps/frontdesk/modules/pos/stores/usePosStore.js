@@ -413,7 +413,19 @@ export const usePosStore = defineStore('pos', {
             this.loadingReservations = true
 
             try {
-                const response = await axios.get('/api/frontdesk/registrations')
+                const params = {}
+
+                if (this.reservationViewMode === 'open') {
+                    params.view = 'open'
+                } else if (this.reservationViewMode === 'date') {
+                    params.view = 'date'
+                    params.date = this.reservationSelectedDate || todayString()
+                } else {
+                    params.view = 'today'
+                    params.date = todayString()
+                }
+
+                const response = await axios.get('/api/frontdesk/registrations', { params })
                 this.reservations = response.data.data ?? []
             } catch (error) {
                 console.error('Failed to fetch reservations', error)
@@ -796,10 +808,15 @@ export const usePosStore = defineStore('pos', {
 
         setReservationSelectedDate(value) {
             this.reservationSelectedDate = value
+
+            if (this.reservationViewMode === 'date') {
+                this.fetchReservations()
+            }
         },
 
         setReservationViewMode(value) {
             this.reservationViewMode = value
+            this.fetchReservations()
         },
 
         toggleReservationStatusFilter(status) {

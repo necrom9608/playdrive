@@ -36,15 +36,28 @@ class RegistrationController extends Controller
                 'checkedOutBy:id,name',
                 'cancelledBy:id,name',
                 'noShowBy:id,name',
-            ])
-            ->latest('id')
-            ->limit(100);
+            ]);
 
         if ($currentTenant->exists()) {
             $query->where('tenant_id', $currentTenant->id());
         }
 
+        $view = strtolower((string) $request->get('view', 'today'));
+        $date = $request->get('date');
+
+        if ($view === 'open') {
+            $query->whereIn('status', [
+                Registration::STATUS_NEW,
+                Registration::STATUS_CONFIRMED,
+            ]);
+        } else {
+            $query->whereDate('event_date', $date ?: now()->toDateString());
+        }
+
         $registrations = $query
+            ->orderBy('event_date')
+            ->orderBy('event_time')
+            ->orderBy('id')
             ->get()
             ->map(fn (Registration $registration) => $this->transformRegistration($registration));
 
