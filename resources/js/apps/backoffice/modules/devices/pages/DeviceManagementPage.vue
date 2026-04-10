@@ -128,13 +128,22 @@
                                 </div>
                             </div>
 
-                            <button
-                                type="button"
-                                class="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-800"
-                                @click="renameDisplay(display)"
-                            >
-                                Hernoemen
-                            </button>
+                            <div class="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    class="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-800"
+                                    @click="renameDisplay(display)"
+                                >
+                                    Hernoemen
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/20"
+                                    @click="handleDeleteDisplay(display)"
+                                >
+                                    Verwijderen
+                                </button>
+                            </div>
                         </div>
                     </article>
                 </div>
@@ -189,6 +198,13 @@
                                 >
                                     Ontkoppelen
                                 </button>
+                                <button
+                                    type="button"
+                                    class="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/20"
+                                    @click="handleDeletePos(pos)"
+                                >
+                                    Verwijderen
+                                </button>
                             </div>
                         </div>
                     </article>
@@ -200,7 +216,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { fetchDevices, pairDevice, unpairPosDevice, updateDisplayDevice, updatePosDevice } from '../services/deviceApi'
+import { deleteDisplayDevice, deletePosDevice, fetchDevices, pairDevice, unpairPosDevice, updateDisplayDevice, updatePosDevice } from '../services/deviceApi'
 
 const displays = ref([])
 const posDevices = ref([])
@@ -263,6 +279,39 @@ async function handleUnpair(pos) {
     } catch (err) {
         console.error(err)
         error.value = err?.data?.message ?? err?.message ?? 'Ontkoppelen mislukt.'
+    }
+}
+
+
+async function handleDeleteDisplay(display) {
+    if (!window.confirm(`Display ${display.name} verwijderen? Eventuele koppelingen met POS worden ook losgemaakt.`)) {
+        return
+    }
+
+    error.value = ''
+
+    try {
+        await deleteDisplayDevice(display.id)
+        await loadDevices()
+    } catch (err) {
+        console.error(err)
+        error.value = err?.data?.message ?? err?.message ?? 'Display verwijderen mislukt.'
+    }
+}
+
+async function handleDeletePos(pos) {
+    if (!window.confirm(`POS-terminal ${pos.name} verwijderen?`)) {
+        return
+    }
+
+    error.value = ''
+
+    try {
+        await deletePosDevice(pos.id)
+        await loadDevices()
+    } catch (err) {
+        console.error(err)
+        error.value = err?.data?.message ?? err?.message ?? 'POS-terminal verwijderen mislukt.'
     }
 }
 

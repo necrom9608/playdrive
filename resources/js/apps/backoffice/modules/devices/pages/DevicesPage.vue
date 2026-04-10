@@ -82,7 +82,8 @@
 
                             <div class="flex flex-wrap gap-2">
                                 <button type="button" class="rounded-2xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200" @click="renamePos(device)">Hernoemen</button>
-                                <button v-if="device.display_device_id" type="button" class="rounded-2xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200" @click="unpair(device)">Ontkoppelen</button>
+                                <button v-if="device.display_device_id" type="button" class="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200" @click="unpair(device)">Ontkoppelen</button>
+                                <button type="button" class="rounded-2xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200" @click="deletePos(device)">Verwijderen</button>
                             </div>
                         </div>
                     </article>
@@ -119,6 +120,7 @@
 
                             <div class="flex flex-wrap gap-2">
                                 <button type="button" class="rounded-2xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200" @click="renameDisplay(device)">Hernoemen</button>
+                                <button type="button" class="rounded-2xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200" @click="deleteDisplay(device)">Verwijderen</button>
                             </div>
                         </div>
                     </article>
@@ -237,6 +239,35 @@ async function renameDisplay(device) {
     } catch (err) {
         console.error(err)
         error.value = err?.response?.data?.message ?? 'Kon display niet hernoemen.'
+    }
+}
+
+
+async function deletePos(device) {
+    if (!window.confirm(`POS-terminal ${device.name || `POS #${device.id}`} verwijderen?`)) {
+        return
+    }
+
+    try {
+        await axios.delete(`/api/backoffice/devices/pos/${device.id}`)
+        await loadDevices()
+    } catch (err) {
+        console.error(err)
+        error.value = err?.response?.data?.message ?? 'Kon POS-terminal niet verwijderen.'
+    }
+}
+
+async function deleteDisplay(device) {
+    if (!window.confirm(`Display ${device.name || `Display #${device.id}`} verwijderen? Gekoppelde POS-terminals worden eerst losgekoppeld.`)) {
+        return
+    }
+
+    try {
+        await axios.delete(`/api/backoffice/devices/display/${device.id}`)
+        await loadDevices()
+    } catch (err) {
+        console.error(err)
+        error.value = err?.response?.data?.message ?? 'Kon display niet verwijderen.'
     }
 }
 

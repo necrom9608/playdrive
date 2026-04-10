@@ -98,4 +98,32 @@ class DeviceManagementController extends Controller
             'data' => $displayDevice->fresh(),
         ]);
     }
+
+    public function destroyPos(PosDevice $posDevice, CurrentTenant $currentTenant): JsonResponse
+    {
+        abort_unless((int) $posDevice->tenant_id === (int) $currentTenant->id(), 404);
+
+        $posDevice->delete();
+
+        return response()->json([
+            'message' => 'POS-terminal verwijderd.',
+        ]);
+    }
+
+    public function destroyDisplay(DisplayDevice $displayDevice, CurrentTenant $currentTenant): JsonResponse
+    {
+        abort_unless((int) $displayDevice->tenant_id === (int) $currentTenant->id(), 404);
+
+        PosDevice::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->where('display_device_id', $displayDevice->id)
+            ->update(['display_device_id' => null]);
+
+        $displayDevice->delete();
+
+        return response()->json([
+            'message' => 'Display verwijderd.',
+        ]);
+    }
 }
+

@@ -71,7 +71,9 @@ Route::prefix('api/backoffice')->group(function () {
         Route::post('/devices/pair', [DeviceManagementController::class, 'pair']);
         Route::post('/devices/{posDevice}/unpair', [DeviceManagementController::class, 'unpair']);
         Route::put('/devices/pos/{posDevice}', [DeviceManagementController::class, 'updatePos']);
+        Route::delete('/devices/pos/{posDevice}', [DeviceManagementController::class, 'destroyPos']);
         Route::put('/devices/display/{displayDevice}', [DeviceManagementController::class, 'updateDisplay']);
+        Route::delete('/devices/display/{displayDevice}', [DeviceManagementController::class, 'destroyDisplay']);
 
         Route::get('/staff', [StaffController::class, 'index']);
         Route::post('/staff', [StaffController::class, 'store']);

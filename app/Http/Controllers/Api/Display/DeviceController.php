@@ -9,6 +9,7 @@ use App\Models\PosDevice;
 use App\Support\CurrentTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 class DeviceController extends Controller
@@ -39,7 +40,7 @@ class DeviceController extends Controller
                     'device_token' => Str::random(64),
                     'pairing_uuid' => (string) Str::uuid(),
                     'last_seen_at' => now(),
-                    'current_mode' => 'standby',
+                    'current_mode' => DisplayDevice::MODE_STANDBY,
                     'current_payload' => [],
                     'is_active' => true,
                 ]);
@@ -64,15 +65,7 @@ class DeviceController extends Controller
             }
 
             return response()->json([
-                'data' => [
-                    'id' => $device->id,
-                    'name' => $device->name,
-                    'device_uuid' => $device->device_uuid,
-                    'device_token' => $device->device_token,
-                    'pairing_uuid' => $device->pairing_uuid,
-                    'broadcast_channel' => $device->broadcastChannelName(),
-                    'current_mode' => $device->current_mode,
-                ],
+                'data' => $this->transformDisplayDevice($device),
             ]);
         }
 
@@ -121,15 +114,7 @@ class DeviceController extends Controller
         $device->load('displayDevice');
 
         return response()->json([
-            'data' => [
-                'id' => $device->id,
-                'name' => $device->name,
-                'device_uuid' => $device->device_uuid,
-                'device_token' => $device->device_token,
-                'display_device_id' => $device->display_device_id,
-                'display_name' => $device->displayDevice?->name,
-                'display_pairing_uuid' => $device->displayDevice?->pairing_uuid,
-            ],
+            'data' => $this->transformPosDevice($device),
         ]);
     }
 
@@ -158,15 +143,7 @@ class DeviceController extends Controller
         ]);
 
         return response()->json([
-            'data' => [
-                'id' => $device->id,
-                'name' => $device->name,
-                'pairing_uuid' => $device->pairing_uuid,
-                'broadcast_channel' => $device->broadcastChannelName(),
-                'current_mode' => $device->current_mode,
-                'current_payload' => $device->current_payload ?? [],
-                'last_seen_at' => $device->last_seen_at,
-            ],
+            'data' => $this->transformDisplayDevice($device),
         ]);
     }
 
@@ -201,9 +178,11 @@ class DeviceController extends Controller
 
         abort_unless($display, 404, 'Gekoppelde display niet gevonden.');
 
+        $normalizedPayload = $this->normalizePayload($data['payload'] ?? [], $data['reservation_id'] ?? null);
+
         $display->update([
             'current_mode' => $data['mode'],
-            'current_payload' => $data['payload'] ?? [],
+            'current_payload' => $normalizedPayload,
             'last_seen_at' => now(),
         ]);
 
@@ -211,15 +190,7 @@ class DeviceController extends Controller
             'last_seen_at' => now(),
         ]);
 
-        $state = [
-            'id' => $display->id,
-            'name' => $display->name,
-            'pairing_uuid' => $display->pairing_uuid,
-            'broadcast_channel' => $display->broadcastChannelName(),
-            'current_mode' => $display->current_mode,
-            'current_payload' => $display->current_payload ?? [],
-            'last_seen_at' => optional($display->last_seen_at)?->toIso8601String(),
-        ];
+        $state = $this->transformDisplayDevice($display);
 
         broadcast(new DisplayStateUpdated($display, $state));
 
@@ -227,8 +198,58 @@ class DeviceController extends Controller
             'data' => [
                 'display_device_id' => $display->id,
                 'current_mode' => $display->current_mode,
-                'broadcast_channel' => $display->broadcastChannelName(),
+                'broadcast_channel' => 'display.' . $display->id,
+                'current_payload' => $normalizedPayload,
             ],
         ]);
+    }
+
+    protected function normalizePayload(array $payload, ?int $reservationId = null): array
+    {
+        $reservation = Arr::get($payload, 'reservation')
+            ?? Arr::get($payload, 'registration');
+
+        $order = Arr::get($payload, 'order');
+
+        return [
+            'reservation' => $reservation,
+            'order' => $order,
+            'reservation_id' => $reservationId
+                ?? Arr::get($payload, 'reservation_id')
+                ?? Arr::get($payload, 'registration_id')
+                ?? Arr::get($reservation, 'id'),
+            'synced_at' => now()->toIso8601String(),
+        ];
+    }
+
+    protected function transformDisplayDevice(DisplayDevice $device): array
+    {
+        return [
+            'id' => $device->id,
+            'name' => $device->name,
+            'device_uuid' => $device->device_uuid,
+            'device_token' => $device->device_token,
+            'pairing_uuid' => $device->pairing_uuid,
+            'broadcast_channel' => 'display.' . $device->id,
+            'current_mode' => $device->current_mode,
+            'current_payload' => $device->current_payload ?? [],
+            'last_seen_at' => optional($device->last_seen_at)?->toIso8601String(),
+            'is_active' => (bool) $device->is_active,
+        ];
+    }
+
+    protected function transformPosDevice(PosDevice $device): array
+    {
+        return [
+            'id' => $device->id,
+            'name' => $device->name,
+            'device_uuid' => $device->device_uuid,
+            'device_token' => $device->device_token,
+            'display_device_id' => $device->display_device_id,
+            'display_name' => $device->displayDevice?->name,
+            'display_pairing_uuid' => $device->displayDevice?->pairing_uuid,
+            'last_seen_at' => optional($device->last_seen_at)?->toIso8601String(),
+            'is_active' => (bool) $device->is_active,
+        ];
     }
 }

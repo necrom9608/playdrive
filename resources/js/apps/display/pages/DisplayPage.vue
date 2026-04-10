@@ -68,9 +68,13 @@
                             >
                                 <div>
                                     <div class="text-lg font-semibold">{{ item.name }}</div>
-                                    <div class="mt-1 text-sm text-slate-400">{{ item.quantity }} × € {{ formatMoney(item.price_incl_vat ?? item.unit_price_incl_vat ?? 0) }}</div>
+                                    <div class="mt-1 text-sm text-slate-400">
+                                        {{ item.quantity }} × € {{ formatMoney(item.price_incl_vat ?? item.unit_price_incl_vat ?? 0) }}
+                                    </div>
                                 </div>
-                                <div class="text-xl font-semibold">€ {{ formatMoney(item.line_total_incl_vat ?? (Number(item.quantity || 0) * Number(item.price_incl_vat ?? item.unit_price_incl_vat ?? 0))) }}</div>
+                                <div class="text-xl font-semibold">
+                                    € {{ formatMoney(item.line_total_incl_vat ?? (Number(item.quantity || 0) * Number(item.price_incl_vat ?? item.unit_price_incl_vat ?? 0))) }}
+                                </div>
                             </div>
 
                             <div v-if="!orderItems.length" class="rounded-2xl border border-dashed border-slate-800 px-4 py-8 text-center text-slate-400">
@@ -160,11 +164,25 @@ function formatMoney(value) {
     return Number(value ?? 0).toFixed(2).replace('.', ',')
 }
 
+function normalizePayload(source) {
+    const value =
+        source?.current_payload ??
+        source?.payload ??
+        source ??
+        {}
+
+    return {
+        ...value,
+        reservation: value?.reservation ?? value?.registration ?? null,
+        order: value?.order ?? null,
+    }
+}
+
 function applyState(data) {
-    displayId.value = data?.id ?? displayId.value
+    displayId.value = data?.id ?? data?.display_id ?? displayId.value
     pairingCode.value = data?.pairing_uuid ?? pairingCode.value
     mode.value = data?.current_mode ?? data?.mode ?? 'standby'
-    payload.value = data?.current_payload ?? data?.payload ?? {}
+    payload.value = normalizePayload(data)
 }
 
 function createEcho() {
@@ -172,14 +190,19 @@ function createEcho() {
         return echo
     }
 
+    const realtime = window.PlayDrive?.realtime ?? {}
+    const scheme = realtime.scheme ?? window.location.protocol.replace(':', '')
+    const isHttps = scheme === 'https'
+
     echo = new Echo({
         broadcaster: 'reverb',
-        key: import.meta.env.VITE_REVERB_APP_KEY,
-        wsHost: import.meta.env.VITE_REVERB_HOST,
-        wsPort: Number(import.meta.env.VITE_REVERB_PORT ?? 9090),
-        wssPort: Number(import.meta.env.VITE_REVERB_PORT ?? 9090),
-        forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'http') === 'https',
+        key: realtime.appKey ?? 'playdrive',
+        wsHost: realtime.host ?? window.location.hostname,
+        wsPort: Number(realtime.port ?? (isHttps ? 443 : 8080)),
+        wssPort: Number(realtime.port ?? (isHttps ? 443 : 8080)),
+        forceTLS: isHttps,
         enabledTransports: ['ws', 'wss'],
+        disableStats: true,
     })
 
     const connection = echo.connector?.pusher?.connection
@@ -224,9 +247,14 @@ function subscribeToChannel() {
         .listen('.display.state.updated', (event) => {
             console.log('[Display] live event ontvangen', event)
 
-            mode.value = event?.mode ?? 'standby'
-            payload.value = event?.payload?.current_payload ?? event?.payload ?? {}
+            applyState({
+                display_id: event?.display_id ?? displayId.value,
+                mode: event?.mode ?? 'standby',
+                payload: event?.payload ?? {},
+            })
+
             error.value = ''
+            loading.value = false
         })
 }
 
@@ -270,9 +298,8 @@ async function bootstrap() {
 
         applyState(response.data?.data ?? {})
         await loadState()
-        subscribeToChannel()
 
-        intervalId = window.setInterval(loadState, 15000)
+        intervalId = window.setInterval(loadState, 3000)
     } catch (err) {
         loading.value = false
         error.value = err?.response?.data?.message ?? 'Kon de display niet initialiseren.'

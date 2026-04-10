@@ -20,7 +20,7 @@ export const useDisplayStore = defineStore('display', {
             return state.device?.pairing_uuid ?? null
         },
         reservation(state) {
-            return state.payload?.reservation ?? null
+            return state.payload?.reservation ?? state.payload?.registration ?? null
         },
         order(state) {
             return state.payload?.order ?? null
@@ -60,8 +60,16 @@ export const useDisplayStore = defineStore('display', {
         },
 
         applyDeviceState(device) {
-            this.mode = device?.current_mode ?? 'standby'
-            this.payload = device?.current_payload ?? null
+            const payload = device?.current_payload ?? device?.payload ?? null
+
+            this.mode = device?.current_mode ?? device?.mode ?? 'standby'
+            this.payload = payload
+                ? {
+                    ...payload,
+                    reservation: payload?.reservation ?? payload?.registration ?? null,
+                    order: payload?.order ?? null,
+                }
+                : null
         },
 
         startPolling() {

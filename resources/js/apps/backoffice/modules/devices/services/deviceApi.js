@@ -30,3 +30,15 @@ export function updatePosDevice(id, payload) {
         body: JSON.stringify(payload),
     })
 }
+
+export function deleteDisplayDevice(id) {
+    return apiFetch(`/api/backoffice/devices/display/${id}`, {
+        method: 'DELETE',
+    })
+}
+
+export function deletePosDevice(id) {
+    return apiFetch(`/api/backoffice/devices/pos/${id}`, {
+        method: 'DELETE',
+    })
+}

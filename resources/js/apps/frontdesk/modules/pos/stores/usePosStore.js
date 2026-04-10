@@ -374,9 +374,14 @@ export const usePosStore = defineStore('pos', {
                     reservation_id: reservation?.id ?? null,
                     registration_id: reservation?.id ?? null,
                     payload: reservation ? {
+                        reservation,
                         registration: reservation,
                         order: this.currentOrder,
-                    } : {},
+                        reservation_id: reservation?.id ?? null,
+                        registration_id: reservation?.id ?? null,
+                    } : {
+                        order: this.currentOrder,
+                    },
                 })
 
                 this.displaySyncError = null
