@@ -1,17 +1,20 @@
 <template>
-    <div class="flex flex-1 flex-col gap-4">
-        <DisplayHeaderCard
-            :tenant-name="tenantName"
-            :tenant-logo-url="tenantLogoUrl"
-            :reservation-name="reservation?.name || ''"
-        />
+    <div class="flex h-full min-h-0 flex-1 flex-col gap-4 lg:grid lg:grid-cols-[430px,minmax(0,1fr)]">
+        <div class="flex flex-col gap-4 lg:min-h-0">
+            <DisplayHeaderCard
+                :tenant-name="tenantName"
+                :tenant-logo-url="tenantLogoUrl"
+                :reservation="reservation"
+                :reservation-name="reservation?.name || ''"
+            />
 
-        <DisplayStatsCard
-            :total-persons-label="totalPersonsLabel"
-            :played-time-label="playedTimeLabel"
-            :start-time-label="startTimeLabel"
-            :end-time-label="endTimeLabel"
-        />
+            <DisplayStatsCard
+                :total-persons-label="totalPersonsLabel"
+                :played-time-label="playedTimeLabel"
+                :start-time-label="startTimeLabel"
+                :end-time-label="endTimeLabel"
+            />
+        </div>
 
         <DisplayListCard
             :items="groupedOrderItems"

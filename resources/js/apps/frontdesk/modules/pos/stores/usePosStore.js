@@ -365,6 +365,19 @@ export const usePosStore = defineStore('pos', {
 
             const reservation = this.selectedReservation
             const mode = reservation ? 'reservation' : 'standby'
+            const displayOrder = this.currentOrder ? {
+                ...this.currentOrder,
+                items: Array.isArray(this.currentOrder?.items)
+                    ? this.currentOrder.items.map(item => {
+                        const product = this.products.find(product => Number(product.id) === Number(item.product_id))
+
+                        return {
+                            ...item,
+                            image_url: item.image_url ?? product?.image_url ?? '',
+                        }
+                    })
+                    : [],
+            } : null
 
             try {
                 await axios.post('/api/frontdesk/display/sync', {
@@ -376,11 +389,11 @@ export const usePosStore = defineStore('pos', {
                     payload: reservation ? {
                         reservation,
                         registration: reservation,
-                        order: this.currentOrder,
+                        order: displayOrder,
                         reservation_id: reservation?.id ?? null,
                         registration_id: reservation?.id ?? null,
                     } : {
-                        order: this.currentOrder,
+                        order: displayOrder,
                     },
                 })
 

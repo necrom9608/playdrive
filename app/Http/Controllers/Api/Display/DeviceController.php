@@ -190,9 +190,7 @@ class DeviceController extends Controller
             'last_seen_at' => now(),
         ]);
 
-        $state = $this->transformDisplayDevice($display);
-
-        broadcast(new DisplayStateUpdated($display, $state));
+        broadcast(new DisplayStateUpdated($display, $normalizedPayload));
 
         return response()->json([
             'data' => [

@@ -38,6 +38,7 @@ class DisplayStateUpdated implements ShouldBroadcastNow
             'display_id' => $this->displayDevice->id,
             'mode' => $this->displayDevice->current_mode,
             'payload' => $this->payload,
+            'is_paired' => $this->displayDevice->posDevices()->exists(),
         ];
     }
 }

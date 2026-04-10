@@ -1,12 +1,18 @@
 <template>
-    <div class="min-h-screen bg-slate-950 text-white">
-        <div class="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 py-6">
+    <div class="h-screen overflow-hidden bg-slate-950 text-white">
+        <div class="pointer-events-none fixed inset-0 overflow-hidden">
+            <div class="absolute -left-24 top-0 h-72 w-72 rounded-full bg-blue-500/12 blur-3xl"></div>
+            <div class="absolute right-0 top-1/3 h-80 w-80 rounded-full bg-cyan-400/10 blur-3xl"></div>
+            <div class="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-indigo-500/10 blur-3xl"></div>
+        </div>
+
+        <div class="relative mx-auto flex h-screen w-full max-w-[1600px] flex-col px-6 py-6">
             <div v-if="loading" class="flex flex-1 items-center justify-center text-center text-xl text-slate-300">
                 Display initialiseren...
             </div>
 
             <div v-else-if="error" class="flex flex-1 flex-col items-center justify-center text-center">
-                <div class="w-full rounded-[2rem] border border-red-500/30 bg-red-500/10 px-6 py-8 shadow-2xl shadow-slate-950/50">
+                <div class="w-full rounded-[2rem] border border-red-500/30 bg-red-500/10 px-6 py-8 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
                     <h2 class="text-2xl font-semibold text-red-200">Display initialiseren mislukt</h2>
                     <p class="mt-3 text-base text-red-100/80">{{ error }}</p>
                 </div>
@@ -81,12 +87,14 @@ const groupedOrderItems = computed(() => {
         const name = item?.name || 'Product'
         const quantity = Number(item?.quantity ?? 0)
         const unitPrice = Number(item?.price_incl_vat ?? item?.unit_price_incl_vat ?? item?.unit_price ?? 0)
+        const imageUrl = item?.image_url ?? item?.product_image_url ?? item?.thumbnail_url ?? ''
 
         if (!grouped.has(name)) {
             grouped.set(name, {
                 name,
                 quantity: 0,
                 unit_price: unitPrice,
+                image_url: imageUrl,
             })
         }
 
@@ -94,6 +102,9 @@ const groupedOrderItems = computed(() => {
         row.quantity += quantity
         if (!row.unit_price && unitPrice) {
             row.unit_price = unitPrice
+        }
+        if (!row.image_url && imageUrl) {
+            row.image_url = imageUrl
         }
     }
 
