@@ -148,6 +148,8 @@ class DisplayDeviceController extends Controller
             'last_seen_at' => optional($device->last_seen_at)?->toIso8601String(),
             'last_synced_at' => optional($device->last_synced_at)?->toIso8601String(),
             'is_active' => (bool) $device->is_active,
+            'paired_pos_count' => $device->posDevices()->count(),
+            'is_paired' => $device->posDevices()->exists(),
         ];
     }
 
