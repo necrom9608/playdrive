@@ -16,3 +16,10 @@ const app = createApp(DisplayApp)
 app.use(createPinia())
 app.use(router)
 app.mount('#app')
+
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/display-sw.js').catch(() => {})
+    })
+}

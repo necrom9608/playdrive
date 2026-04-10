@@ -235,6 +235,8 @@ class DeviceController extends Controller
             'current_payload' => $device->current_payload ?? [],
             'last_seen_at' => optional($device->last_seen_at)?->toIso8601String(),
             'is_active' => (bool) $device->is_active,
+            'paired_pos_count' => $device->posDevices()->count(),
+            'is_paired' => $device->posDevices()->exists(),
         ];
     }
 
