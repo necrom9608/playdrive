@@ -301,7 +301,7 @@ export const usePosStore = defineStore('pos', {
             const newItems = items.filter(r => r.status === 'new')
             const confirmed = items.filter(r => r.status === 'confirmed')
             const checkedIn = items.filter(r => r.status === 'checked_in')
-            const checkedOut = items.filter(r => r.status === 'checked_out')
+            const checkedOut = items.filter(r => ['checked_out', 'paid'].includes(r.status))
             const paid = items.filter(r => r.status === 'paid')
             const cancelled = items.filter(r => r.status === 'cancelled')
             const noShow = items.filter(r => r.status === 'no_show')
