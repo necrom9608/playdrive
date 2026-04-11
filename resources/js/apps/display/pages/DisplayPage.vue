@@ -1,18 +1,12 @@
 <template>
-    <div class="h-screen overflow-hidden bg-slate-950 text-white">
-        <div class="pointer-events-none fixed inset-0 overflow-hidden">
-            <div class="absolute -left-24 top-0 h-72 w-72 rounded-full bg-blue-500/12 blur-3xl"></div>
-            <div class="absolute right-0 top-1/3 h-80 w-80 rounded-full bg-cyan-400/10 blur-3xl"></div>
-            <div class="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-indigo-500/10 blur-3xl"></div>
-        </div>
-
-        <div class="relative mx-auto flex h-screen w-full max-w-[1600px] flex-col px-6 py-6">
+    <div class="min-h-screen bg-slate-950 text-white">
+        <div class="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 py-6">
             <div v-if="loading" class="flex flex-1 items-center justify-center text-center text-xl text-slate-300">
                 Display initialiseren...
             </div>
 
             <div v-else-if="error" class="flex flex-1 flex-col items-center justify-center text-center">
-                <div class="w-full rounded-[2rem] border border-red-500/30 bg-red-500/10 px-6 py-8 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
+                <div class="w-full rounded-[2rem] border border-red-500/30 bg-red-500/10 px-6 py-8 shadow-2xl shadow-slate-950/50">
                     <h2 class="text-2xl font-semibold text-red-200">Display initialiseren mislukt</h2>
                     <p class="mt-3 text-base text-red-100/80">{{ error }}</p>
                 </div>
@@ -21,28 +15,25 @@
             <DisplayDisconnected
                 v-else-if="!isPaired"
                 :tenant-name="tenantName"
-                :tenant-logo-url="tenantLogoUrl"
                 :pairing-code="pairingCode"
             />
 
             <DisplayStandby
                 v-else-if="mode !== 'reservation'"
                 :tenant-name="tenantName"
-                :tenant-logo-url="tenantLogoUrl"
             />
 
             <DisplayOverview
                 v-else
                 :tenant-name="tenantName"
-                :tenant-logo-url="tenantLogoUrl"
                 :reservation="reservation"
+                :grouped-order-items="groupedOrderItems"
+                :grouped-order-count="groupedOrderCount"
+                :order-total="orderTotal"
                 :total-persons-label="totalPersonsLabel"
                 :played-time-label="playedTimeLabel"
                 :start-time-label="startTimeLabel"
                 :end-time-label="endTimeLabel"
-                :grouped-order-items="groupedOrderItems"
-                :grouped-order-count="groupedOrderCount"
-                :order-total="orderTotal"
             />
         </div>
     </div>
@@ -50,16 +41,17 @@
 
 <script setup>
 import axios from 'axios'
+import Echo from 'laravel-echo'
+import Pusher from 'pusher-js'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import DisplayDisconnected from '../components/DisplayDisconnected.vue'
 import DisplayOverview from '../components/DisplayOverview.vue'
 import DisplayStandby from '../components/DisplayStandby.vue'
 import { getDisplayToken, getOrCreateDisplayUuid, storeDisplayToken } from '../shared/device'
-import { getEcho, leaveChannel } from '../shared/realtime'
+
+window.Pusher = Pusher
 
 const tenantName = window.PlayDrive?.tenantName || 'PlayDrive'
-const tenantLogoUrl = window.PlayDrive?.tenantLogoUrl || ''
-
 const loading = ref(true)
 const error = ref('')
 const pairingCode = ref('')
@@ -84,7 +76,12 @@ const groupedOrderItems = computed(() => {
         const name = item?.name || 'Product'
         const quantity = Number(item?.quantity ?? 0)
         const unitPrice = Number(item?.price_incl_vat ?? item?.unit_price_incl_vat ?? item?.unit_price ?? 0)
-        const imageUrl = item?.image_url ?? item?.product_image_url ?? item?.thumbnail_url ?? ''
+        const imageUrl =
+            item?.image_url
+            ?? item?.image
+            ?? item?.product_image_url
+            ?? item?.thumbnail_url
+            ?? null
 
         if (!grouped.has(name)) {
             grouped.set(name, {
@@ -97,9 +94,11 @@ const groupedOrderItems = computed(() => {
 
         const row = grouped.get(name)
         row.quantity += quantity
+
         if (!row.unit_price && unitPrice) {
             row.unit_price = unitPrice
         }
+
         if (!row.image_url && imageUrl) {
             row.image_url = imageUrl
         }
@@ -112,13 +111,15 @@ const groupedOrderCount = computed(() => groupedOrderItems.value.reduce((sum, it
 
 const totalPersonsLabel = computed(() => {
     const directTotal = reservation.value?.total_count ?? reservation.value?.total_participants ?? reservation.value?.participants_total
+
     if (directTotal != null && Number(directTotal) > 0) {
         return String(Number(directTotal))
     }
 
-    const total = Number(reservation.value?.participants_children ?? 0)
-        + Number(reservation.value?.participants_adults ?? 0)
-        + Number(reservation.value?.participants_supervisors ?? 0)
+    const total =
+        Number(reservation.value?.participants_children ?? 0) +
+        Number(reservation.value?.participants_adults ?? 0) +
+        Number(reservation.value?.participants_supervisors ?? 0)
 
     return total > 0 ? String(total) : '-'
 })
@@ -144,7 +145,9 @@ const playedTimeLabel = computed(() => {
     return minutesToLabel(diffMinutes)
 })
 
-const startTimeLabel = computed(() => normalizeTimeString(reservation.value?.event_time) || '-')
+const startTimeLabel = computed(() => {
+    return normalizeTimeString(reservation.value?.event_time) || '-'
+})
 
 const endTimeLabel = computed(() => {
     const startTime = normalizeTimeString(reservation.value?.event_time)
@@ -197,7 +200,7 @@ function normalizePayload(source) {
 }
 
 function applyState(data) {
-    console.log('[display] applyState', data)
+    console.log('[display] applyState raw', data)
 
     displayId.value = data?.id ?? data?.display_id ?? displayId.value
     pairingCode.value = data?.pairing_uuid ?? pairingCode.value
@@ -216,52 +219,68 @@ function applyState(data) {
 
 function createEcho() {
     if (echo) {
-        console.log('[display] reusing echo instance')
+        console.log('[display] createEcho reuse existing')
         return echo
     }
 
-    console.log('[display] creating echo instance')
-    echo = getEcho()
+    const realtime = window.PlayDrive?.realtime ?? {}
+    const scheme = realtime.scheme ?? window.location.protocol.replace(':', '')
+    const isHttps = scheme === 'https'
+
+    console.log('[display] createEcho config', {
+        realtime,
+        scheme,
+        isHttps,
+        host: realtime.host ?? window.location.hostname,
+        port: Number(realtime.port ?? (isHttps ? 443 : 8080)),
+    })
+
+    echo = new Echo({
+        broadcaster: 'reverb',
+        key: realtime.appKey ?? 'playdrive',
+        wsHost: realtime.host ?? window.location.hostname,
+        wsPort: Number(realtime.port ?? (isHttps ? 443 : 8080)),
+        wssPort: Number(realtime.port ?? (isHttps ? 443 : 8080)),
+        forceTLS: isHttps,
+        enabledTransports: ['ws', 'wss'],
+        disableStats: true,
+    })
+
     window.__displayEcho = echo
+    console.log('[display] Echo instance created', echo)
 
     return echo
 }
 
 function subscribeToChannel() {
+    console.log('[display] subscribeToChannel start', {
+        displayId: displayId.value,
+        hasChannel: !!channel,
+    })
+
     if (!displayId.value) {
-        console.log('[display] subscribe skipped: no displayId')
+        console.log('[display] subscribeToChannel aborted: no displayId')
         return
     }
 
     const echoInstance = createEcho()
-    const channelName = `display.${displayId.value}`
-
-    console.log('[display] subscribing to channel', channelName)
-    console.log('[display] echo instance', echoInstance)
 
     if (channel) {
-        console.log('[display] leaving previous channel', channelName)
-        echoInstance.leave(channelName)
+        console.log('[display] leaving previous channel', `display.${displayId.value}`)
+        echoInstance.leave(`display.${displayId.value}`)
         channel = null
     }
 
-    channel = echoInstance.channel(channelName)
+    console.log('[display] subscribing to', `display.${displayId.value}`)
 
-    console.log('[display] channel object', channel)
-
-    channel
-        .subscribed(() => {
-            console.log('[display] subscription succeeded', channelName)
-        })
-        .error((subscriptionError) => {
-            console.error('[display] subscription error', subscriptionError)
-        })
+    channel = echoInstance
+        .channel(`display.${displayId.value}`)
         .listen('.display.state.updated', (event) => {
-            console.log('[display] WS EVENT ONTVANGEN', event)
+            console.log('[display] realtime event received', event)
 
             applyState({
                 display_id: event?.display_id ?? displayId.value,
-                mode: event?.mode ?? 'standby',
+                mode: event?.mode ?? mode.value ?? 'standby',
                 payload: event?.payload ?? {},
                 is_paired: true,
             })
@@ -269,6 +288,8 @@ function subscribeToChannel() {
             error.value = ''
             loading.value = false
         })
+
+    console.log('[display] channel object', channel)
 }
 
 async function loadState() {
@@ -288,8 +309,13 @@ async function loadState() {
         error.value = ''
 
         if (displayId.value && !channel) {
-            console.log('[display] loadState triggering subscribe')
+            console.log('[display] loadState will subscribe to realtime channel')
             subscribeToChannel()
+        } else {
+            console.log('[display] loadState skip subscribe', {
+                displayId: displayId.value,
+                hasChannel: !!channel,
+            })
         }
     } catch (err) {
         console.error('[display] loadState error', err)
@@ -301,10 +327,10 @@ async function loadState() {
 }
 
 async function bootstrap() {
+    console.log('[display] bootstrap start')
+
     loading.value = true
     error.value = ''
-
-    console.log('[display] bootstrap start')
 
     try {
         const response = await axios.post('/api/display/bootstrap', {
@@ -318,13 +344,14 @@ async function bootstrap() {
 
         if (response.data?.data?.device_token) {
             storeDisplayToken(response.data.data.device_token)
+            console.log('[display] stored new device token')
         }
 
         applyState(response.data?.data ?? {})
         await loadState()
 
         intervalId = window.setInterval(loadState, 3000)
-        console.log('[display] polling started', 3000)
+        console.log('[display] polling started')
     } catch (err) {
         console.error('[display] bootstrap error', err)
         loading.value = false
@@ -332,17 +359,22 @@ async function bootstrap() {
     }
 }
 
-onMounted(bootstrap)
+onMounted(() => {
+    console.log('[display] mounted')
+    bootstrap()
+})
 
 onBeforeUnmount(() => {
     console.log('[display] beforeUnmount')
 
     if (intervalId) {
         clearInterval(intervalId)
+        console.log('[display] polling stopped')
     }
 
     if (echo && displayId.value) {
-        leaveChannel(`display.${displayId.value}`)
+        echo.leave(`display.${displayId.value}`)
+        console.log('[display] left channel', `display.${displayId.value}`)
     }
 })
 </script>
