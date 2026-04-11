@@ -25,6 +25,15 @@
                 :pairing-code="pairingCode"
             />
 
+            <DisplayMemberRegistration
+                v-else-if="mode === 'member_registration'"
+                :templates="memberBadgeTemplates"
+                :saving="memberSaving"
+                :error="memberError"
+                @cancel="cancelMemberRegistration"
+                @submit="submitMemberRegistration"
+            />
+
             <DisplayStandby
                 v-else-if="mode !== 'reservation'"
                 :tenant-name="tenantName"
@@ -54,6 +63,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import DisplayDisconnected from '../components/DisplayDisconnected.vue'
 import DisplayOverview from '../components/DisplayOverview.vue'
 import DisplayStandby from '../components/DisplayStandby.vue'
+import DisplayMemberRegistration from '../components/DisplayMemberRegistration.vue'
 import { getDisplayToken, getOrCreateDisplayUuid, storeDisplayToken } from '../shared/device'
 import { getEcho, leaveChannel } from '../shared/realtime'
 
@@ -67,6 +77,8 @@ const mode = ref('standby')
 const payload = ref({})
 const displayId = ref(null)
 const isPaired = ref(false)
+const memberSaving = ref(false)
+const memberError = ref('')
 
 const IDLE_TIMEOUT_MS = 20000
 
@@ -113,6 +125,7 @@ const groupedOrderItems = computed(() => {
 })
 
 const groupedOrderCount = computed(() => groupedOrderItems.value.reduce((sum, item) => sum + Number(item.quantity ?? 0), 0))
+const memberBadgeTemplates = computed(() => Array.isArray(payload.value?.member_badge_templates) ? payload.value.member_badge_templates : [])
 
 const totalPersonsLabel = computed(() => {
     const directTotal = reservation.value?.total_count ?? reservation.value?.total_participants ?? reservation.value?.participants_total
@@ -233,6 +246,32 @@ function resetIdleTimer() {
     }, IDLE_TIMEOUT_MS)
 }
 
+
+async function submitMemberRegistration(form) {
+    memberSaving.value = true
+    memberError.value = ''
+
+    try {
+        await axios.post('/api/display/members', {
+            device_uuid: getOrCreateDisplayUuid(),
+            device_token: getDisplayToken(),
+            ...form,
+        })
+
+        await loadState()
+    } catch (submitError) {
+        memberError.value = submitError?.response?.data?.message ?? 'Nieuw lid opslaan mislukt.'
+    } finally {
+        memberSaving.value = false
+    }
+}
+
+async function cancelMemberRegistration() {
+    mode.value = 'standby'
+    payload.value = {}
+    memberError.value = ''
+}
+
 function applyState(data) {
     console.log('[display] applyState', data)
 
@@ -241,6 +280,7 @@ function applyState(data) {
     mode.value = data?.current_mode ?? data?.mode ?? mode.value ?? 'standby'
     isPaired.value = Boolean(data?.is_paired ?? data?.paired_pos_count ?? isPaired.value)
     payload.value = normalizePayload(data)
+    memberError.value = ''
 
     if (!isPaired.value) {
         clearIdleTimer()

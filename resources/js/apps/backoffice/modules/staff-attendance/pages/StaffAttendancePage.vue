@@ -10,69 +10,36 @@
         </div>
 
         <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-sm">
-            <div class="flex flex-col gap-4">
-                <div class="flex flex-wrap items-center gap-2">
-                    <button
-                        v-for="option in rangeOptions"
-                        :key="option.value"
-                        type="button"
-                        class="rounded-xl border px-4 py-2 text-sm font-semibold transition"
-                        :class="filters.range_key === option.value ? 'border-blue-500 bg-blue-500/15 text-blue-200' : 'border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800'"
-                        @click="applyRangePreset(option.value)"
-                    >
-                        {{ option.label }}
-                    </button>
-
-                    <div class="ml-auto flex items-center gap-2">
-                        <button type="button" class="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-800" :disabled="loading" @click="shiftRange(-1)">Vorige</button>
-                        <button type="button" class="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-800" :disabled="loading" @click="shiftRange(1)">Volgende</button>
-                    </div>
+            <div class="grid gap-4 xl:grid-cols-[1.2fr_1fr_1fr_0.9fr_auto]">
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-slate-300">Medewerker</label>
+                    <select v-model="filters.staff_id" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500">
+                        <option value="">Alle medewerkers</option>
+                        <option v-for="item in staff" :key="item.id" :value="String(item.id)">{{ item.name }}</option>
+                    </select>
                 </div>
 
-                <div class="flex flex-wrap items-center gap-3 text-sm">
-                    <div class="rounded-xl border border-slate-800 bg-slate-950 px-4 py-2 text-slate-300">
-                        <span class="font-medium text-white">Periode:</span> {{ activeRangeLabel }}
-                    </div>
-                    <div class="rounded-xl border border-slate-800 bg-slate-950 px-4 py-2 text-slate-300">
-                        <span class="font-medium text-white">Van:</span> {{ displayDate(filters.date_from) }}
-                    </div>
-                    <div class="rounded-xl border border-slate-800 bg-slate-950 px-4 py-2 text-slate-300">
-                        <span class="font-medium text-white">Tot:</span> {{ displayDate(filters.date_to) }}
-                    </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-slate-300">Van</label>
+                    <input v-model="filters.date_from" type="date" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500">
                 </div>
 
-                <div class="grid gap-4 xl:grid-cols-[1.2fr_0.9fr_auto]">
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-slate-300">Medewerker</label>
-                        <select v-model="filters.staff_id" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500">
-                            <option value="">Alle medewerkers</option>
-                            <option v-for="item in staff" :key="item.id" :value="String(item.id)">{{ item.name }}</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-slate-300">Status</label>
-                        <select v-model="filters.status" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500">
-                            <option value="all">Alles</option>
-                            <option value="open">Open</option>
-                            <option value="closed">Afgesloten</option>
-                        </select>
-                    </div>
-
-                    <div class="flex items-end gap-3">
-                        <button type="button" class="rounded-xl border border-slate-700 px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800" :disabled="loading" @click="loadData">Vernieuwen</button>
-                    </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-slate-300">Tot</label>
+                    <input v-model="filters.date_to" type="date" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500">
                 </div>
 
-                <div v-if="filters.range_key === 'custom'" class="grid gap-4 md:grid-cols-2 xl:max-w-3xl">
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-slate-300">Van</label>
-                        <input v-model="filters.date_from" type="date" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="mb-2 block text-sm font-medium text-slate-300">Tot</label>
-                        <input v-model="filters.date_to" type="date" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500">
-                    </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-slate-300">Status</label>
+                    <select v-model="filters.status" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500">
+                        <option value="all">Alles</option>
+                        <option value="open">Open</option>
+                        <option value="closed">Afgesloten</option>
+                    </select>
+                </div>
+
+                <div class="flex items-end gap-3">
+                    <button type="button" class="rounded-xl border border-slate-700 px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800" :disabled="loading" @click="loadData">Vernieuwen</button>
                 </div>
             </div>
         </div>
@@ -98,33 +65,28 @@
 
             <div v-if="loading" class="p-6 text-sm text-slate-400">Laden...</div>
             <div v-else-if="openSessions.length === 0" class="p-6 text-sm text-slate-400">Geen open sessies gevonden.</div>
-            <div v-else class="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
-                <div v-for="session in openSessions" :key="session.id" class="rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3">
-                    <div class="flex items-center gap-3">
-                        <div class="h-14 w-14 overflow-hidden rounded-xl border border-slate-800 bg-slate-900">
-                            <img v-if="session.badge_preview_url" :src="session.badge_preview_url" alt="Badge preview" class="h-full w-full object-cover">
-                            <div v-else class="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-400">{{ initials(session.user_name) }}</div>
+            <div v-else class="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
+                <div v-for="session in openSessions" :key="session.id" class="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <div class="text-base font-semibold text-white">{{ session.user_name }}</div>
+                            <div class="mt-1 text-sm text-slate-400">Sinds {{ session.checked_in_at_full_label }}</div>
                         </div>
-
-                        <div class="min-w-0 flex-1">
-                            <div class="flex items-center gap-2">
-                                <div class="truncate text-sm font-semibold text-white">{{ session.user_name }}</div>
-                                <span class="inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">Open</span>
-                            </div>
-                            <div class="mt-1 text-xs text-slate-400">Sinds {{ session.checked_in_at_full_label }}</div>
-                            <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-300">
-                                <span><span class="text-slate-500">Duur:</span> <span class="text-white">{{ session.duration_label }}</span></span>
-                                <span><span class="text-slate-500">RFID:</span> <span class="text-white">{{ session.rfid_uid || '—' }}</span></span>
-                            </div>
-                        </div>
-
+                        <span class="inline-flex rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-300">Open</span>
+                    </div>
+                    <div class="mt-4 grid gap-2 text-sm text-slate-300">
+                        <div>Duur: <span class="text-white">{{ session.duration_label }}</span></div>
+                        <div>RFID: <span class="text-white">{{ session.rfid_uid || '—' }}</span></div>
+                        <div>Ingecheckt door: <span class="text-white">{{ session.checked_in_by_name || '—' }}</span></div>
+                    </div>
+                    <div class="mt-4 flex gap-2">
                         <button type="button" class="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-slate-800" @click="openEditModal(session)">Bewerken</button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="grid gap-6 xl:grid-cols-[1.05fr_1.45fr]">
+        <div class="grid gap-6 xl:grid-cols-[1.1fr_1.4fr]">
             <div class="rounded-2xl border border-slate-800 bg-slate-900 shadow-sm">
                 <div class="flex items-center justify-between border-b border-slate-800 px-5 py-4">
                     <div>
@@ -148,18 +110,9 @@
                         <tbody>
                             <tr v-for="item in staffSummaries" :key="item.user_id" class="cursor-pointer border-t border-slate-800 transition hover:bg-slate-950/60" :class="String(item.user_id) === filters.staff_id ? 'bg-slate-950/80' : 'bg-slate-900'" @click="selectStaff(item.user_id)">
                                 <td class="px-4 py-3 text-white">
-                                    <div class="flex items-center gap-3">
-                                        <div class="h-10 w-10 overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
-                                            <img v-if="item.badge_preview_url" :src="item.badge_preview_url" alt="Badge preview" class="h-full w-full object-cover">
-                                            <div v-else class="flex h-full w-full items-center justify-center text-xs font-semibold text-slate-400">{{ initials(item.user_name) }}</div>
-                                        </div>
-                                        <div class="min-w-0">
-                                            <div class="flex items-center gap-2">
-                                                <span class="truncate">{{ item.user_name }}</span>
-                                                <span v-if="item.is_active" class="inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">Open</span>
-                                            </div>
-                                            <div class="text-xs text-slate-500">{{ item.first_check_in_label || '—' }} · {{ item.last_check_out_label || '—' }}</div>
-                                        </div>
+                                    <div class="flex items-center gap-2">
+                                        <span>{{ item.user_name }}</span>
+                                        <span v-if="item.is_active" class="inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">Open</span>
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 text-slate-300">{{ item.worked_days }}</td>
@@ -182,33 +135,22 @@
                 <div v-if="!filters.staff_id" class="p-6 text-sm text-slate-400">Selecteer links een medewerker om de dagtotalen te bekijken.</div>
                 <div v-else-if="loading" class="p-6 text-sm text-slate-400">Laden...</div>
                 <div v-else-if="selectedStaffDays.length === 0" class="p-6 text-sm text-slate-400">Geen werkdagen gevonden voor deze medewerker.</div>
-                <div v-else class="overflow-x-auto">
-                    <table class="min-w-full text-sm">
-                        <thead class="bg-slate-950 text-slate-300">
-                            <tr>
-                                <th class="px-4 py-3 text-left font-semibold">Datum</th>
-                                <th class="px-4 py-3 text-left font-semibold">Eerste in</th>
-                                <th class="px-4 py-3 text-left font-semibold">Laatste uit</th>
-                                <th class="px-4 py-3 text-left font-semibold">Sessies</th>
-                                <th class="px-4 py-3 text-left font-semibold">Totaal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="day in selectedStaffDays" :key="day.date" class="border-t border-slate-800 bg-slate-900 align-top">
-                                <td class="px-4 py-3 font-medium text-white">{{ day.date_label }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ day.first_check_in_label || '—' }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ day.last_check_out_label || '—' }}</td>
-                                <td class="px-4 py-3 text-slate-300">
-                                    <div class="flex flex-wrap gap-2">
-                                        <span v-for="session in day.sessions" :key="`${day.date}-${session.id}-${session.checked_in_at_label}`" class="inline-flex rounded-xl border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs text-slate-300">
-                                            {{ session.checked_in_at_label }} - {{ session.checked_out_at_label }} · {{ session.duration_label }}
-                                        </span>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3 font-semibold text-white">{{ day.total_time_label }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div v-else class="space-y-4 p-5">
+                    <div v-for="day in selectedStaffDays" :key="day.date" class="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <div class="text-base font-semibold text-white">{{ day.date_label }}</div>
+                                <div class="mt-1 text-sm text-slate-400">{{ day.first_check_in_label || '—' }} → {{ day.last_check_out_label || '—' }}</div>
+                            </div>
+                            <div class="rounded-xl bg-blue-500/10 px-3 py-2 text-sm font-semibold text-blue-300">{{ day.total_time_label }}</div>
+                        </div>
+                        <div class="mt-4 space-y-2">
+                            <div v-for="session in day.sessions" :key="`${day.date}-${session.id}-${session.checked_in_at_label}`" class="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm">
+                                <div class="text-slate-300">{{ session.checked_in_at_label }} - {{ session.checked_out_at_label }}</div>
+                                <div class="font-medium text-white">{{ session.duration_label }}</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -239,17 +181,9 @@
                     <tbody>
                         <tr v-for="session in sessions" :key="session.id" class="border-t border-slate-800 bg-slate-900">
                             <td class="px-4 py-3 text-white">
-                                <div class="flex items-center gap-3">
-                                    <div class="h-10 w-10 overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
-                                        <img v-if="session.badge_preview_url" :src="session.badge_preview_url" alt="Badge preview" class="h-full w-full object-cover">
-                                        <div v-else class="flex h-full w-full items-center justify-center text-xs font-semibold text-slate-400">{{ initials(session.user_name) }}</div>
-                                    </div>
-                                    <div class="min-w-0">
-                                        <div class="flex items-center gap-2">
-                                            <span>{{ session.user_name }}</span>
-                                            <span v-if="session.is_active" class="inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">Open</span>
-                                        </div>
-                                    </div>
+                                <div class="flex items-center gap-2">
+                                    <span>{{ session.user_name }}</span>
+                                    <span v-if="session.is_active" class="inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">Open</span>
                                 </div>
                             </td>
                             <td class="px-4 py-3 text-slate-300">{{ session.checked_in_at_full_label }}</td>
@@ -306,15 +240,7 @@ const filters = reactive({
     date_from: '',
     date_to: '',
     status: 'all',
-    range_key: 'today',
 })
-
-const rangeOptions = [
-    { value: 'today', label: 'Vandaag' },
-    { value: 'week', label: 'Week' },
-    { value: 'month', label: 'Maand' },
-    { value: 'custom', label: 'Periode' },
-]
 
 const staff = computed(() => data.value.staff || [])
 const openSessions = computed(() => data.value.open_sessions || [])
@@ -327,107 +253,6 @@ const statsCards = computed(() => ([
     { label: 'Totaal gewerkte uren', value: data.value.stats?.worked_time_label ?? '0 min' },
     { label: 'Medewerkers met uren', value: data.value.stats?.staff_with_hours ?? 0 },
 ]))
-const activeRangeLabel = computed(() => {
-    const found = rangeOptions.find((option) => option.value === filters.range_key)
-    return found?.label || 'Periode'
-})
-
-function formatDateInput(date) {
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-}
-
-function dateFromInput(value) {
-    const [year, month, day] = String(value || '').split('-').map(Number)
-    return new Date(year, (month || 1) - 1, day || 1)
-}
-
-function getRangeDates(rangeKey, anchor = new Date()) {
-    const base = new Date(anchor)
-    base.setHours(12, 0, 0, 0)
-
-    if (rangeKey === 'month') {
-        const start = new Date(base.getFullYear(), base.getMonth(), 1)
-        const end = new Date(base.getFullYear(), base.getMonth() + 1, 0)
-        return { start, end }
-    }
-
-    if (rangeKey === 'week') {
-        const day = base.getDay()
-        const mondayOffset = day === 0 ? -6 : 1 - day
-        const start = new Date(base)
-        start.setDate(base.getDate() + mondayOffset)
-        const end = new Date(start)
-        end.setDate(start.getDate() + 6)
-        return { start, end }
-    }
-
-    return { start: base, end: base }
-}
-
-function applyRangePreset(rangeKey, anchor = null) {
-    filters.range_key = rangeKey
-
-    if (rangeKey === 'custom') {
-        if (!filters.date_from || !filters.date_to) {
-            const current = getRangeDates('month', new Date())
-            filters.date_from = formatDateInput(current.start)
-            filters.date_to = formatDateInput(current.end)
-        }
-        return
-    }
-
-    const { start, end } = getRangeDates(rangeKey, anchor || new Date())
-    filters.date_from = formatDateInput(start)
-    filters.date_to = formatDateInput(end)
-}
-
-function shiftRange(direction) {
-    if (filters.range_key === 'custom') {
-        const start = dateFromInput(filters.date_from)
-        const end = dateFromInput(filters.date_to)
-        const diff = Math.max(1, Math.round((end - start) / 86400000) + 1)
-        start.setDate(start.getDate() + (diff * direction))
-        end.setDate(end.getDate() + (diff * direction))
-        filters.date_from = formatDateInput(start)
-        filters.date_to = formatDateInput(end)
-        loadData()
-        return
-    }
-
-    const anchor = dateFromInput(filters.date_from || formatDateInput(new Date()))
-
-    if (filters.range_key === 'month') {
-        anchor.setMonth(anchor.getMonth() + direction)
-    } else if (filters.range_key === 'week') {
-        anchor.setDate(anchor.getDate() + (7 * direction))
-    } else {
-        anchor.setDate(anchor.getDate() + direction)
-    }
-
-    applyRangePreset(filters.range_key, anchor)
-    loadData()
-}
-
-function displayDate(value) {
-    if (!value) {
-        return '—'
-    }
-
-    return dateFromInput(value).toLocaleDateString('nl-BE')
-}
-
-function initials(name) {
-    return String(name || '—')
-        .split(' ')
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0])
-        .join('')
-        .toUpperCase() || '—'
-}
 
 async function loadData() {
     loading.value = true
@@ -525,8 +350,5 @@ async function handleDelete(item) {
     }
 }
 
-onMounted(() => {
-    applyRangePreset('today')
-    loadData()
-})
+onMounted(loadData)
 </script>

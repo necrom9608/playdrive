@@ -12,6 +12,8 @@ class DisplayDevice extends Model
 
     public const MODE_RESERVATION = 'reservation';
 
+    public const MODE_MEMBER_REGISTRATION = 'member_registration';
+
     protected $fillable = [
         'tenant_id',
         'name',

@@ -9,6 +9,7 @@
             @update:selected-statuses="store.setSelectedStatuses($event)"
             @search="store.fetchMembers()"
             @new="openCreateModal"
+            @new-via-display="openCreateViaDisplay"
         />
 
         <div
@@ -99,8 +100,10 @@ import MembersFilters from '../components/MembersFilters.vue'
 import MembersTable from '../components/MembersTable.vue'
 import MemberModal from '../components/MemberModal.vue'
 import { useMembersStore } from '../stores/useMembersStore'
+import { usePosStore } from '@/apps/frontdesk/modules/pos/stores/usePosStore'
 
 const store = useMembersStore()
+const posStore = usePosStore()
 const showModal = ref(false)
 const editingMemberId = ref(null)
 
@@ -112,8 +115,16 @@ const editingMember = computed(() => {
     return store.members.find(member => member.id === editingMemberId.value) ?? null
 })
 
-onMounted(() => {
-    store.fetchMembers()
+onMounted(async () => {
+    await store.fetchMembers()
+
+    if (!posStore.posDevice) {
+        try {
+            await posStore.initializeDisplayBridge()
+        } catch {
+            // melding tonen we pas wanneer de gebruiker de displayflow start
+        }
+    }
 })
 
 function openCreateModal() {
@@ -146,6 +157,14 @@ async function handleRenew(member) {
     }
 
     await store.renewMember(member.id)
+}
+
+async function openCreateViaDisplay() {
+    const opened = await store.openCreateViaDisplay(posStore)
+
+    if (!opened && store.error) {
+        window.alert(store.error)
+    }
 }
 
 async function handleSendEmail({ member, type }) {

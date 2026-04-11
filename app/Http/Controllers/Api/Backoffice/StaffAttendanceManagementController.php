@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\Backoffice;
 
 use App\Http\Controllers\Controller;
-use App\Models\PhysicalCard;
 use App\Models\StaffCheckin;
 use App\Models\User;
 use App\Support\CurrentTenant;
@@ -12,7 +11,6 @@ use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class StaffAttendanceManagementController extends Controller
@@ -63,20 +61,15 @@ class StaffAttendanceManagementController extends Controller
             }
         }
 
-        $staffUsers = User::query()
+        $staff = User::query()
             ->where('tenant_id', $tenantId)
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->get(['id', 'name', 'is_active']);
-
-        $badgePreviewMap = $this->buildBadgePreviewMap($tenantId, $staffUsers->pluck('id')->all());
-
-        $staff = $staffUsers
+            ->get(['id', 'name', 'is_active'])
             ->map(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'is_active' => (bool) $user->is_active,
-                'badge_preview_url' => $badgePreviewMap[$user->id] ?? null,
             ])
             ->values();
 
@@ -102,7 +95,7 @@ class StaffAttendanceManagementController extends Controller
             ->orderBy('checked_in_at')
             ->get();
 
-        $staffSummaries = $this->buildStaffSummaries($sessions, $start, $end, $badgePreviewMap);
+        $staffSummaries = $this->buildStaffSummaries($sessions, $start, $end);
         $selectedStaffDays = $staffId ? $this->buildDaySummaries($sessions->where('user_id', $staffId)->values(), $start, $end) : [];
 
         return response()->json([
@@ -120,8 +113,8 @@ class StaffAttendanceManagementController extends Controller
                 'worked_time_label' => $this->formatMinutes((int) $sessions->sum(fn (StaffCheckin $session) => $this->minutesWithinRange($session, $start, $end))),
                 'staff_with_hours' => $staffSummaries->count(),
             ],
-            'open_sessions' => $openSessions->map(fn (StaffCheckin $session) => $this->mapSession($session, $start, $end, $badgePreviewMap))->values(),
-            'sessions' => $sessions->map(fn (StaffCheckin $session) => $this->mapSession($session, $start, $end, $badgePreviewMap))->values(),
+            'open_sessions' => $openSessions->map(fn (StaffCheckin $session) => $this->mapSession($session, $start, $end))->values(),
+            'sessions' => $sessions->map(fn (StaffCheckin $session) => $this->mapSession($session, $start, $end))->values(),
             'staff_summaries' => $staffSummaries->values(),
             'selected_staff_days' => array_values($selectedStaffDays),
         ]);
@@ -169,7 +162,7 @@ class StaffAttendanceManagementController extends Controller
         ]);
     }
 
-    private function buildStaffSummaries(Collection $sessions, ?Carbon $rangeStart = null, ?Carbon $rangeEnd = null, array $badgePreviewMap = []): Collection
+    private function buildStaffSummaries(Collection $sessions, ?Carbon $rangeStart = null, ?Carbon $rangeEnd = null): Collection
     {
         return $sessions
             ->groupBy('user_id')
@@ -195,7 +188,6 @@ class StaffAttendanceManagementController extends Controller
                         ->sortByDesc(fn (CarbonInterface $date) => $date->timestamp)
                         ->first()?->format('d/m/Y H:i'),
                     'is_active' => $groupedSessions->contains(fn (StaffCheckin $session) => $session->checked_out_at === null),
-                    'badge_preview_url' => $badgePreviewMap[$first?->user_id] ?? null,
                 ];
             })
             ->sortBy('user_name', SORT_NATURAL | SORT_FLAG_CASE)
@@ -291,7 +283,7 @@ class StaffAttendanceManagementController extends Controller
         return $segments;
     }
 
-    private function mapSession(StaffCheckin $session, ?Carbon $start = null, ?Carbon $end = null, array $badgePreviewMap = []): array
+    private function mapSession(StaffCheckin $session, ?Carbon $start = null, ?Carbon $end = null): array
     {
         $workedMinutes = $this->minutesWithinRange($session, $start, $end);
 
@@ -309,35 +301,7 @@ class StaffAttendanceManagementController extends Controller
             'is_active' => $session->checked_out_at === null,
             'checked_in_by_name' => $session->checkedInBy?->name,
             'checked_out_by_name' => $session->checkedOutBy?->name,
-            'badge_preview_url' => $badgePreviewMap[$session->user_id] ?? null,
         ];
-    }
-
-    private function buildBadgePreviewMap(int $tenantId, array $staffIds): array
-    {
-        if (empty($staffIds)) {
-            return [];
-        }
-
-        return PhysicalCard::query()
-            ->where('tenant_id', $tenantId)
-            ->where('card_type', PhysicalCard::TYPE_STAFF)
-            ->whereIn('holder_id', $staffIds)
-            ->orderByDesc('updated_at')
-            ->get(['holder_id', 'render_image_path', 'updated_at'])
-            ->groupBy('holder_id')
-            ->map(function (Collection $cards) {
-                $card = $cards->first(fn (PhysicalCard $item) => filled($item->render_image_path) && Storage::disk('public')->exists($item->render_image_path))
-                    ?? $cards->first();
-
-                if (! $card || blank($card->render_image_path) || ! Storage::disk('public')->exists($card->render_image_path)) {
-                    return null;
-                }
-
-                return Storage::disk('public')->url($card->render_image_path) . '?v=' . urlencode((string) optional($card->updated_at)->timestamp);
-            })
-            ->filter()
-            ->toArray();
     }
 
     private function minutesWithinRange(StaffCheckin $session, ?Carbon $rangeStart = null, ?Carbon $rangeEnd = null): int

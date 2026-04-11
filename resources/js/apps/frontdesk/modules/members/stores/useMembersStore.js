@@ -77,6 +77,64 @@ export const useMembersStore = defineStore('members', {
             this.selectedMemberId = id
         },
 
+        async openCreateViaDisplay(posStore) {
+            this.error = null
+
+            try {
+                await this.fetchMembers()
+            } catch {
+                // fout staat al in store, maar displayflow mag nog proberen als templates al gekend zijn
+            }
+
+            try {
+                await posStore?.initializeDisplayBridge?.()
+            } catch {
+                // fout afhandelen hieronder
+            }
+
+            if (!posStore?.displaySyncReady) {
+                this.error = posStore?.displaySyncError ?? 'De koppeling met de display kon niet geïnitialiseerd worden.'
+                return false
+            }
+
+            if (!posStore?.posDevice?.display_device_id || !posStore?.posDevice?.device_uuid) {
+                this.error = 'Er is geen display gekoppeld aan deze frontdesk. Nieuw lid via display is daarom niet mogelijk.'
+                return false
+            }
+
+            const payload = {
+                step: 1,
+                member_badge_templates: this.memberBadgeTemplates,
+                default_badge_template_id: this.memberBadgeTemplates.find(template => template.is_default)?.id ?? this.memberBadgeTemplates[0]?.id ?? null,
+            }
+
+            try {
+                await axios.post('/api/frontdesk/display/sync', {
+                    device_uuid: posStore.posDevice.device_uuid,
+                    device_token: posStore.posDevice.device_token,
+                    mode: 'member_registration',
+                    reservation_id: null,
+                    registration_id: null,
+                    payload,
+                })
+
+                if (typeof posStore?.pushDisplayOverride === 'function') {
+                    posStore.displayModeOverride = {
+                        mode: 'member_registration',
+                        payload,
+                        reservationId: null,
+                    }
+                    posStore.displayModeOverrideExpiresAt = Date.now() + (10 * 60 * 1000)
+                }
+
+                return true
+            } catch (error) {
+                console.error('Failed to open member wizard on display', error)
+                this.error = error?.response?.data?.message ?? 'Wizard op display openen mislukt.'
+                return false
+            }
+        },
+
         async saveMember(payload) {
             this.saving = true
             this.error = null
@@ -84,10 +142,15 @@ export const useMembersStore = defineStore('members', {
             try {
                 let response
 
+                const normalizedPayload = {
+                    ...payload,
+                    login: payload.email || payload.login || '',
+                }
+
                 if (payload.id) {
-                    response = await axios.put(`/api/frontdesk/members/${payload.id}`, payload)
+                    response = await axios.put(`/api/frontdesk/members/${payload.id}`, normalizedPayload)
                 } else {
-                    response = await axios.post('/api/frontdesk/members', payload)
+                    response = await axios.post('/api/frontdesk/members', normalizedPayload)
                 }
 
                 const savedId = response?.data?.data?.id ?? payload.id ?? null

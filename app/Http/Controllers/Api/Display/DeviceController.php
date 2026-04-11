@@ -154,7 +154,7 @@ class DeviceController extends Controller
         $data = $request->validate([
             'device_uuid' => ['required', 'uuid'],
             'device_token' => ['required', 'string'],
-            'mode' => ['required', 'in:standby,reservation'],
+            'mode' => ['required', 'in:standby,reservation,member_registration'],
             'reservation_id' => ['nullable', 'integer'],
             'payload' => ['nullable', 'array'],
         ]);
@@ -210,6 +210,7 @@ class DeviceController extends Controller
         $order = Arr::get($payload, 'order');
 
         return [
+            ...$payload,
             'reservation' => $reservation,
             'order' => $order,
             'reservation_id' => $reservationId

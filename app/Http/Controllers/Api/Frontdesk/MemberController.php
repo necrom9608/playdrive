@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class MemberController extends Controller
 {
@@ -137,6 +138,7 @@ class MemberController extends Controller
             : $startDate->copy()->addYear();
 
         $member = DB::transaction(function () use ($data, $currentTenant, $startDate, $endsDate, $actorUserId) {
+            $resolvedLogin = $this->resolveLogin($data['login'] ?? null, $data['email'] ?? null);
             $payload = [
                 'tenant_id' => $currentTenant->id(),
                 'first_name' => $data['first_name'],
@@ -148,16 +150,18 @@ class MemberController extends Controller
                 'city' => $this->nullableValue($data['city'] ?? null),
                 'country' => $this->nullableValue($data['country'] ?? null),
                 'email' => $this->nullableValue($data['email'] ?? null),
-                'login' => $this->nullableValue($data['login'] ?? null),
+                'phone' => $this->nullableValue($data['phone'] ?? null),
+                'login' => $resolvedLogin,
                 'password' => $this->nullableValue($data['password'] ?? null),
                 'rfid_uid' => $this->nullableValue($data['rfid_uid'] ?? null),
                 'comment' => $this->nullableValue($data['comment'] ?? null),
+                'birth_date' => !empty($data['birth_date']) ? Carbon::parse($data['birth_date'])->toDateString() : null,
                 'membership_starts_at' => $startDate->toDateString(),
                 'membership_ends_at' => $endsDate->toDateString(),
             ];
 
             if ($this->membersHasMembershipTypeColumn()) {
-                $payload['membership_type'] = 'adult';
+                $payload['membership_type'] = $data['membership_type'] ?? 'adult';
             }
 
             if ($this->membersHasIsActiveColumn()) {
@@ -200,6 +204,7 @@ class MemberController extends Controller
             : ($member->membership_ends_at?->copy()->startOfDay() ?? $startDate->copy()->addYear());
 
         DB::transaction(function () use ($member, $data, $startDate, $endsDate, $currentTenant, $actorUserId) {
+            $resolvedLogin = $this->resolveLogin($data['login'] ?? null, $data['email'] ?? null);
             $payload = [
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
@@ -210,12 +215,18 @@ class MemberController extends Controller
                 'city' => $this->nullableValue($data['city'] ?? null),
                 'country' => $this->nullableValue($data['country'] ?? null),
                 'email' => $this->nullableValue($data['email'] ?? null),
-                'login' => $this->nullableValue($data['login'] ?? null),
+                'phone' => $this->nullableValue($data['phone'] ?? null),
+                'login' => $resolvedLogin,
                 'rfid_uid' => $this->nullableValue($data['rfid_uid'] ?? null),
                 'comment' => $this->nullableValue($data['comment'] ?? null),
+                'birth_date' => !empty($data['birth_date']) ? Carbon::parse($data['birth_date'])->toDateString() : null,
                 'membership_starts_at' => $startDate->toDateString(),
                 'membership_ends_at' => $endsDate->toDateString(),
             ];
+
+            if ($this->membersHasMembershipTypeColumn()) {
+                $payload['membership_type'] = $data['membership_type'] ?? ($member->membership_type ?: 'adult');
+            }
 
             if ($this->membersHasIsActiveColumn()) {
                 $payload['is_active'] = (bool) ($data['is_active'] ?? true);
@@ -526,8 +537,12 @@ class MemberController extends Controller
             'first_name' => $member->first_name,
             'last_name' => $member->last_name,
             'full_name' => trim($member->first_name . ' ' . $member->last_name),
+            'birth_date' => optional($member->birth_date)->format('Y-m-d'),
+            'birth_date_label' => optional($member->birth_date)->format('d/m/Y'),
+            'membership_type' => $member->membership_type ?: 'adult',
             'login' => $member->login,
             'email' => $member->email,
+            'phone' => $member->phone,
             'street' => $member->street,
             'house_number' => $member->house_number,
             'box' => $member->box,
@@ -596,6 +611,19 @@ class MemberController extends Controller
         }
 
         return $value;
+    }
+
+    private function resolveLogin(mixed $login, mixed $email): ?string
+    {
+        $normalizedLogin = $this->nullableValue($login);
+
+        if ($normalizedLogin !== null) {
+            return is_string($normalizedLogin) ? Str::lower($normalizedLogin) : $normalizedLogin;
+        }
+
+        $normalizedEmail = $this->nullableValue($email);
+
+        return is_string($normalizedEmail) ? Str::lower($normalizedEmail) : $normalizedEmail;
     }
 
     private function memberBadgeTemplates(CurrentTenant $currentTenant): array

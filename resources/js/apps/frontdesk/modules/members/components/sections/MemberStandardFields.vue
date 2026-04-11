@@ -16,13 +16,26 @@
         </label>
 
         <label class="space-y-2 text-sm text-slate-300">
-            <span>Login</span>
-            <input :value="form.login" type="text" :class="fieldClass" @input="update('login', $event.target.value)">
+            <span>Telefoon</span>
+            <input :value="form.phone" type="text" :class="fieldClass" @input="update('phone', $event.target.value)">
         </label>
 
         <label class="space-y-2 text-sm text-slate-300">
             <span>{{ form.id ? 'Nieuw paswoord (optioneel)' : 'Paswoord' }}</span>
             <input :value="form.password" type="password" :class="fieldClass" @input="update('password', $event.target.value)">
+        </label>
+
+        <label class="space-y-2 text-sm text-slate-300">
+            <span>Geboortedatum</span>
+            <input :value="form.birth_date" type="date" :class="fieldClass" @input="update('birth_date', $event.target.value)">
+        </label>
+
+        <label class="space-y-2 text-sm text-slate-300">
+            <span>Type</span>
+            <select :value="form.membership_type" :class="fieldClass" @change="update('membership_type', $event.target.value)">
+                <option value="adult">Volwassen</option>
+                <option value="student">Student</option>
+            </select>
         </label>
 
         <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-300">
@@ -43,6 +56,11 @@
         <label class="space-y-2 text-sm text-slate-300">
             <span>Geldig tot</span>
             <input :value="form.membership_ends_at" type="date" :class="fieldClass" @input="update('membership_ends_at', $event.target.value)">
+        </label>
+
+        <label class="space-y-2 text-sm text-slate-300 lg:col-span-2">
+            <span>Login</span>
+            <input :value="form.email" type="text" :class="fieldClass" disabled>
         </label>
 
         <label class="space-y-2 text-sm text-slate-300 lg:col-span-2">

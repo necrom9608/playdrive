@@ -15,7 +15,6 @@ use App\Http\Controllers\Api\Backoffice\DayTotalsController;
 use App\Http\Controllers\Api\Backoffice\VoucherTemplateController;
 use App\Http\Controllers\Api\Backoffice\PhysicalCardController;
 use App\Http\Controllers\Api\Backoffice\StaffAttendanceManagementController;
-use App\Http\Controllers\Api\Backoffice\TenantSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api/backoffice')->group(function () {
@@ -53,9 +52,6 @@ Route::prefix('api/backoffice')->group(function () {
         Route::put('/pricing-engine/rules/{rule}', [PricingEngineController::class, 'updateRule']);
         Route::delete('/pricing-engine/rules/{rule}', [PricingEngineController::class, 'deleteRule']);
 
-        Route::get('/tenant-settings', [TenantSettingsController::class, 'show']);
-        Route::post('/tenant-settings', [TenantSettingsController::class, 'update']);
-
         Route::get('/analytics/dashboard', [AnalyticsController::class, 'dashboard']);
         Route::get('/analytics/reporting', [AnalyticsController::class, 'reporting']);
         Route::get('/day-totals', [DayTotalsController::class, 'index']);
@@ -71,9 +67,7 @@ Route::prefix('api/backoffice')->group(function () {
         Route::post('/devices/pair', [DeviceManagementController::class, 'pair']);
         Route::post('/devices/{posDevice}/unpair', [DeviceManagementController::class, 'unpair']);
         Route::put('/devices/pos/{posDevice}', [DeviceManagementController::class, 'updatePos']);
-        Route::delete('/devices/pos/{posDevice}', [DeviceManagementController::class, 'destroyPos']);
         Route::put('/devices/display/{displayDevice}', [DeviceManagementController::class, 'updateDisplay']);
-        Route::delete('/devices/display/{displayDevice}', [DeviceManagementController::class, 'destroyDisplay']);
 
         Route::get('/staff', [StaffController::class, 'index']);
         Route::post('/staff', [StaffController::class, 'store']);

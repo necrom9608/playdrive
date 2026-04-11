@@ -159,6 +159,10 @@ export const usePosStore = defineStore('pos', {
     }),
 
     getters: {
+        hasLinkedDisplay(state) {
+            return Boolean(state.displaySyncReady && state.posDevice?.display_device_id && state.posDevice?.device_uuid)
+        },
+
         filteredProducts(state) {
             if (!state.selectedCategoryId) {
                 return state.products
@@ -402,6 +406,44 @@ export const usePosStore = defineStore('pos', {
                 })
 
                 this.displaySyncError = null
+            } catch (error) {
+                this.displaySyncError = error?.response?.data?.message ?? 'Display synchroniseren mislukt.'
+            }
+        },
+
+        async showMemberRegistrationOnDisplay(payload = {}) {
+            if (!this.displaySyncReady || !this.posDevice?.display_device_id || !this.posDevice?.device_uuid) {
+                throw new Error('Er is geen gekoppelde display beschikbaar.')
+            }
+
+            try {
+                await axios.post('/api/frontdesk/display/sync', {
+                    device_uuid: this.posDevice.device_uuid,
+                    device_token: getStoredPosDeviceToken(),
+                    mode: 'member_registration',
+                    payload,
+                })
+
+                this.displaySyncError = null
+                return true
+            } catch (error) {
+                this.displaySyncError = error?.response?.data?.message ?? 'Display synchroniseren mislukt.'
+                throw error
+            }
+        },
+
+        async clearDisplay() {
+            if (!this.displaySyncReady || !this.posDevice?.display_device_id || !this.posDevice?.device_uuid) {
+                return
+            }
+
+            try {
+                await axios.post('/api/frontdesk/display/sync', {
+                    device_uuid: this.posDevice.device_uuid,
+                    device_token: getStoredPosDeviceToken(),
+                    mode: 'standby',
+                    payload: {},
+                })
             } catch (error) {
                 this.displaySyncError = error?.response?.data?.message ?? 'Display synchroniseren mislukt.'
             }

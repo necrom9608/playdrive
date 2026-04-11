@@ -14,9 +14,11 @@ class Member extends Model
         'tenant_id',
         'first_name',
         'last_name',
+        'birth_date',
         'membership_type',
         'login',
         'email',
+        'phone',
         'password',
         'street',
         'house_number',
@@ -41,6 +43,7 @@ class Member extends Model
     protected function casts(): array
     {
         return [
+            'birth_date' => 'date',
             'membership_starts_at' => 'date',
             'membership_ends_at' => 'date',
             'confirmation_mail_sent_at' => 'datetime',

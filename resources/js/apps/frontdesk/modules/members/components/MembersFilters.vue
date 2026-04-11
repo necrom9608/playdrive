@@ -98,6 +98,13 @@
                 </button>
                 <button
                     type="button"
+                    class="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/20"
+                    @click="$emit('new-via-display')"
+                >
+                    Nieuw lid via display
+                </button>
+                <button
+                    type="button"
                     class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500"
                     @click="$emit('new')"
                 >
@@ -122,7 +129,7 @@ const props = defineProps({
     },
 })
 
-const emit = defineEmits(['update:search', 'update:selected-statuses', 'search', 'new'])
+const emit = defineEmits(['update:search', 'update:selected-statuses', 'search', 'new', 'new-via-display'])
 
 const isOpen = ref(false)
 
