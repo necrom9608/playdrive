@@ -68,9 +68,11 @@ const payload = ref({})
 const displayId = ref(null)
 const isPaired = ref(false)
 
-let intervalId = null
+let fallbackPollId = null
 let echo = null
 let channel = null
+let subscribedChannelName = null
+let websocketConnected = false
 
 const reservation = computed(() => payload.value?.reservation ?? {})
 const order = computed(() => payload.value?.order ?? {})
@@ -227,6 +229,29 @@ function createEcho() {
     return echo
 }
 
+function stopFallbackPolling() {
+    if (fallbackPollId) {
+        clearInterval(fallbackPollId)
+        fallbackPollId = null
+        console.log('[display] fallback polling stopped')
+    }
+}
+
+function startFallbackPolling() {
+    if (fallbackPollId) {
+        return
+    }
+
+    fallbackPollId = window.setInterval(() => {
+        if (!websocketConnected) {
+            console.log('[display] fallback polling tick')
+            loadState()
+        }
+    }, 3000)
+
+    console.log('[display] fallback polling started', 3000)
+}
+
 function subscribeToChannel() {
     if (!displayId.value) {
         console.log('[display] subscribe skipped: no displayId')
@@ -239,21 +264,33 @@ function subscribeToChannel() {
     console.log('[display] subscribing to channel', channelName)
     console.log('[display] echo instance', echoInstance)
 
-    if (channel) {
-        console.log('[display] leaving previous channel', channelName)
-        echoInstance.leave(channelName)
+    if (subscribedChannelName && subscribedChannelName !== channelName) {
+        console.log('[display] leaving previous channel', subscribedChannelName)
+        echoInstance.leave(subscribedChannelName)
         channel = null
+        subscribedChannelName = null
+        websocketConnected = false
+    }
+
+    if (channel && subscribedChannelName === channelName) {
+        console.log('[display] already subscribed to channel', channelName)
+        return
     }
 
     channel = echoInstance.channel(channelName)
+    subscribedChannelName = channelName
 
     console.log('[display] channel object', channel)
 
     channel
         .subscribed(() => {
+            websocketConnected = true
+            stopFallbackPolling()
             console.log('[display] subscription succeeded', channelName)
         })
         .error((subscriptionError) => {
+            websocketConnected = false
+            startFallbackPolling()
             console.error('[display] subscription error', subscriptionError)
         })
         .listen('.display.state.updated', (event) => {
@@ -266,6 +303,8 @@ function subscribeToChannel() {
                 is_paired: true,
             })
 
+            websocketConnected = true
+            stopFallbackPolling()
             error.value = ''
             loading.value = false
         })
@@ -322,9 +361,7 @@ async function bootstrap() {
 
         applyState(response.data?.data ?? {})
         await loadState()
-
-        intervalId = window.setInterval(loadState, 3000)
-        console.log('[display] polling started', 3000)
+        startFallbackPolling()
     } catch (err) {
         console.error('[display] bootstrap error', err)
         loading.value = false
@@ -337,12 +374,10 @@ onMounted(bootstrap)
 onBeforeUnmount(() => {
     console.log('[display] beforeUnmount')
 
-    if (intervalId) {
-        clearInterval(intervalId)
-    }
+    stopFallbackPolling()
 
-    if (echo && displayId.value) {
-        leaveChannel(`display.${displayId.value}`)
+    if (echo && subscribedChannelName) {
+        leaveChannel(subscribedChannelName)
     }
 })
 </script>
