@@ -209,6 +209,10 @@ class OrderService
                     ];
                 }
 
+                $manualDiscountAmount = $this->resolveManualDiscountAmount($payload, $totalInclVat);
+                $manualDiscountLabel = $this->resolveManualDiscountLabel($payload);
+                $finalTotalInclVat = round(max(0, $totalInclVat - $manualDiscountAmount), 2);
+
                 $order = Order::create([
                     'tenant_id' => $currentTenant->id(),
                     'registration_id' => $registration?->id,
@@ -216,7 +220,9 @@ class OrderService
                     'source' => $source,
                     'subtotal_excl_vat' => round($subtotalExclVat, 2),
                     'total_vat' => round($totalVat, 2),
-                    'total_incl_vat' => round($totalInclVat, 2),
+                    'total_incl_vat' => $finalTotalInclVat,
+                    'manual_discount_amount' => $manualDiscountAmount,
+                    'manual_discount_label' => $manualDiscountLabel,
                     'payment_method' => $paymentMethod,
                     'paid_at' => now(),
                     'created_by' => $actorUserId,
@@ -266,6 +272,10 @@ class OrderService
         return DB::transaction(function () use ($order, $payload, $registration, $actorUserId) {
             $this->recalculateOrderTotals($order, $actorUserId);
 
+            $itemsTotalInclVat = round((float) $order->total_incl_vat, 2);
+            $manualDiscountAmount = $this->resolveManualDiscountAmount($payload, $itemsTotalInclVat);
+            $manualDiscountLabel = $this->resolveManualDiscountLabel($payload);
+
             $order->update([
                 'status' => Order::STATUS_PAID,
                 'payment_method' => (string) Arr::get($payload, 'payment_method', 'bancontact'),
@@ -274,6 +284,9 @@ class OrderService
                 'updated_by' => $actorUserId,
                 'notes' => filled(Arr::get($payload, 'notes')) ? (string) Arr::get($payload, 'notes') : null,
                 'invoice_requested' => (bool) Arr::get($payload, 'invoice_requested', false),
+                'manual_discount_amount' => $manualDiscountAmount,
+                'manual_discount_label' => $manualDiscountLabel,
+                'total_incl_vat' => round(max(0, $itemsTotalInclVat - $manualDiscountAmount), 2),
             ]);
 
             GiftVoucher::query()
@@ -521,6 +534,31 @@ class OrderService
                     'sort_order' => $index + 1,
                 ]);
             });
+    }
+
+    protected function normalizeManualDiscountAmount(mixed $value): float
+    {
+        $amount = round((float) $value, 2);
+
+        return max(0, $amount);
+    }
+
+    protected function resolveManualDiscountAmount(array $payload, float $itemsTotalInclVat): float
+    {
+        $amount = $this->normalizeManualDiscountAmount(Arr::get($payload, 'manual_discount_amount', 0));
+
+        if ($itemsTotalInclVat <= 0) {
+            return 0.0;
+        }
+
+        return min($amount, round($itemsTotalInclVat, 2));
+    }
+
+    protected function resolveManualDiscountLabel(array $payload): ?string
+    {
+        $label = trim((string) Arr::get($payload, 'manual_discount_label', ''));
+
+        return $label !== '' ? $label : null;
     }
 
     protected function recalculateOrderTotals(Order $order, ?int $actorUserId = null): void

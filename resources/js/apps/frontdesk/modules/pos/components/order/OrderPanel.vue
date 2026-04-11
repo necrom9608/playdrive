@@ -90,6 +90,8 @@
             :registration="store.selectedReservation"
             :total-formatted="formatPrice(store.orderSubtotal)"
             :payment-method-model="paymentMethod"
+            :manual-discount-amount-model="manualDiscountAmount"
+            :manual-discount-label-model="manualDiscountLabel"
             :invoice-requested-model="invoiceRequested"
             :voucher-code-model="voucherCode"
             :note-model="note"
@@ -99,6 +101,8 @@
             :voucher-success="voucherSuccess"
             @close="closeCheckoutModal"
             @update:payment-method-model="paymentMethod = $event"
+            @update:manual-discount-amount-model="manualDiscountAmount = $event"
+            @update:manual-discount-label-model="manualDiscountLabel = $event"
             @update:invoice-requested-model="invoiceRequested = $event"
             @update:voucher-code-model="voucherCode = $event"
             @update:note-model="note = $event"
@@ -160,6 +164,8 @@ const paymentMethod = ref('cash')
 const invoiceRequested = ref(false)
 const voucherCode = ref('')
 const note = ref('')
+const manualDiscountAmount = ref('')
+const manualDiscountLabel = ref('')
 const receiptEmail = ref('')
 const receiptEmailError = ref('')
 const voucherValidationLoading = ref(false)
@@ -179,6 +185,8 @@ function resetCheckoutState() {
     invoiceRequested.value = Boolean(store.selectedReservation?.invoice_requested ?? false)
     voucherCode.value = ''
     note.value = ''
+    manualDiscountAmount.value = ''
+    manualDiscountLabel.value = 'Manuele korting'
     receiptEmail.value = store.selectedReservation?.email ?? ''
     receiptEmailError.value = ''
     voucherValidationLoading.value = false
@@ -277,6 +285,8 @@ async function executeCheckout(extraPayload = {}) {
         invoice_requested: extraPayload.invoice_requested ?? invoiceRequested.value,
         notes: extraPayload.note ?? note.value,
         voucher_code: extraPayload.voucher_code ?? voucherCode.value,
+        manual_discount_amount: extraPayload.manual_discount_amount ?? manualDiscountAmount.value ?? 0,
+        manual_discount_label: extraPayload.manual_discount_label ?? manualDiscountLabel.value ?? 'Manuele korting',
     })
 
     if (extraPayload.print_receipt && result?.id) {
@@ -316,6 +326,8 @@ async function confirmReceiptEmail() {
             invoice_requested: invoiceRequested.value,
             note: note.value,
             voucher_code: voucherCode.value,
+            manual_discount_amount: manualDiscountAmount.value,
+            manual_discount_label: manualDiscountLabel.value,
             email_receipt: true,
             receipt_email: email,
         })

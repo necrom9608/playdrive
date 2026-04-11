@@ -75,6 +75,8 @@ function createEmptyOrder(context = 'walk_in', registrationId = null) {
         subtotal_excl_vat: 0,
         total_vat: 0,
         total_incl_vat: 0,
+        manual_discount_amount: 0,
+        manual_discount_label: null,
     }
 }
 
@@ -86,6 +88,8 @@ function cloneOrder(order) {
         subtotal_excl_vat: Number(order?.subtotal_excl_vat ?? 0),
         total_vat: Number(order?.total_vat ?? 0),
         total_incl_vat: Number(order?.total_incl_vat ?? 0),
+        manual_discount_amount: Number(order?.manual_discount_amount ?? 0),
+        manual_discount_label: order?.manual_discount_label ?? null,
         items: Array.isArray(order?.items)
             ? [...order.items]
                 .sort((a, b) => {

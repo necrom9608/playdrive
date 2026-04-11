@@ -34,6 +34,8 @@ class ReceiptBuilder
                 'payment_method' => self::formatPaymentMethod($order->payment_method),
                 'invoice_requested' => (bool) $order->invoice_requested,
                 'notes' => $order->notes,
+                'manual_discount_amount' => (float) ($order->manual_discount_amount ?? 0),
+                'manual_discount_label' => $order->manual_discount_label ?: 'Manuele korting',
                 'total' => (float) $order->total_incl_vat,
                 'subtotal' => (float) $order->subtotal_excl_vat,
                 'vat' => (float) $order->total_vat,

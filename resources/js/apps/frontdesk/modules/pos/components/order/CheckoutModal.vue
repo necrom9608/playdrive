@@ -5,7 +5,7 @@
             class="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/70 p-4"
             @click.self="handleClose"
         >
-            <div class="flex h-[760px] w-full max-w-7xl flex-col overflow-hidden rounded-[28px] border border-slate-800 bg-[#091633] shadow-2xl">
+            <div class="flex h-[800px] w-full max-w-[1200px] flex-col overflow-hidden rounded-[28px] border border-slate-800 bg-[#091633] shadow-2xl">
                 <div class="flex items-start justify-between border-b border-slate-800 px-5 py-4">
                     <div>
                         <h2 class="text-xl font-semibold text-white">Checkout</h2>
@@ -77,11 +77,23 @@
                                 </div>
 
                                 <div class="mt-4 rounded-[22px] border border-slate-800 bg-[#020b24] px-4 py-4">
-                                    <div class="flex items-center justify-between gap-4">
-                                        <span class="text-base font-medium text-slate-300">Totaal</span>
-                                        <span class="text-3xl font-bold leading-none text-white">
-                                            € {{ resolvedTotalFormatted }}
-                                        </span>
+                                    <div class="space-y-2">
+                                        <div class="flex items-center justify-between gap-4 text-sm">
+                                            <span class="font-medium text-slate-300">Producten</span>
+                                            <span class="font-semibold text-white">€ {{ itemsTotalFormatted }}</span>
+                                        </div>
+
+                                        <div v-if="manualDiscountAmountValue > 0" class="flex items-center justify-between gap-4 text-sm">
+                                            <span class="font-medium text-emerald-200">{{ manualDiscountLabel || 'Manuele korting' }}</span>
+                                            <span class="font-semibold text-emerald-200">- € {{ manualDiscountAmountFormatted }}</span>
+                                        </div>
+
+                                        <div class="flex items-center justify-between gap-4 border-t border-slate-800 pt-2">
+                                            <span class="text-base font-medium text-slate-300">Totaal</span>
+                                            <span class="text-3xl font-bold leading-none text-white">
+                                                € {{ resolvedTotalFormatted }}
+                                            </span>
+                                        </div>
                                     </div>
 
                                     <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
@@ -236,6 +248,45 @@
                                 </section>
 
                                 <section class="rounded-[20px] border border-slate-800 bg-[#020b24] p-4">
+                                    <div class="flex items-stretch gap-3">
+                                        <input
+                                            v-model="manualDiscountLabel"
+                                            type="text"
+                                            class="h-[50px] min-w-0 flex-1 rounded-2xl border border-slate-700 bg-slate-800/90 px-4 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-sky-500"
+                                            placeholder="Bijv. Legacy kortingsbon"
+                                        >
+
+                                        <div class="relative w-[150px] shrink-0">
+                                            <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-slate-400">€</span>
+                                            <input
+                                                :value="manualDiscountAmount"
+                                                type="text"
+                                                inputmode="decimal"
+                                                class="h-[50px] w-full rounded-2xl border border-slate-700 bg-slate-800/90 pl-8 pr-4 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-sky-500"
+                                                placeholder="0,00"
+                                                @input="handleManualDiscountInput"
+                                            >
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            class="h-[50px] shrink-0 whitespace-nowrap rounded-2xl border border-slate-700 bg-slate-800/90 px-4 text-sm font-medium text-slate-200 transition hover:bg-slate-700"
+                                            @click="setManualDiscountAmount(itemsTotal)"
+                                        >
+                                            Volledige bestelling
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            class="inline-flex h-[50px] w-[50px] items-center justify-center rounded-2xl border border-slate-700 bg-slate-800/90 text-slate-200 transition hover:bg-slate-700"
+                                            @click="clearManualDiscount"
+                                        >
+                                            <TrashIcon class="h-5 w-5" />
+                                        </button>
+                                    </div>
+                                </section>
+
+                                <section class="rounded-[20px] border border-slate-800 bg-[#020b24] p-4">
                                     <div class="text-base font-semibold text-white">Cadeaubon</div>
 
                                     <div class="mt-4 flex flex-wrap items-stretch gap-3">
@@ -287,26 +338,9 @@
                             </div>
                         </div>
 
-                        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
-                            <button
-                                type="button"
-                                class="inline-flex items-center justify-center gap-2 rounded-[20px] border border-slate-700 bg-slate-800/90 px-5 py-4 text-sm font-semibold text-white transition hover:bg-slate-700"
-                                @click="handleClose"
-                            >
-                                <XMarkIcon class="h-5 w-5" />
-                                <span>Annuleren</span>
-                            </button>
+                        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
 
-                            <button
-                                type="button"
-                                class="inline-flex items-center justify-center gap-2 rounded-[20px] border border-slate-700 bg-slate-800/90 px-5 py-4 text-sm font-semibold text-white transition hover:border-sky-500 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-                                :disabled="confirmLoading || normalizedItems.length === 0 || cashPaymentInvalid"
-                                @click="handleConfirm(false)"
-                            >
-                                <CheckIcon class="h-5 w-5" />
-                                <span>{{ confirmLoading ? 'Betaling verwerken...' : 'Betaling bevestigen' }}</span>
-                            </button>
-
+                            <!-- Print -->
                             <button
                                 type="button"
                                 class="inline-flex items-center justify-center gap-2 rounded-[20px] bg-blue-600 px-5 py-4 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
@@ -317,15 +351,28 @@
                                 <span>{{ confirmLoading ? 'Betaling verwerken...' : 'Druk bon' }}</span>
                             </button>
 
+                            <!-- Email -->
                             <button
                                 type="button"
-                                class="inline-flex items-center justify-center gap-2 rounded-[20px] bg-emerald-600 px-5 py-4 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                class="inline-flex items-center justify-center gap-2 rounded-[20px] bg-blue-600 px-5 py-4 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                                 :disabled="confirmLoading || normalizedItems.length === 0 || cashPaymentInvalid"
                                 @click="emit('email-receipt')"
                             >
                                 <DocumentTextIcon class="h-5 w-5" />
                                 <span>{{ confirmLoading ? 'Betaling verwerken...' : 'Verzend bon via e-mail' }}</span>
                             </button>
+
+                            <!-- Confirm -->
+                            <button
+                                type="button"
+                                class="inline-flex items-center justify-center gap-2 rounded-[20px] bg-gradient-to-r from-emerald-500 to-green-600 px-5 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-900/40 transition hover:scale-[1.02] hover:from-emerald-400 hover:to-green-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                :disabled="confirmLoading || normalizedItems.length === 0 || cashPaymentInvalid"
+                                @click="handleConfirm(false)"
+                            >
+                                <CheckIcon class="h-5 w-5" />
+                                <span>{{ confirmLoading ? 'Betaling verwerken...' : 'Betaling bevestigen' }}</span>
+                            </button>
+
                         </div>
                     </div>
                 </div>
@@ -341,6 +388,7 @@ import {
     CheckIcon,
     DocumentTextIcon,
     PrinterIcon,
+    TrashIcon,
     XMarkIcon,
 } from '@heroicons/vue/24/outline'
 import ScanQrButton from '../../../../../../shared/components/scanners/ScanQrButton.vue'
@@ -379,6 +427,14 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    manualDiscountAmountModel: {
+        type: [String, Number],
+        default: '',
+    },
+    manualDiscountLabelModel: {
+        type: String,
+        default: 'Manuele korting',
+    },
     voucherCodeModel: {
         type: String,
         default: '',
@@ -409,6 +465,8 @@ const emit = defineEmits([
     'update:open',
     'update:paymentMethodModel',
     'update:invoiceRequestedModel',
+    'update:manualDiscountAmountModel',
+    'update:manualDiscountLabelModel',
     'update:voucherCodeModel',
     'update:noteModel',
     'close',
@@ -419,6 +477,8 @@ const emit = defineEmits([
 
 const paymentMethod = ref(props.paymentMethodModel)
 const invoiceRequested = ref(props.invoiceRequestedModel)
+const manualDiscountAmount = ref(props.manualDiscountAmountModel)
+const manualDiscountLabel = ref(props.manualDiscountLabelModel || 'Manuele korting')
 const voucherCode = ref(props.voucherCodeModel)
 const note = ref(props.noteModel)
 const cashReceivedInput = ref('')
@@ -429,6 +489,14 @@ watch(() => props.paymentMethodModel, (value) => {
 
 watch(() => props.invoiceRequestedModel, (value) => {
     invoiceRequested.value = value
+})
+
+watch(() => props.manualDiscountAmountModel, (value) => {
+    manualDiscountAmount.value = value
+})
+
+watch(() => props.manualDiscountLabelModel, (value) => {
+    manualDiscountLabel.value = value || 'Manuele korting'
 })
 
 watch(() => props.voucherCodeModel, (value) => {
@@ -448,6 +516,8 @@ watch(paymentMethod, (value) => {
 })
 
 watch(invoiceRequested, (value) => emit('update:invoiceRequestedModel', value))
+watch(manualDiscountAmount, (value) => emit('update:manualDiscountAmountModel', value))
+watch(manualDiscountLabel, (value) => emit('update:manualDiscountLabelModel', value || 'Manuele korting'))
 watch(voucherCode, (value) => emit('update:voucherCodeModel', value))
 watch(note, (value) => emit('update:noteModel', value))
 
@@ -529,8 +599,22 @@ const itemCount = computed(() =>
     normalizedItems.value.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
 )
 
-const resolvedTotal = computed(() =>
+const itemsTotal = computed(() =>
     roundToTwo(normalizedItems.value.reduce((sum, item) => sum + item.lineTotalIncl, 0))
+)
+
+const manualDiscountAmountValue = computed(() => {
+    const parsed = normalizeMoneyInput(manualDiscountAmount.value)
+
+    if (itemsTotal.value <= 0) {
+        return 0
+    }
+
+    return Math.min(parsed, itemsTotal.value)
+})
+
+const resolvedTotal = computed(() =>
+    roundToTwo(Math.max(0, itemsTotal.value - manualDiscountAmountValue.value))
 )
 
 const subtotal = computed(() =>
@@ -541,14 +625,9 @@ const vatTotal = computed(() =>
     roundToTwo(normalizedItems.value.reduce((sum, item) => sum + item.lineVat, 0))
 )
 
-const resolvedTotalFormatted = computed(() => {
-    if (props.totalFormatted) {
-        return props.totalFormatted
-    }
-
-    return formatMoney(resolvedTotal.value)
-})
-
+const resolvedTotalFormatted = computed(() => formatMoney(resolvedTotal.value))
+const itemsTotalFormatted = computed(() => formatMoney(itemsTotal.value))
+const manualDiscountAmountFormatted = computed(() => formatMoney(manualDiscountAmountValue.value))
 const subtotalFormatted = computed(() => formatMoney(subtotal.value))
 const vatFormatted = computed(() => formatMoney(vatTotal.value))
 
@@ -636,6 +715,8 @@ function handleConfirm(printReceipt = false) {
         payment_method: paymentMethod.value,
         invoice_requested: invoiceRequested.value,
         voucher_code: voucherCode.value,
+        manual_discount_amount: roundToTwo(manualDiscountAmountValue.value),
+        manual_discount_label: (manualDiscountLabel.value || 'Manuele korting').trim() || 'Manuele korting',
         note: note.value,
         print_receipt: printReceipt,
         cash_received: paymentMethod.value === 'cash' ? roundToTwo(cashReceived.value) : null,
@@ -657,6 +738,23 @@ function handleRfidScanned(value) {
 
 function setCashReceived(amount) {
     cashReceivedInput.value = formatPlainMoney(amount)
+}
+
+function setManualDiscountAmount(amount) {
+    manualDiscountAmount.value = formatPlainMoney(amount)
+}
+
+function clearManualDiscount() {
+    manualDiscountAmount.value = ''
+}
+
+function handleManualDiscountInput(event) {
+    const cleaned = String(event.target.value ?? '')
+        .replace(',', '.')
+        .replace(/[^0-9.]/g, '')
+        .replace(/(\..*)\./g, '$1')
+
+    manualDiscountAmount.value = cleaned
 }
 
 function paymentMethodCardClass(method) {

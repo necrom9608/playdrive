@@ -63,6 +63,12 @@
             <td>BTW</td>
             <td style="text-align:right;">€ {{ number_format($receipt['order']['vat'], 2, ',', '.') }}</td>
         </tr>
+        @if(($receipt['order']['manual_discount_amount'] ?? 0) > 0)
+            <tr>
+                <td>{{ $receipt['order']['manual_discount_label'] ?: 'Manuele korting' }}</td>
+                <td style="text-align:right;">-€ {{ number_format($receipt['order']['manual_discount_amount'], 2, ',', '.') }}</td>
+            </tr>
+        @endif
         <tr>
             <td><strong>Totaal</strong></td>
             <td style="text-align:right;"><strong>€ {{ number_format($receipt['order']['total'], 2, ',', '.') }}</strong></td>
