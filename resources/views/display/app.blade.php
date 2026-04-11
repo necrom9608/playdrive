@@ -24,10 +24,10 @@
             tenantLogoUrl: @js($currentTenant?->logo_path ? route('display.tenant-logo', ['v' => optional($currentTenant?->updated_at)->timestamp ?: time()]) : null),
             host: @js(request()->getHost()),
             realtime: {
-                appKey: @js(config('broadcasting.connections.reverb.key', 'playdrive')),
-                host: @js(env('VITE_REVERB_HOST', request()->getHost())),
-                port: @js((int) env('VITE_REVERB_PORT', env('REVERB_PORT', 8080))),
-                scheme: @js(env('VITE_REVERB_SCHEME', env('REVERB_SCHEME', request()->isSecure() ? 'https' : 'http'))),
+                appKey: @js(config('broadcasting.realtime.app_key', 'playdrive')),
+                host: @js(config('broadcasting.realtime.host', request()->getHost())),
+                port: @js((int) config('broadcasting.realtime.port', request()->isSecure() ? 443 : 80)),
+                scheme: @js(config('broadcasting.realtime.scheme', request()->isSecure() ? 'https' : 'http')),
             },
         };
     </script>

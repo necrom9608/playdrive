@@ -7,14 +7,17 @@ function resolveRealtimeConfig() {
     const config = window.PlayDrive?.realtime ?? {}
     const isHttps = (config.scheme ?? window.location.protocol.replace(':', '')) === 'https'
 
+    const fallbackPort = isHttps ? 443 : 80
+    const port = Number(config.port ?? fallbackPort)
+
     return {
         broadcaster: 'reverb',
         key: config.appKey ?? 'playdrive',
         wsHost: config.host ?? window.location.hostname,
-        wsPort: Number(config.port ?? (isHttps ? 443 : 8080)),
-        wssPort: Number(config.port ?? (isHttps ? 443 : 8080)),
+        wsPort: port,
+        wssPort: port,
         forceTLS: isHttps,
-        enabledTransports: ['ws', 'wss'],
+        enabledTransports: isHttps ? ['wss'] : ['ws'],
         disableStats: true,
     }
 }

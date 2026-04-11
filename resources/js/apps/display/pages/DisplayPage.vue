@@ -50,15 +50,12 @@
 
 <script setup>
 import axios from 'axios'
-import Echo from 'laravel-echo'
-import Pusher from 'pusher-js'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import DisplayDisconnected from '../components/DisplayDisconnected.vue'
 import DisplayOverview from '../components/DisplayOverview.vue'
 import DisplayStandby from '../components/DisplayStandby.vue'
 import { getDisplayToken, getOrCreateDisplayUuid, storeDisplayToken } from '../shared/device'
-
-window.Pusher = Pusher
+import { getEcho, leaveChannel } from '../shared/realtime'
 
 const tenantName = window.PlayDrive?.tenantName || 'PlayDrive'
 const tenantLogoUrl = window.PlayDrive?.tenantLogoUrl || ''
@@ -212,20 +209,7 @@ function createEcho() {
         return echo
     }
 
-    const realtime = window.PlayDrive?.realtime ?? {}
-    const scheme = realtime.scheme ?? window.location.protocol.replace(':', '')
-    const isHttps = scheme === 'https'
-
-    echo = new Echo({
-        broadcaster: 'reverb',
-        key: realtime.appKey ?? 'playdrive',
-        wsHost: realtime.host ?? window.location.hostname,
-        wsPort: Number(realtime.port ?? (isHttps ? 443 : 8080)),
-        wssPort: Number(realtime.port ?? (isHttps ? 443 : 8080)),
-        forceTLS: isHttps,
-        enabledTransports: ['ws', 'wss'],
-        disableStats: true,
-    })
+    echo = getEcho()
 
     return echo
 }
@@ -313,7 +297,7 @@ onBeforeUnmount(() => {
     }
 
     if (echo && displayId.value) {
-        echo.leave(`display.${displayId.value}`)
+        leaveChannel(`display.${displayId.value}`)
     }
 })
 </script>
