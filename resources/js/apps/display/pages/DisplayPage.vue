@@ -197,38 +197,68 @@ function normalizePayload(source) {
 }
 
 function applyState(data) {
+    console.log('[display] applyState', data)
+
     displayId.value = data?.id ?? data?.display_id ?? displayId.value
     pairingCode.value = data?.pairing_uuid ?? pairingCode.value
     mode.value = data?.current_mode ?? data?.mode ?? mode.value ?? 'standby'
     isPaired.value = Boolean(data?.is_paired ?? data?.paired_pos_count ?? isPaired.value)
     payload.value = normalizePayload(data)
+
+    console.log('[display] state after apply', {
+        displayId: displayId.value,
+        pairingCode: pairingCode.value,
+        mode: mode.value,
+        isPaired: isPaired.value,
+        payload: payload.value,
+    })
 }
 
 function createEcho() {
     if (echo) {
+        console.log('[display] reusing echo instance')
         return echo
     }
 
+    console.log('[display] creating echo instance')
     echo = getEcho()
+    window.__displayEcho = echo
 
     return echo
 }
 
 function subscribeToChannel() {
     if (!displayId.value) {
+        console.log('[display] subscribe skipped: no displayId')
         return
     }
 
     const echoInstance = createEcho()
+    const channelName = `display.${displayId.value}`
+
+    console.log('[display] subscribing to channel', channelName)
+    console.log('[display] echo instance', echoInstance)
 
     if (channel) {
-        echoInstance.leave(`display.${displayId.value}`)
+        console.log('[display] leaving previous channel', channelName)
+        echoInstance.leave(channelName)
         channel = null
     }
 
-    channel = echoInstance
-        .channel(`display.${displayId.value}`)
+    channel = echoInstance.channel(channelName)
+
+    console.log('[display] channel object', channel)
+
+    channel
+        .subscribed(() => {
+            console.log('[display] subscription succeeded', channelName)
+        })
+        .error((subscriptionError) => {
+            console.error('[display] subscription error', subscriptionError)
+        })
         .listen('.display.state.updated', (event) => {
+            console.log('[display] WS EVENT ONTVANGEN', event)
+
             applyState({
                 display_id: event?.display_id ?? displayId.value,
                 mode: event?.mode ?? 'standby',
@@ -242,6 +272,8 @@ function subscribeToChannel() {
 }
 
 async function loadState() {
+    console.log('[display] loadState start')
+
     try {
         const response = await axios.get('/api/display/state', {
             params: {
@@ -250,22 +282,29 @@ async function loadState() {
             },
         })
 
+        console.log('[display] loadState response', response.data)
+
         applyState(response.data?.data ?? {})
         error.value = ''
 
         if (displayId.value && !channel) {
+            console.log('[display] loadState triggering subscribe')
             subscribeToChannel()
         }
     } catch (err) {
+        console.error('[display] loadState error', err)
         error.value = err?.response?.data?.message ?? 'Kon displaystatus niet ophalen.'
     } finally {
         loading.value = false
+        console.log('[display] loadState end')
     }
 }
 
 async function bootstrap() {
     loading.value = true
     error.value = ''
+
+    console.log('[display] bootstrap start')
 
     try {
         const response = await axios.post('/api/display/bootstrap', {
@@ -275,6 +314,8 @@ async function bootstrap() {
             name: 'Customer Display',
         })
 
+        console.log('[display] bootstrap response', response.data)
+
         if (response.data?.data?.device_token) {
             storeDisplayToken(response.data.data.device_token)
         }
@@ -283,7 +324,9 @@ async function bootstrap() {
         await loadState()
 
         intervalId = window.setInterval(loadState, 3000)
+        console.log('[display] polling started', 3000)
     } catch (err) {
+        console.error('[display] bootstrap error', err)
         loading.value = false
         error.value = err?.response?.data?.message ?? 'Kon de display niet initialiseren.'
     }
@@ -292,6 +335,8 @@ async function bootstrap() {
 onMounted(bootstrap)
 
 onBeforeUnmount(() => {
+    console.log('[display] beforeUnmount')
+
     if (intervalId) {
         clearInterval(intervalId)
     }
