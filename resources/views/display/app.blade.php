@@ -5,7 +5,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/images/logos/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/images/logos/icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="/images/logos/icon-512.png">
-    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="manifest" href="/display.webmanifest">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -34,5 +34,21 @@
 </head>
 <body class="bg-slate-950 overscroll-none select-none">
 <div id="app"></div>
+
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw-display.js')
+                .then((registration) => {
+                    console.log('Service Worker registered', registration);
+                })
+                .catch((error) => {
+                    console.error('Service Worker failed', error);
+                });
+        });
+    }
+</script>
+
+
 </body>
 </html>
