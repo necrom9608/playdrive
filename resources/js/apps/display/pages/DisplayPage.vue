@@ -68,11 +68,13 @@ const payload = ref({})
 const displayId = ref(null)
 const isPaired = ref(false)
 
-let fallbackPollId = null
+const IDLE_TIMEOUT_MS = 20000
+
+let intervalId = null
+let idleTimerId = null
 let echo = null
 let channel = null
 let subscribedChannelName = null
-let websocketConnected = false
 
 const reservation = computed(() => payload.value?.reservation ?? {})
 const order = computed(() => payload.value?.order ?? {})
@@ -198,6 +200,39 @@ function normalizePayload(source) {
     }
 }
 
+function clearIdleTimer() {
+    if (idleTimerId) {
+        clearTimeout(idleTimerId)
+        idleTimerId = null
+    }
+}
+
+function goToStandby() {
+    mode.value = 'standby'
+    payload.value = {
+        ...payload.value,
+        reservation: null,
+        order: null,
+    }
+}
+
+function resetIdleTimer() {
+    clearIdleTimer()
+
+    if (!isPaired.value) {
+        return
+    }
+
+    if (mode.value !== 'reservation') {
+        return
+    }
+
+    idleTimerId = window.setTimeout(() => {
+        console.log('[display] idle timeout reached, switching to standby')
+        goToStandby()
+    }, IDLE_TIMEOUT_MS)
+}
+
 function applyState(data) {
     console.log('[display] applyState', data)
 
@@ -206,6 +241,14 @@ function applyState(data) {
     mode.value = data?.current_mode ?? data?.mode ?? mode.value ?? 'standby'
     isPaired.value = Boolean(data?.is_paired ?? data?.paired_pos_count ?? isPaired.value)
     payload.value = normalizePayload(data)
+
+    if (!isPaired.value) {
+        clearIdleTimer()
+    } else if (mode.value === 'reservation') {
+        resetIdleTimer()
+    } else {
+        clearIdleTimer()
+    }
 
     console.log('[display] state after apply', {
         displayId: displayId.value,
@@ -218,79 +261,41 @@ function applyState(data) {
 
 function createEcho() {
     if (echo) {
-        console.log('[display] reusing echo instance')
         return echo
     }
 
-    console.log('[display] creating echo instance')
     echo = getEcho()
     window.__displayEcho = echo
 
     return echo
 }
 
-function stopFallbackPolling() {
-    if (fallbackPollId) {
-        clearInterval(fallbackPollId)
-        fallbackPollId = null
-        console.log('[display] fallback polling stopped')
-    }
-}
-
-function startFallbackPolling() {
-    if (fallbackPollId) {
-        return
-    }
-
-    fallbackPollId = window.setInterval(() => {
-        if (!websocketConnected) {
-            console.log('[display] fallback polling tick')
-            loadState()
-        }
-    }, 3000)
-
-    console.log('[display] fallback polling started', 3000)
-}
-
 function subscribeToChannel() {
     if (!displayId.value) {
-        console.log('[display] subscribe skipped: no displayId')
         return
     }
 
     const echoInstance = createEcho()
     const channelName = `display.${displayId.value}`
 
-    console.log('[display] subscribing to channel', channelName)
-    console.log('[display] echo instance', echoInstance)
-
     if (subscribedChannelName && subscribedChannelName !== channelName) {
-        console.log('[display] leaving previous channel', subscribedChannelName)
-        echoInstance.leave(subscribedChannelName)
+        leaveChannel(subscribedChannelName)
         channel = null
         subscribedChannelName = null
-        websocketConnected = false
     }
 
     if (channel && subscribedChannelName === channelName) {
-        console.log('[display] already subscribed to channel', channelName)
         return
     }
 
     channel = echoInstance.channel(channelName)
     subscribedChannelName = channelName
 
-    console.log('[display] channel object', channel)
-
     channel
         .subscribed(() => {
-            websocketConnected = true
-            stopFallbackPolling()
             console.log('[display] subscription succeeded', channelName)
         })
         .error((subscriptionError) => {
-            websocketConnected = false
-            startFallbackPolling()
             console.error('[display] subscription error', subscriptionError)
         })
         .listen('.display.state.updated', (event) => {
@@ -303,8 +308,6 @@ function subscribeToChannel() {
                 is_paired: true,
             })
 
-            websocketConnected = true
-            stopFallbackPolling()
             error.value = ''
             loading.value = false
         })
@@ -326,8 +329,7 @@ async function loadState() {
         applyState(response.data?.data ?? {})
         error.value = ''
 
-        if (displayId.value && !channel) {
-            console.log('[display] loadState triggering subscribe')
+        if (displayId.value) {
             subscribeToChannel()
         }
     } catch (err) {
@@ -361,7 +363,9 @@ async function bootstrap() {
 
         applyState(response.data?.data ?? {})
         await loadState()
-        startFallbackPolling()
+
+        intervalId = window.setInterval(loadState, 3000)
+        console.log('[display] polling started', 3000)
     } catch (err) {
         console.error('[display] bootstrap error', err)
         loading.value = false
@@ -374,9 +378,13 @@ onMounted(bootstrap)
 onBeforeUnmount(() => {
     console.log('[display] beforeUnmount')
 
-    stopFallbackPolling()
+    if (intervalId) {
+        clearInterval(intervalId)
+    }
 
-    if (echo && subscribedChannelName) {
+    clearIdleTimer()
+
+    if (subscribedChannelName) {
         leaveChannel(subscribedChannelName)
     }
 })
