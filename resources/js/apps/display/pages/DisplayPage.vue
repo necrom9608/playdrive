@@ -284,11 +284,38 @@ function resetIdleTimer() {
 function applyState(data) {
     console.log('[display] applyState', data)
 
+    const previousMode = mode.value
+    const previousPayload = payload.value
+    const nextMode = data?.current_mode ?? data?.mode ?? mode.value ?? 'standby'
+    const normalizedPayload = normalizePayload(data)
+
+    if (nextMode === 'member_registration') {
+        const incomingRegistration = normalizedPayload?.member_registration ?? {}
+        const previousRegistration = previousMode === 'member_registration'
+            ? (previousPayload?.member_registration ?? {})
+            : {}
+
+        const shouldKeepLocalWizardState = previousMode === 'member_registration'
+            && !Boolean(incomingRegistration?.success)
+
+        normalizedPayload.member_registration = shouldKeepLocalWizardState
+            ? {
+                ...incomingRegistration,
+                step: previousRegistration?.step ?? incomingRegistration?.step ?? 1,
+                form: {
+                    ...(incomingRegistration?.defaults ?? {}),
+                    ...(incomingRegistration?.form ?? {}),
+                    ...memberForm.value,
+                },
+            }
+            : incomingRegistration
+    }
+
     displayId.value = data?.id ?? data?.display_id ?? displayId.value
     pairingCode.value = data?.pairing_uuid ?? pairingCode.value
-    mode.value = data?.current_mode ?? data?.mode ?? mode.value ?? 'standby'
+    mode.value = nextMode
     isPaired.value = Boolean(data?.is_paired ?? data?.paired_pos_count ?? isPaired.value)
-    payload.value = normalizePayload(data)
+    payload.value = normalizedPayload
 
     if (mode.value === 'member_registration') {
         memberForm.value = createDefaultMemberForm(payload.value?.member_registration?.form ?? payload.value?.member_registration?.defaults ?? {})

@@ -26,18 +26,109 @@
 
             <div v-else-if="step === 1" class="grid gap-8 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
                 <section class="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">
+                    <div class="hidden" aria-hidden="true">
+                        <input type="text" name="display_username_decoy" autocomplete="username">
+                        <input type="password" name="display_password_decoy" autocomplete="new-password">
+                    </div>
+
                     <h3 class="text-xl font-semibold text-white">Gegevens</h3>
                     <div class="mt-5 grid gap-5 md:grid-cols-2">
-                        <label class="space-y-2 text-sm text-slate-300"><span>Voornaam *</span><input :value="form.first_name" type="text" :class="fieldClass" @input="update('first_name', $event.target.value)"></label>
-                        <label class="space-y-2 text-sm text-slate-300"><span>Naam *</span><input :value="form.last_name" type="text" :class="fieldClass" @input="update('last_name', $event.target.value)"></label>
-                        <label class="space-y-2 text-sm text-slate-300"><span>E-mail *</span><input :value="form.email" type="email" :class="fieldClass" @input="update('email', $event.target.value)"></label>
-                        <label class="space-y-2 text-sm text-slate-300"><span>Telefoon</span><input :value="form.phone" type="text" :class="fieldClass" @input="update('phone', $event.target.value)"></label>
-                        <label class="space-y-2 text-sm text-slate-300"><span>Paswoord *</span><input :value="form.password" type="password" :class="fieldClass" @input="update('password', $event.target.value)"></label>
-                        <label class="space-y-2 text-sm text-slate-300"><span>Herhaal paswoord *</span><input :value="form.password_confirmation" type="password" :class="fieldClass" @input="update('password_confirmation', $event.target.value)"></label>
-                        <label class="space-y-2 text-sm text-slate-300"><span>Geboortedatum</span><input :value="form.birth_date" type="date" :class="fieldClass" @input="update('birth_date', $event.target.value)"></label>
+                        <label class="space-y-2 text-sm text-slate-300">
+                            <span>Voornaam *</span>
+                            <input :value="localForm.first_name" type="text" :class="fieldClass" @input="updateField('first_name', $event.target.value)">
+                        </label>
+
+                        <label class="space-y-2 text-sm text-slate-300">
+                            <span>Naam *</span>
+                            <input :value="localForm.last_name" type="text" :class="fieldClass" @input="updateField('last_name', $event.target.value)">
+                        </label>
+
+                        <label class="space-y-2 text-sm text-slate-300">
+                            <span>E-mail *</span>
+                            <input
+                                :value="localForm.email"
+                                type="text"
+                                inputmode="email"
+                                name="display_member_contact_email"
+                                autocomplete="off"
+                                autocapitalize="off"
+                                autocorrect="off"
+                                spellcheck="false"
+                                data-form-type="other"
+                                data-lpignore="true"
+                                data-1p-ignore="true"
+                                data-bwignore="true"
+                                :class="fieldClass"
+                                @input="updateField('email', $event.target.value)"
+                            >
+                        </label>
+
+                        <label class="space-y-2 text-sm text-slate-300">
+                            <span>Telefoon</span>
+                            <input
+                                :value="localForm.phone"
+                                type="text"
+                                inputmode="tel"
+                                name="display_member_contact_phone"
+                                autocomplete="off"
+                                autocapitalize="off"
+                                autocorrect="off"
+                                spellcheck="false"
+                                data-form-type="other"
+                                data-lpignore="true"
+                                data-1p-ignore="true"
+                                data-bwignore="true"
+                                :class="fieldClass"
+                                @input="updateField('phone', $event.target.value)"
+                            >
+                        </label>
+
+                        <label class="space-y-2 text-sm text-slate-300">
+                            <span>Paswoord *</span>
+                            <input
+                                :value="localForm.password"
+                                type="password"
+                                name="display_member_secret_a"
+                                autocomplete="new-password"
+                                autocapitalize="off"
+                                autocorrect="off"
+                                spellcheck="false"
+                                data-form-type="other"
+                                data-lpignore="true"
+                                data-1p-ignore="true"
+                                data-bwignore="true"
+                                :class="fieldClass"
+                                @input="updateField('password', $event.target.value)"
+                            >
+                        </label>
+
+                        <label class="space-y-2 text-sm text-slate-300">
+                            <span>Herhaal paswoord *</span>
+                            <input
+                                :value="localForm.password_confirmation"
+                                type="password"
+                                name="display_member_secret_b"
+                                autocomplete="new-password"
+                                autocapitalize="off"
+                                autocorrect="off"
+                                spellcheck="false"
+                                data-form-type="other"
+                                data-lpignore="true"
+                                data-1p-ignore="true"
+                                data-bwignore="true"
+                                :class="fieldClass"
+                                @input="updateField('password_confirmation', $event.target.value)"
+                            >
+                        </label>
+
+                        <label class="space-y-2 text-sm text-slate-300">
+                            <span>Geboortedatum</span>
+                            <input :value="localForm.birth_date" type="date" :class="fieldClass" @input="updateField('birth_date', $event.target.value)">
+                        </label>
+
                         <label class="space-y-2 text-sm text-slate-300">
                             <span>Type</span>
-                            <select :value="form.type" :class="fieldClass" @change="update('type', $event.target.value)">
+                            <select :value="localForm.type" :class="fieldClass" @change="updateField('type', $event.target.value)">
                                 <option value="adult">Volwassen</option>
                                 <option value="student">Student</option>
                             </select>
@@ -48,12 +139,27 @@
                 <section class="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">
                     <h3 class="text-xl font-semibold text-white">Adres</h3>
                     <div class="mt-5 grid gap-5 md:grid-cols-[minmax(0,1fr)_120px]">
-                        <label class="space-y-2 text-sm text-slate-300"><span>Straat</span><input :value="form.street" type="text" :class="fieldClass" @input="update('street', $event.target.value)"></label>
-                        <label class="space-y-2 text-sm text-slate-300"><span>Nr</span><input :value="form.house_number" type="text" :class="fieldClass" @input="update('house_number', $event.target.value)"></label>
+                        <label class="space-y-2 text-sm text-slate-300">
+                            <span>Straat</span>
+                            <input :value="localForm.street" type="text" :class="fieldClass" @input="updateField('street', $event.target.value)">
+                        </label>
+
+                        <label class="space-y-2 text-sm text-slate-300">
+                            <span>Nr</span>
+                            <input :value="localForm.house_number" type="text" :class="fieldClass" @input="updateField('house_number', $event.target.value)">
+                        </label>
                     </div>
+
                     <div class="mt-5 grid gap-5 md:grid-cols-[180px_minmax(0,1fr)]">
-                        <label class="space-y-2 text-sm text-slate-300"><span>Postcode</span><input :value="form.postal_code" type="text" :class="fieldClass" @input="update('postal_code', $event.target.value)"></label>
-                        <label class="space-y-2 text-sm text-slate-300"><span>Gemeente</span><input :value="form.city" type="text" :class="fieldClass" @input="update('city', $event.target.value)"></label>
+                        <label class="space-y-2 text-sm text-slate-300">
+                            <span>Postcode</span>
+                            <input :value="localForm.postal_code" type="text" :class="fieldClass" @input="updateField('postal_code', $event.target.value)">
+                        </label>
+
+                        <label class="space-y-2 text-sm text-slate-300">
+                            <span>Gemeente</span>
+                            <input :value="localForm.city" type="text" :class="fieldClass" @input="updateField('city', $event.target.value)">
+                        </label>
                     </div>
                 </section>
             </div>
@@ -65,8 +171,8 @@
                         :key="template.id"
                         type="button"
                         class="rounded-3xl border p-6 text-left transition"
-                        :class="template.id === form.badge_template_id ? 'border-cyan-400 bg-cyan-500/10 text-white shadow-lg shadow-cyan-950/40' : 'border-slate-800 bg-slate-950/70 text-slate-300 hover:border-slate-700 hover:bg-slate-900'"
-                        @click="update('badge_template_id', template.id)"
+                        :class="template.id === localForm.badge_template_id ? 'border-cyan-400 bg-cyan-500/10 text-white shadow-lg shadow-cyan-950/40' : 'border-slate-800 bg-slate-950/70 text-slate-300 hover:border-slate-700 hover:bg-slate-900'"
+                        @click="updateField('badge_template_id', template.id)"
                     >
                         <div class="aspect-[1.58/1] rounded-2xl border border-slate-700/80 bg-gradient-to-br from-slate-800 to-slate-950 p-4">
                             <div class="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">Kaart design</div>
@@ -118,7 +224,7 @@
                         v-else-if="!success"
                         type="button"
                         class="rounded-2xl bg-emerald-600 px-5 py-3 text-base font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
-                        :disabled="saving || !form.badge_template_id"
+                        :disabled="saving || !localForm.badge_template_id"
                         @click="$emit('save')"
                     >
                         {{ saving ? 'Bezig met opslaan...' : 'Opslaan' }}
@@ -130,7 +236,9 @@
 </template>
 
 <script setup>
-defineProps({
+import { reactive, watch } from 'vue'
+
+const props = defineProps({
     form: { type: Object, required: true },
     step: { type: Number, default: 1 },
     templates: { type: Array, default: () => [] },
@@ -143,8 +251,53 @@ defineProps({
 const emit = defineEmits(['update', 'next', 'previous', 'cancel', 'save'])
 
 const fieldClass = 'w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-base text-white outline-none transition focus:border-cyan-400'
+const localForm = reactive(createFormState(props.form))
+const dirtyFields = new Set()
 
-function update(field, value) {
+watch(
+    () => props.form,
+    (nextForm) => {
+        const nextState = createFormState(nextForm)
+
+        Object.keys(nextState).forEach((key) => {
+            if (!dirtyFields.has(key)) {
+                localForm[key] = nextState[key]
+            }
+        })
+    },
+    { deep: true, immediate: true },
+)
+
+watch(
+    () => props.success,
+    (isSuccess) => {
+        if (isSuccess) {
+            dirtyFields.clear()
+        }
+    },
+)
+
+function createFormState(source = {}) {
+    return {
+        first_name: source?.first_name ?? '',
+        last_name: source?.last_name ?? '',
+        email: source?.email ?? '',
+        phone: source?.phone ?? '',
+        password: source?.password ?? '',
+        password_confirmation: source?.password_confirmation ?? '',
+        birth_date: source?.birth_date ?? '',
+        type: source?.type ?? 'adult',
+        street: source?.street ?? '',
+        house_number: source?.house_number ?? '',
+        postal_code: source?.postal_code ?? '',
+        city: source?.city ?? '',
+        badge_template_id: source?.badge_template_id ?? null,
+    }
+}
+
+function updateField(field, value) {
+    localForm[field] = value
+    dirtyFields.add(field)
     emit('update', { field, value })
 }
 </script>

@@ -208,10 +208,13 @@ class DeviceController extends Controller
             ?? Arr::get($payload, 'registration');
 
         $order = Arr::get($payload, 'order');
+        $memberRegistration = Arr::get($payload, 'member_registration');
 
         return [
+            ...$payload,
             'reservation' => $reservation,
             'order' => $order,
+            'member_registration' => is_array($memberRegistration) ? $memberRegistration : null,
             'reservation_id' => $reservationId
                 ?? Arr::get($payload, 'reservation_id')
                 ?? Arr::get($payload, 'registration_id')
