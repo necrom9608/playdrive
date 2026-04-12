@@ -109,7 +109,6 @@ class DisplayMemberController extends Controller
                     'full_name' => trim($member->first_name . ' ' . $member->last_name),
                 ],
             ],
-            'last_synced_at' => now(),
         ])->save();
 
         return response()->json([

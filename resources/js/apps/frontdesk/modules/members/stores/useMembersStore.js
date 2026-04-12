@@ -103,9 +103,16 @@ export const useMembersStore = defineStore('members', {
             }
 
             const payload = {
-                step: 1,
-                member_badge_templates: this.memberBadgeTemplates,
-                default_badge_template_id: this.memberBadgeTemplates.find(template => template.is_default)?.id ?? this.memberBadgeTemplates[0]?.id ?? null,
+                member_registration: {
+                    step: 1,
+                    submitted: false,
+                    success: false,
+                    templates: this.memberBadgeTemplates ?? [],
+                    defaults: {
+                        type: 'adult',
+                        badge_template_id: this.memberBadgeTemplates.find(template => template.is_default)?.id ?? this.memberBadgeTemplates[0]?.id ?? null,
+                    },
+                },
             }
 
             try {

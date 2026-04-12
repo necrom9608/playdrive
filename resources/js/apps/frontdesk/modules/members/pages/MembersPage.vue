@@ -145,6 +145,11 @@ async function openDisplayWizard() {
     }
 
     try {
+        await store.fetchMembers()
+
+        const templates = Array.isArray(store.memberBadgeTemplates) ? store.memberBadgeTemplates : []
+        const defaultTemplateId = templates.find(template => template.is_default)?.id ?? templates[0]?.id ?? null
+
         await axios.post('/api/frontdesk/display/sync', {
             device_uuid: posStore.posDevice.device_uuid,
             device_token: posStore.posDevice.device_token,
@@ -154,9 +159,10 @@ async function openDisplayWizard() {
                     step: 1,
                     submitted: false,
                     success: false,
-                    templates: store.memberBadgeTemplates ?? [],
+                    templates,
                     defaults: {
                         type: 'adult',
+                        badge_template_id: defaultTemplateId,
                     },
                 },
             },

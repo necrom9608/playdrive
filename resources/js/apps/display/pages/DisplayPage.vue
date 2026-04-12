@@ -35,6 +35,7 @@
                 :success="memberSuccess"
                 :success-message="memberSuccessMessage"
                 @update="updateMemberField"
+                @sync-form="syncMemberForm"
                 @next="goToMemberStep(2)"
                 @previous="goToMemberStep(1)"
                 @cancel="cancelMemberRegistration"
@@ -104,7 +105,13 @@ const orderItems = computed(() => Array.isArray(order.value?.items) ? order.valu
 const orderTotal = computed(() => Number(order.value?.total_incl_vat ?? 0))
 
 const memberRegistration = computed(() => payload.value?.member_registration ?? {})
-const memberTemplates = computed(() => Array.isArray(memberRegistration.value?.templates) ? memberRegistration.value.templates : [])
+const memberTemplates = computed(() => {
+    const nestedTemplates = Array.isArray(memberRegistration.value?.templates) ? memberRegistration.value.templates : []
+    const directTemplates = Array.isArray(payload.value?.member_badge_templates) ? payload.value.member_badge_templates : []
+    const legacyTemplates = Array.isArray(payload.value?.templates) ? payload.value.templates : []
+
+    return nestedTemplates.length ? nestedTemplates : (directTemplates.length ? directTemplates : legacyTemplates)
+})
 const memberWizardStep = computed(() => Number(memberRegistration.value?.step ?? 1))
 
 function createDefaultMemberForm(source = {}) {
@@ -318,7 +325,16 @@ function applyState(data) {
     payload.value = normalizedPayload
 
     if (mode.value === 'member_registration') {
-        memberForm.value = createDefaultMemberForm(payload.value?.member_registration?.form ?? payload.value?.member_registration?.defaults ?? {})
+        const nextMemberForm = createDefaultMemberForm(
+            payload.value?.member_registration?.form ?? payload.value?.member_registration?.defaults ?? {}
+        )
+
+        memberForm.value = {
+            ...nextMemberForm,
+            password: memberForm.value?.password ?? '',
+            password_confirmation: memberForm.value?.password_confirmation ?? '',
+        }
+
         memberError.value = payload.value?.member_registration?.error ?? ''
         memberSuccess.value = Boolean(payload.value?.member_registration?.success)
         memberSuccessMessage.value = payload.value?.member_registration?.success_message ?? ''
@@ -354,7 +370,63 @@ function updateMemberField({ field, value }) {
     memberError.value = ''
 }
 
-function goToMemberStep(step) {
+function syncMemberForm(form) {
+    const mergedForm = {
+        ...memberForm.value,
+        ...(form ?? {}),
+    }
+
+    memberForm.value = {
+        ...createDefaultMemberForm(mergedForm),
+        password: mergedForm.password ?? '',
+        password_confirmation: mergedForm.password_confirmation ?? '',
+    }
+
+    memberError.value = ''
+}
+
+function validateMemberForm(form = memberForm.value) {
+    const firstName = String(form?.first_name ?? '').trim()
+    const lastName = String(form?.last_name ?? '').trim()
+    const email = String(form?.email ?? '').trim()
+    const password = String(form?.password ?? '')
+    const passwordConfirmation = String(form?.password_confirmation ?? '')
+
+    if (!firstName) return 'Voornaam is verplicht.'
+    if (!lastName) return 'Naam is verplicht.'
+    if (!email) return 'E-mail is verplicht.'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Vul een geldig e-mailadres in.'
+    if (!password) return 'Paswoord is verplicht.'
+    if (password.length < 6) return 'Paswoord moet minstens 6 tekens bevatten.'
+    if (!passwordConfirmation) return 'Herhaal het paswoord.'
+    if (password !== passwordConfirmation) return 'De paswoorden komen niet overeen.'
+
+    return ''
+}
+
+function goToMemberStep(step, form = memberForm.value) {
+    const nextForm = createDefaultMemberForm({
+        ...memberForm.value,
+        ...(form ?? {}),
+    })
+
+    nextForm.password = form?.password ?? memberForm.value?.password ?? ''
+    nextForm.password_confirmation = form?.password_confirmation ?? memberForm.value?.password_confirmation ?? ''
+
+    if (step === 2) {
+        const validationError = validateMemberForm(nextForm)
+        if (validationError) {
+            memberError.value = validationError
+            return
+        }
+    }
+
+    memberForm.value = {
+        ...nextForm,
+        password: nextForm.password,
+        password_confirmation: nextForm.password_confirmation,
+    }
+
     payload.value = {
         ...payload.value,
         member_registration: {
@@ -363,13 +435,26 @@ function goToMemberStep(step) {
             form: { ...memberForm.value },
         },
     }
+    memberError.value = ''
 }
 
 async function cancelMemberRegistration() {
     goToStandby()
 }
 
-async function saveMemberRegistration() {
+async function saveMemberRegistration(form = memberForm.value) {
+    const nextForm = {
+        ...memberForm.value,
+        ...(form ?? {}),
+    }
+
+    memberForm.value = {
+        ...memberForm.value,
+        ...nextForm,
+        password: nextForm.password ?? '',
+        password_confirmation: nextForm.password_confirmation ?? '',
+    }
+
     memberSaving.value = true
     memberError.value = ''
 

@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class MemberController extends Controller
 {
@@ -648,15 +649,45 @@ class MemberController extends Controller
             ->orderByDesc('is_default')
             ->orderBy('name')
             ->get()
-            ->map(fn (BadgeTemplate $template) => [
-                'id' => $template->id,
-                'name' => $template->name,
-                'description' => $template->description,
-                'is_default' => (bool) $template->is_default,
-                'template_type' => $template->template_type,
-            ])
+            ->map(function (BadgeTemplate $template) {
+                $config = is_array($template->config_json) ? $template->config_json : [];
+                $config['backgroundImagePath'] = $config['backgroundImagePath'] ?? '';
+                $config['backgroundImageUrl'] = $this->resolvePublicBadgeUrl($config['backgroundImagePath'] ?? null, $config['backgroundImageUrl'] ?? null);
+                $config['elements'] = collect($config['elements'] ?? [])
+                    ->map(function (array $element) {
+                        $element['imagePath'] = $element['imagePath'] ?? '';
+                        $element['imageUrl'] = $this->resolvePublicBadgeUrl($element['imagePath'] ?? null, $element['imageUrl'] ?? null);
+
+                        return $element;
+                    })
+                    ->values()
+                    ->all();
+
+                return [
+                    'id' => $template->id,
+                    'name' => $template->name,
+                    'description' => $template->description,
+                    'is_default' => (bool) $template->is_default,
+                    'template_type' => $template->template_type,
+                    'config_json' => $config,
+                    'updated_at' => $template->updated_at?->toIso8601String(),
+                ];
+            })
             ->values()
             ->all();
+    }
+
+    private function resolvePublicBadgeUrl(?string $path, ?string $fallbackUrl = null): ?string
+    {
+        $path = is_string($path) ? trim($path) : '';
+
+        if ($path !== '') {
+            return Storage::disk('public')->url($path);
+        }
+
+        $fallbackUrl = is_string($fallbackUrl) ? trim($fallbackUrl) : '';
+
+        return $fallbackUrl !== '' ? $fallbackUrl : null;
     }
 
     private function syncMemberCard(Member $member, CurrentTenant $currentTenant, ?int $actorUserId, mixed $badgeTemplateId = null): PhysicalCard

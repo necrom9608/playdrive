@@ -165,41 +165,45 @@
             </div>
 
             <div v-else class="space-y-6">
-                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div v-if="displayTemplates.length" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     <button
                         v-for="template in displayTemplates"
                         :key="template.id"
                         type="button"
-                        class="rounded-3xl border p-5 text-left transition"
+                        class="rounded-3xl border p-4 text-left transition"
                         :class="template.id === localForm.badge_template_id ? 'border-cyan-400 bg-cyan-500/10 text-white shadow-lg shadow-cyan-950/40' : 'border-slate-800 bg-slate-950/70 text-slate-300 hover:border-slate-700 hover:bg-slate-900'"
                         @click="updateField('badge_template_id', template.id)"
                     >
-                        <div class="relative aspect-[1.58/1] overflow-hidden rounded-2xl border border-slate-700/80 p-4" :class="template.previewClass">
-                            <div class="absolute inset-0 opacity-20" :class="template.patternClass"></div>
+                        <div class="overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950">
+                            <div class="relative aspect-[1.58/1] w-full overflow-hidden bg-gradient-to-br from-slate-800 to-slate-950">
+                                <img
+                                    v-if="template.previewBackgroundUrl"
+                                    :src="template.previewBackgroundUrl"
+                                    :alt="template.name"
+                                    class="absolute inset-0 h-full w-full object-cover"
+                                >
+                                <div v-else class="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950"></div>
 
-                            <div class="relative flex h-full flex-col justify-between">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div>
-                                        <div class="text-[10px] font-semibold uppercase tracking-[0.3em]" :class="template.accentClass">Game-Inn</div>
-                                        <div class="mt-2 text-lg font-semibold text-white">{{ template.name }}</div>
-                                    </div>
+                                <div class="absolute inset-0 bg-black/10"></div>
 
-                                    <div class="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-white/80">
-                                        Member
-                                    </div>
+                                <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent p-4">
+                                    <div class="text-lg font-semibold text-white">{{ template.name }}</div>
+                                    <div class="mt-1 text-sm text-white/80">{{ template.description || 'Ledenbadge' }}</div>
                                 </div>
+                            </div>
+                        </div>
 
-                                <div>
-                                    <div class="text-sm font-medium text-white/90">{{ previewMemberName }}</div>
-                                    <div class="mt-1 text-xs text-white/60">{{ template.description }}</div>
-                                </div>
+                        <div class="mt-3 flex items-center justify-between gap-3">
+                            <div class="text-xs uppercase tracking-[0.24em] text-slate-400">{{ template.template_type_label }}</div>
+                            <div v-if="template.is_default" class="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-200">
+                                Standaard
                             </div>
                         </div>
                     </button>
                 </div>
 
-                <div class="rounded-3xl border border-slate-800 bg-slate-950/50 px-5 py-4 text-sm text-slate-400">
-                    Kies een badge design om verder te gaan.
+                <div v-else class="rounded-3xl border border-dashed border-slate-700 bg-slate-950/70 px-6 py-8 text-center text-slate-400">
+                    Er zijn nog geen badge designs voor leden beschikbaar.
                 </div>
             </div>
         </div>
@@ -231,7 +235,7 @@
                         v-if="step === 1 && !success"
                         type="button"
                         class="rounded-2xl bg-cyan-600 px-5 py-3 text-base font-semibold text-white transition hover:bg-cyan-500"
-                        @click="$emit('next')"
+                        @click="handleNext"
                     >
                         Volgende
                     </button>
@@ -241,7 +245,7 @@
                         type="button"
                         class="rounded-2xl bg-emerald-600 px-5 py-3 text-base font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
                         :disabled="saving || !localForm.badge_template_id"
-                        @click="$emit('save')"
+                        @click="handleSave"
                     >
                         {{ saving ? 'Bezig met opslaan...' : 'Opslaan' }}
                     </button>
@@ -264,58 +268,24 @@ const props = defineProps({
     successMessage: { type: String, default: '' },
 })
 
-const emit = defineEmits(['update', 'next', 'previous', 'cancel', 'save'])
+const emit = defineEmits(['update', 'sync-form', 'next', 'previous', 'cancel', 'save'])
 
 const fieldClass = 'w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-base text-white outline-none transition focus:border-cyan-400'
 const localForm = reactive(createFormState(props.form))
 const dirtyFields = new Set()
 
-const fallbackTemplates = [
-    {
-        id: 'fallback-neon',
-        name: 'Neon',
-        description: 'Donkere kaart met subtiele cyan-accenten.',
-        previewClass: 'bg-gradient-to-br from-slate-900 via-cyan-950 to-slate-950',
-        patternClass: 'bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.45),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.25),transparent_30%)]',
-        accentClass: 'text-cyan-300/90',
-    },
-    {
-        id: 'fallback-arcade',
-        name: 'Arcade',
-        description: 'Warme retro look met arcade-sfeer.',
-        previewClass: 'bg-gradient-to-br from-fuchsia-950 via-slate-900 to-amber-950',
-        patternClass: 'bg-[linear-gradient(135deg,rgba(244,114,182,0.18),transparent_35%),linear-gradient(315deg,rgba(251,191,36,0.18),transparent_35%)]',
-        accentClass: 'text-amber-300/90',
-    },
-    {
-        id: 'fallback-clean',
-        name: 'Minimal',
-        description: 'Strakke badge met rustige premium uitstraling.',
-        previewClass: 'bg-gradient-to-br from-slate-800 via-slate-900 to-black',
-        patternClass: 'bg-[linear-gradient(90deg,rgba(255,255,255,0.06),transparent_30%,rgba(255,255,255,0.04))]',
-        accentClass: 'text-emerald-300/90',
-    },
-]
-
 const displayTemplates = computed(() => {
-    if (Array.isArray(props.templates) && props.templates.length) {
-        return props.templates.map((template, index) => ({
-            id: template.id ?? `template-${index}`,
-            name: template.name ?? template.title ?? `Design ${index + 1}`,
-            description: template.description ?? 'Member badge design',
-            previewClass: 'bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950',
-            patternClass: 'bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.28),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.06),transparent_40%)]',
-            accentClass: 'text-cyan-300/90',
-            ...template,
-        }))
+    if (!Array.isArray(props.templates)) {
+        return []
     }
 
-    return fallbackTemplates
-})
-
-const previewMemberName = computed(() => {
-    const fullName = [localForm.first_name, localForm.last_name].filter(Boolean).join(' ').trim()
-    return fullName || 'Nieuw lid'
+    return props.templates
+        .filter((template) => !template?.template_type || template.template_type === 'member')
+        .map((template) => ({
+            ...template,
+            template_type_label: template?.template_type === 'member' ? 'Leden' : 'Badge',
+            previewBackgroundUrl: template?.config_json?.backgroundImageUrl || template?.config_json?.background_image_url || template?.preview_image_url || '',
+        }))
 })
 
 watch(
@@ -345,8 +315,8 @@ watch(
     displayTemplates,
     (templates) => {
         if (!localForm.badge_template_id && templates.length) {
-            localForm.badge_template_id = templates[0].id
-            emit('update', { field: 'badge_template_id', value: templates[0].id })
+            const defaultTemplate = templates.find((template) => template?.is_default) ?? templates[0]
+            updateField('badge_template_id', defaultTemplate.id, false)
         }
     },
     { immediate: true },
@@ -370,9 +340,27 @@ function createFormState(source = {}) {
     }
 }
 
-function updateField(field, value) {
+function updateField(field, value, markDirty = true) {
     localForm[field] = value
-    dirtyFields.add(field)
+
+    if (markDirty) {
+        dirtyFields.add(field)
+    }
+
     emit('update', { field, value })
+}
+
+function snapshotForm() {
+    return { ...localForm }
+}
+
+function handleNext() {
+    emit('sync-form', snapshotForm())
+    emit('next', snapshotForm())
+}
+
+function handleSave() {
+    emit('sync-form', snapshotForm())
+    emit('save', snapshotForm())
 }
 </script>

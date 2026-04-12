@@ -44,7 +44,6 @@ class DisplaySyncController extends Controller
             'current_mode' => $payload['mode'],
             'current_registration_id' => $payload['reservation_id'] ?? null,
             'current_payload' => $payload['payload'] ?? [],
-            'last_synced_at' => now(),
         ])->save();
 
         return response()->json([
