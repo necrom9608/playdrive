@@ -210,7 +210,6 @@ class DeviceController extends Controller
         $order = Arr::get($payload, 'order');
 
         return [
-            ...$payload,
             'reservation' => $reservation,
             'order' => $order,
             'reservation_id' => $reservationId

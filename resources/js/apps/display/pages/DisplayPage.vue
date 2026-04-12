@@ -27,21 +27,22 @@
 
             <DisplayMemberRegistration
                 v-else-if="mode === 'member_registration'"
-                :templates="memberBadgeTemplates"
+                :form="memberForm"
+                :step="memberWizardStep"
+                :templates="memberTemplates"
                 :saving="memberSaving"
                 :error="memberError"
+                :success="memberSuccess"
+                :success-message="memberSuccessMessage"
+                @update="updateMemberField"
+                @next="goToMemberStep(2)"
+                @previous="goToMemberStep(1)"
                 @cancel="cancelMemberRegistration"
-                @submit="submitMemberRegistration"
-            />
-
-            <DisplayStandby
-                v-else-if="mode !== 'reservation'"
-                :tenant-name="tenantName"
-                :tenant-logo-url="tenantLogoUrl"
+                @save="saveMemberRegistration"
             />
 
             <DisplayOverview
-                v-else
+                v-else-if="mode === 'reservation'"
                 :tenant-name="tenantName"
                 :tenant-logo-url="tenantLogoUrl"
                 :reservation="reservation"
@@ -52,6 +53,12 @@
                 :grouped-order-items="groupedOrderItems"
                 :grouped-order-count="groupedOrderCount"
                 :order-total="orderTotal"
+            />
+
+            <DisplayStandby
+                v-else
+                :tenant-name="tenantName"
+                :tenant-logo-url="tenantLogoUrl"
             />
         </div>
     </div>
@@ -79,6 +86,9 @@ const displayId = ref(null)
 const isPaired = ref(false)
 const memberSaving = ref(false)
 const memberError = ref('')
+const memberSuccess = ref(false)
+const memberSuccessMessage = ref('')
+const memberForm = ref(createDefaultMemberForm())
 
 const IDLE_TIMEOUT_MS = 20000
 
@@ -92,6 +102,28 @@ const reservation = computed(() => payload.value?.reservation ?? {})
 const order = computed(() => payload.value?.order ?? {})
 const orderItems = computed(() => Array.isArray(order.value?.items) ? order.value.items : [])
 const orderTotal = computed(() => Number(order.value?.total_incl_vat ?? 0))
+
+const memberRegistration = computed(() => payload.value?.member_registration ?? {})
+const memberTemplates = computed(() => Array.isArray(memberRegistration.value?.templates) ? memberRegistration.value.templates : [])
+const memberWizardStep = computed(() => Number(memberRegistration.value?.step ?? 1))
+
+function createDefaultMemberForm(source = {}) {
+    return {
+        first_name: source.first_name ?? '',
+        last_name: source.last_name ?? '',
+        email: source.email ?? '',
+        phone: source.phone ?? '',
+        password: '',
+        password_confirmation: '',
+        birth_date: source.birth_date ?? '',
+        type: source.type ?? 'adult',
+        street: source.street ?? '',
+        house_number: source.house_number ?? '',
+        postal_code: source.postal_code ?? '',
+        city: source.city ?? '',
+        badge_template_id: source.badge_template_id ?? null,
+    }
+}
 
 const groupedOrderItems = computed(() => {
     const grouped = new Map()
@@ -125,7 +157,6 @@ const groupedOrderItems = computed(() => {
 })
 
 const groupedOrderCount = computed(() => groupedOrderItems.value.reduce((sum, item) => sum + Number(item.quantity ?? 0), 0))
-const memberBadgeTemplates = computed(() => Array.isArray(payload.value?.member_badge_templates) ? payload.value.member_badge_templates : [])
 
 const totalPersonsLabel = computed(() => {
     const directTotal = reservation.value?.total_count ?? reservation.value?.total_participants ?? reservation.value?.participants_total
@@ -210,6 +241,7 @@ function normalizePayload(source) {
         ...value,
         reservation: value?.reservation ?? value?.registration ?? null,
         order: value?.order ?? null,
+        member_registration: value?.member_registration ?? null,
     }
 }
 
@@ -226,7 +258,10 @@ function goToStandby() {
         ...payload.value,
         reservation: null,
         order: null,
+        member_registration: null,
     }
+    memberError.value = ''
+    memberSaving.value = false
 }
 
 function resetIdleTimer() {
@@ -236,7 +271,7 @@ function resetIdleTimer() {
         return
     }
 
-    if (mode.value !== 'reservation') {
+    if (!['reservation', 'member_registration'].includes(mode.value)) {
         return
     }
 
@@ -244,32 +279,6 @@ function resetIdleTimer() {
         console.log('[display] idle timeout reached, switching to standby')
         goToStandby()
     }, IDLE_TIMEOUT_MS)
-}
-
-
-async function submitMemberRegistration(form) {
-    memberSaving.value = true
-    memberError.value = ''
-
-    try {
-        await axios.post('/api/display/members', {
-            device_uuid: getOrCreateDisplayUuid(),
-            device_token: getDisplayToken(),
-            ...form,
-        })
-
-        await loadState()
-    } catch (submitError) {
-        memberError.value = submitError?.response?.data?.message ?? 'Nieuw lid opslaan mislukt.'
-    } finally {
-        memberSaving.value = false
-    }
-}
-
-async function cancelMemberRegistration() {
-    mode.value = 'standby'
-    payload.value = {}
-    memberError.value = ''
 }
 
 function applyState(data) {
@@ -280,11 +289,21 @@ function applyState(data) {
     mode.value = data?.current_mode ?? data?.mode ?? mode.value ?? 'standby'
     isPaired.value = Boolean(data?.is_paired ?? data?.paired_pos_count ?? isPaired.value)
     payload.value = normalizePayload(data)
-    memberError.value = ''
+
+    if (mode.value === 'member_registration') {
+        memberForm.value = createDefaultMemberForm(payload.value?.member_registration?.form ?? payload.value?.member_registration?.defaults ?? {})
+        memberError.value = payload.value?.member_registration?.error ?? ''
+        memberSuccess.value = Boolean(payload.value?.member_registration?.success)
+        memberSuccessMessage.value = payload.value?.member_registration?.success_message ?? ''
+    } else {
+        memberError.value = ''
+        memberSuccess.value = false
+        memberSuccessMessage.value = ''
+    }
 
     if (!isPaired.value) {
         clearIdleTimer()
-    } else if (mode.value === 'reservation') {
+    } else if (['reservation', 'member_registration'].includes(mode.value)) {
         resetIdleTimer()
     } else {
         clearIdleTimer()
@@ -297,6 +316,54 @@ function applyState(data) {
         isPaired: isPaired.value,
         payload: payload.value,
     })
+}
+
+
+function updateMemberField({ field, value }) {
+    memberForm.value = {
+        ...memberForm.value,
+        [field]: value,
+    }
+    memberError.value = ''
+}
+
+function goToMemberStep(step) {
+    payload.value = {
+        ...payload.value,
+        member_registration: {
+            ...(payload.value?.member_registration ?? {}),
+            step,
+            form: { ...memberForm.value },
+        },
+    }
+}
+
+async function cancelMemberRegistration() {
+    goToStandby()
+}
+
+async function saveMemberRegistration() {
+    memberSaving.value = true
+    memberError.value = ''
+
+    try {
+        const response = await axios.post('/api/display/members', {
+            device_uuid: getOrCreateDisplayUuid(),
+            device_token: getDisplayToken(),
+            ...memberForm.value,
+            membership_type: memberForm.value.type,
+        })
+
+        const member = response.data?.data?.member
+        memberSuccess.value = true
+        memberSuccessMessage.value = member
+            ? `#${member.id} · ${member.full_name} werd toegevoegd.`
+            : 'Het nieuwe lid werd toegevoegd.'
+    } catch (err) {
+        memberError.value = err?.response?.data?.message ?? 'Lid opslaan mislukt.'
+    } finally {
+        memberSaving.value = false
+    }
 }
 
 function createEcho() {

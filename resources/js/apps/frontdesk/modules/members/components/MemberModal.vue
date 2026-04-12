@@ -148,7 +148,7 @@ watch(
             last_name: normalizedMember.value.last_name ?? '',
             email: normalizedMember.value.email ?? '',
             phone: normalizedMember.value.phone ?? '',
-            login: normalizedMember.value.login ?? '',
+            login: normalizedMember.value.login ?? normalizedMember.value.email ?? '',
             password: '',
             birth_date: normalizedMember.value.birth_date ?? '',
             membership_type: normalizedMember.value.membership_type ?? 'adult',

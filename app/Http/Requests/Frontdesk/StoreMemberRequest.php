@@ -21,11 +21,11 @@ class StoreMemberRequest extends FormRequest
         return [
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
-            'birth_date' => ['nullable', 'date'],
-            'membership_type' => ['nullable', 'in:adult,student'],
             'login' => ['nullable', 'string', 'max:255', Rule::unique('members', 'login')->where(fn ($query) => $query->where('tenant_id', $tenantId))],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:255'],
+            'birth_date' => ['nullable', 'date'],
+            'membership_type' => ['nullable', 'in:adult,student'],
             'password' => ['nullable', 'string', 'min:6'],
             'street' => ['nullable', 'string', 'max:255'],
             'house_number' => ['nullable', 'string', 'max:50'],

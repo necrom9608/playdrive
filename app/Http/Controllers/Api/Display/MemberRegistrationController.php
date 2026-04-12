@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api\Display;
 
-use App\Events\DisplayStateUpdated;
 use App\Http\Controllers\Controller;
+use App\Models\BadgeTemplate;
 use App\Models\DisplayDevice;
 use App\Models\Member;
 use App\Models\PhysicalCard;
@@ -27,120 +27,113 @@ class MemberRegistrationController extends Controller
             'device_token' => ['required', 'string'],
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
-            'email' => [
-                'required',
-                'email',
-                'max:255',
-                Rule::unique('members', 'email')->where(fn ($query) => $query->where('tenant_id', $currentTenant->id())),
-            ],
-            'password' => ['required', 'string', 'min:6', 'confirmed'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('members', 'login')->where(fn ($query) => $query->where('tenant_id', $currentTenant->id()))],
             'phone' => ['nullable', 'string', 'max:255'],
+            'password' => ['required', 'string', 'min:6', 'same:password_confirmation'],
+            'password_confirmation' => ['required', 'string', 'min:6'],
             'birth_date' => ['nullable', 'date'],
-            'membership_type' => ['required', 'in:adult,student'],
+            'membership_type' => ['nullable', 'in:adult,student'],
             'street' => ['nullable', 'string', 'max:255'],
             'house_number' => ['nullable', 'string', 'max:50'],
             'postal_code' => ['nullable', 'string', 'max:20'],
             'city' => ['nullable', 'string', 'max:255'],
-            'badge_template_id' => ['nullable', 'integer'],
+            'badge_template_id' => [
+                'required',
+                'integer',
+                Rule::exists(BadgeTemplate::class, 'id')->where(fn ($query) => $query
+                    ->where('tenant_id', $currentTenant->id())
+                    ->where('template_type', PhysicalCard::TYPE_MEMBER)),
+            ],
         ]);
 
         $display = DisplayDevice::query()
             ->where('tenant_id', $currentTenant->id())
             ->where('device_uuid', $data['device_uuid'])
-            ->firstOrFail();
+            ->first();
+
+        abort_unless($display, 404, 'Display niet gevonden.');
 
         if (! hash_equals((string) $display->device_token, (string) $data['device_token'])) {
             abort(403, 'Ongeldig display token.');
         }
 
-        $startDate = now()->startOfDay();
-        $endDate = $startDate->copy()->addYear();
+        abort_unless($display->posDevices()->exists(), 422, 'Deze display is nog niet gekoppeld aan een POS-terminal.');
 
-        $member = DB::transaction(function () use ($data, $currentTenant, $startDate, $endDate) {
+        $today = now()->startOfDay();
+        $endsAt = $today->copy()->addYear();
+
+        $member = DB::transaction(function () use ($data, $currentTenant, $today, $endsAt) {
             $memberPayload = [
                 'tenant_id' => $currentTenant->id(),
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
-                'birth_date' => !empty($data['birth_date']) ? Carbon::parse($data['birth_date'])->toDateString() : null,
-                'membership_type' => $data['membership_type'],
-                'email' => Str::lower($data['email']),
-                'phone' => $this->nullableValue($data['phone'] ?? null),
-                'login' => Str::lower($data['email']),
+                'email' => $data['email'],
+                'login' => $data['email'],
                 'password' => $data['password'],
                 'street' => $this->nullableValue($data['street'] ?? null),
                 'house_number' => $this->nullableValue($data['house_number'] ?? null),
                 'postal_code' => $this->nullableValue($data['postal_code'] ?? null),
                 'city' => $this->nullableValue($data['city'] ?? null),
-                'country' => 'BE',
-                'membership_starts_at' => $startDate->toDateString(),
-                'membership_ends_at' => $endDate->toDateString(),
+                'membership_starts_at' => $today->toDateString(),
+                'membership_ends_at' => $endsAt->toDateString(),
             ];
 
-            if (Schema::hasColumn('members', 'is_active')) {
+            if ($this->membersHasPhoneColumn()) {
+                $memberPayload['phone'] = $this->nullableValue($data['phone'] ?? null);
+            }
+
+            if ($this->membersHasBirthDateColumn()) {
+                $memberPayload['birth_date'] = ! empty($data['birth_date'])
+                    ? Carbon::parse($data['birth_date'])->toDateString()
+                    : null;
+            }
+
+            if ($this->membersHasMembershipTypeColumn()) {
+                $memberPayload['membership_type'] = $data['membership_type'] ?? 'adult';
+            }
+
+            if ($this->membersHasIsActiveColumn()) {
                 $memberPayload['is_active'] = true;
             }
 
-            /** @var Member $member */
             $member = Member::query()->create($memberPayload);
 
-            $templateId = !empty($data['badge_template_id']) ? (int) $data['badge_template_id'] : $this->defaultMemberBadgeTemplateId($currentTenant->id());
-
-            if ($templateId) {
-                PhysicalCard::query()->create([
-                    'tenant_id' => $currentTenant->id(),
-                    'card_type' => PhysicalCard::TYPE_MEMBER,
-                    'badge_template_id' => $templateId,
-                    'holder_type' => PhysicalCard::TYPE_MEMBER,
-                    'holder_id' => $member->id,
-                    'label' => sprintf('MEMBER #%d - %s', $member->id, trim($member->first_name . ' ' . $member->last_name)),
-                    'rfid_uid' => null,
-                    'status' => PhysicalCard::STATUS_IN_CIRCULATION,
-                    'issued_at' => now()->startOfDay(),
-                ]);
-            }
+            PhysicalCard::query()->create([
+                'tenant_id' => $currentTenant->id(),
+                'card_type' => PhysicalCard::TYPE_MEMBER,
+                'badge_template_id' => (int) $data['badge_template_id'],
+                'holder_type' => PhysicalCard::TYPE_MEMBER,
+                'holder_id' => $member->id,
+                'label' => sprintf('MEMBER #%d - %s', $member->id, trim($member->first_name . ' ' . $member->last_name)),
+                'rfid_uid' => $this->temporaryRfidUid($currentTenant->id(), $member->id),
+                'status' => PhysicalCard::STATUS_IN_CIRCULATION,
+                'issued_at' => now()->startOfDay(),
+            ]);
 
             return $member;
         });
 
-        $successPayload = [
-            'step' => 'success',
-            'member' => [
-                'id' => $member->id,
-                'full_name' => trim($member->first_name . ' ' . $member->last_name),
-                'email' => $member->email,
-                'membership_starts_at' => $startDate->format('d/m/Y'),
-                'membership_ends_at' => $endDate->format('d/m/Y'),
-            ],
-            'member_badge_templates' => $display->current_payload['member_badge_templates'] ?? [],
-            'default_badge_template_id' => $display->current_payload['default_badge_template_id'] ?? null,
-            'synced_at' => now()->toIso8601String(),
-        ];
-
         $display->update([
-            'current_mode' => 'member_registration',
-            'current_payload' => $successPayload,
+            'current_mode' => DisplayDevice::MODE_MEMBER_REGISTRATION,
+            'current_payload' => [
+                'member_registration' => [
+                    'step' => 2,
+                    'success' => true,
+                    'success_message' => sprintf('%s %s werd toegevoegd.', $member->first_name, $member->last_name),
+                ],
+            ],
             'last_seen_at' => now(),
         ]);
-
-        broadcast(new DisplayStateUpdated($display, $successPayload));
 
         return response()->json([
             'message' => 'Lid succesvol aangemaakt.',
             'data' => [
-                'id' => $member->id,
-                'full_name' => trim($member->first_name . ' ' . $member->last_name),
+                'member' => [
+                    'id' => $member->id,
+                    'full_name' => trim($member->first_name . ' ' . $member->last_name),
+                ],
             ],
         ], 201);
-    }
-
-    private function defaultMemberBadgeTemplateId(int $tenantId): ?int
-    {
-        return DB::table('badge_templates')
-            ->where('tenant_id', $tenantId)
-            ->where('template_type', PhysicalCard::TYPE_MEMBER)
-            ->orderByDesc('is_default')
-            ->orderBy('id')
-            ->value('id');
     }
 
     private function nullableValue(mixed $value): mixed
@@ -154,5 +147,38 @@ class MemberRegistrationController extends Controller
         }
 
         return $value;
+    }
+
+    private function temporaryRfidUid(int $tenantId, int $memberId): string
+    {
+        return sprintf('TMP-MEMBER-%d-%d-%s', $tenantId, $memberId, Str::upper(Str::random(8)));
+    }
+
+    private function membersHasBirthDateColumn(): bool
+    {
+        static $result = null;
+
+        return $result ??= Schema::hasColumn('members', 'birth_date');
+    }
+
+    private function membersHasPhoneColumn(): bool
+    {
+        static $result = null;
+
+        return $result ??= Schema::hasColumn('members', 'phone');
+    }
+
+    private function membersHasMembershipTypeColumn(): bool
+    {
+        static $result = null;
+
+        return $result ??= Schema::hasColumn('members', 'membership_type');
+    }
+
+    private function membersHasIsActiveColumn(): bool
+    {
+        static $result = null;
+
+        return $result ??= Schema::hasColumn('members', 'is_active');
     }
 }

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Frontdesk\CatalogController;
 use App\Http\Controllers\Api\Frontdesk\FormOptionsController;
 use App\Http\Controllers\Api\Frontdesk\GiftVoucherController;
 use App\Http\Controllers\Api\Frontdesk\LocationSearchController;
+use App\Http\Controllers\Api\Display\MemberRegistrationController;
 use App\Http\Controllers\Api\Frontdesk\MemberController;
 use App\Http\Controllers\Api\Frontdesk\OrderController;
 use App\Http\Controllers\Api\Frontdesk\PhysicalCardController;
@@ -20,6 +21,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('api/display')->group(function () {
     Route::post('/bootstrap', [DisplayDeviceController::class, 'bootstrap']);
     Route::get('/state', [DisplayDeviceController::class, 'state']);
+    Route::post('/members', [MemberRegistrationController::class, 'store']);
 });
 
 Route::prefix('api/frontdesk')->group(function () {

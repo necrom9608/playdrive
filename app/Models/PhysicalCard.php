@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 class PhysicalCard extends Model
 {
@@ -38,6 +39,25 @@ class PhysicalCard extends Model
         'created_by',
         'updated_by',
     ];
+
+
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $card): void {
+            if ($card->card_type !== self::TYPE_MEMBER) {
+                return;
+            }
+
+            if (! empty($card->rfid_uid)) {
+                return;
+            }
+
+            $tenantId = (int) ($card->tenant_id ?? 0);
+            $holderId = (int) ($card->holder_id ?? 0);
+            $card->rfid_uid = sprintf('TMP-MEMBER-%d-%d-%s', $tenantId, $holderId, Str::upper(Str::random(8)));
+        });
+    }
 
     protected function casts(): array
     {

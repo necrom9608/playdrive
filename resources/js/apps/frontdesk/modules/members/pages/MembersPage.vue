@@ -9,7 +9,7 @@
             @update:selected-statuses="store.setSelectedStatuses($event)"
             @search="store.fetchMembers()"
             @new="openCreateModal"
-            @new-via-display="openCreateViaDisplay"
+            @new-display="openDisplayWizard"
         />
 
         <div
@@ -95,6 +95,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import axios from '@/lib/http'
 import MembersSummaryCards from '../components/MembersSummaryCards.vue'
 import MembersFilters from '../components/MembersFilters.vue'
 import MembersTable from '../components/MembersTable.vue'
@@ -103,9 +104,9 @@ import { useMembersStore } from '../stores/useMembersStore'
 import { usePosStore } from '@/apps/frontdesk/modules/pos/stores/usePosStore'
 
 const store = useMembersStore()
-const posStore = usePosStore()
 const showModal = ref(false)
 const editingMemberId = ref(null)
+const posStore = usePosStore()
 
 const editingMember = computed(() => {
     if (!editingMemberId.value) {
@@ -115,16 +116,8 @@ const editingMember = computed(() => {
     return store.members.find(member => member.id === editingMemberId.value) ?? null
 })
 
-onMounted(async () => {
-    await store.fetchMembers()
-
-    if (!posStore.posDevice) {
-        try {
-            await posStore.initializeDisplayBridge()
-        } catch {
-            // melding tonen we pas wanneer de gebruiker de displayflow start
-        }
-    }
+onMounted(() => {
+    store.fetchMembers()
 })
 
 function openCreateModal() {
@@ -142,6 +135,38 @@ function closeModal() {
     editingMemberId.value = null
 }
 
+
+async function openDisplayWizard() {
+    store.error = null
+
+    if (!posStore.displaySyncReady || !posStore.posDevice?.display_device_id || !posStore.posDevice?.device_uuid) {
+        store.error = 'Er is geen gekoppelde display beschikbaar. Koppel eerst een display aan deze POS-terminal.'
+        return
+    }
+
+    try {
+        await axios.post('/api/frontdesk/display/sync', {
+            device_uuid: posStore.posDevice.device_uuid,
+            device_token: posStore.posDevice.device_token,
+            mode: 'member_registration',
+            payload: {
+                member_registration: {
+                    step: 1,
+                    submitted: false,
+                    success: false,
+                    templates: store.memberBadgeTemplates ?? [],
+                    defaults: {
+                        type: 'adult',
+                    },
+                },
+            },
+        })
+    } catch (error) {
+        console.error('Failed to open display member wizard', error)
+        store.error = error?.response?.data?.message ?? 'Wizard op de display openen mislukt.'
+    }
+}
+
 async function handleSubmit(payload) {
     try {
         await store.saveMember(payload)
@@ -157,14 +182,6 @@ async function handleRenew(member) {
     }
 
     await store.renewMember(member.id)
-}
-
-async function openCreateViaDisplay() {
-    const opened = await store.openCreateViaDisplay(posStore)
-
-    if (!opened && store.error) {
-        window.alert(store.error)
-    }
 }
 
 async function handleSendEmail({ member, type }) {

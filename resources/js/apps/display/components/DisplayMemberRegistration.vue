@@ -1,195 +1,150 @@
 <template>
-    <div class="mx-auto flex h-full w-full max-w-[1120px] flex-col rounded-[2rem] border border-sky-500/20 bg-slate-950/80 p-6 shadow-2xl shadow-slate-950/60 backdrop-blur-xl">
-        <div class="flex items-start justify-between gap-6 border-b border-slate-800 pb-5">
+    <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-900/90 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
+        <div class="flex items-center justify-between border-b border-slate-800 px-8 py-6">
             <div>
-                <div class="text-sm uppercase tracking-[0.45em] text-cyan-300/80">Nieuw lid</div>
-                <h1 class="mt-2 text-4xl font-semibold text-white">Registreer een nieuw lid</h1>
-                <p class="mt-3 max-w-3xl text-lg text-slate-300">
-                    Vul de gegevens in en kies daarna het kaartdesign. Het lidmaatschap loopt automatisch van vandaag tot exact 1 jaar later.
-                </p>
+                <div class="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300/80">Nieuw lid</div>
+                <h2 class="mt-2 text-3xl font-semibold text-white">Registratie via display</h2>
+                <p class="mt-2 text-base text-slate-400">Vul eerst de gegevens in en kies daarna het kaartdesign.</p>
             </div>
 
-            <div class="rounded-[1.5rem] border border-slate-700 bg-slate-900/70 px-5 py-4 text-right">
-                <div class="text-xs uppercase tracking-[0.35em] text-slate-500">Stap</div>
-                <div class="mt-1 text-4xl font-semibold text-white">{{ currentStep }}/2</div>
+            <div class="inline-flex rounded-full border border-slate-700 bg-slate-950/70 p-1">
+                <div class="rounded-full px-4 py-2 text-sm font-semibold" :class="step === 1 ? 'bg-cyan-500/20 text-cyan-200' : 'text-slate-500'">Gegevens</div>
+                <div class="rounded-full px-4 py-2 text-sm font-semibold" :class="step === 2 ? 'bg-cyan-500/20 text-cyan-200' : 'text-slate-500'">Kaartdesign</div>
             </div>
         </div>
 
-        <div v-if="error" class="mt-5 rounded-2xl border border-rose-500/40 bg-rose-500/10 px-5 py-4 text-base text-rose-100">
-            {{ error }}
-        </div>
-
-        <div class="min-h-0 flex-1 overflow-y-auto py-6">
-            <div v-if="step === 1" class="space-y-8">
-                <section class="space-y-4">
-                    <div>
-                        <h2 class="text-xl font-semibold text-white">Gegevens</h2>
-                        <div class="mt-1 text-sm text-slate-400">Alle basisgegevens van het nieuwe lid.</div>
-                    </div>
-
-                    <div class="grid gap-4 lg:grid-cols-2">
-                        <label class="space-y-2 text-sm text-slate-300">
-                            <span>Voornaam *</span>
-                            <input v-model="form.first_name" type="text" :class="fieldClass">
-                        </label>
-                        <label class="space-y-2 text-sm text-slate-300">
-                            <span>Naam *</span>
-                            <input v-model="form.last_name" type="text" :class="fieldClass">
-                        </label>
-                        <label class="space-y-2 text-sm text-slate-300">
-                            <span>E-mail *</span>
-                            <input v-model="form.email" type="email" :class="fieldClass">
-                        </label>
-                        <label class="space-y-2 text-sm text-slate-300">
-                            <span>Telefoon</span>
-                            <input v-model="form.phone" type="text" :class="fieldClass">
-                        </label>
-                        <label class="space-y-2 text-sm text-slate-300">
-                            <span>Paswoord *</span>
-                            <input v-model="form.password" type="password" :class="fieldClass">
-                        </label>
-                        <label class="space-y-2 text-sm text-slate-300">
-                            <span>Herhaal paswoord *</span>
-                            <input v-model="form.password_confirmation" type="password" :class="fieldClass">
-                        </label>
-                        <label class="space-y-2 text-sm text-slate-300">
-                            <span>Geboortedatum</span>
-                            <input v-model="form.birth_date" type="date" :class="fieldClass">
-                        </label>
-                        <div class="space-y-2 text-sm text-slate-300">
-                            <span>Type *</span>
-                            <div class="grid grid-cols-2 gap-3">
-                                <button type="button" class="rounded-2xl border px-4 py-4 text-left text-base font-semibold transition" :class="form.membership_type === 'adult' ? selectedToggleClass : toggleClass" @click="form.membership_type='adult'">Volwassen</button>
-                                <button type="button" class="rounded-2xl border px-4 py-4 text-left text-base font-semibold transition" :class="form.membership_type === 'student' ? selectedToggleClass : toggleClass" @click="form.membership_type='student'">Student</button>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="space-y-4">
-                    <div>
-                        <h2 class="text-xl font-semibold text-white">Adres</h2>
-                        <div class="mt-1 text-sm text-slate-400">Adresgegevens van het lid.</div>
-                    </div>
-
-                    <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_180px]">
-                        <label class="space-y-2 text-sm text-slate-300">
-                            <span>Straat</span>
-                            <input v-model="form.street" type="text" :class="fieldClass">
-                        </label>
-                        <label class="space-y-2 text-sm text-slate-300">
-                            <span>Nr</span>
-                            <input v-model="form.house_number" type="text" :class="fieldClass">
-                        </label>
-                    </div>
-
-                    <div class="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-                        <label class="space-y-2 text-sm text-slate-300">
-                            <span>Postcode</span>
-                            <input v-model="form.postal_code" type="text" :class="fieldClass">
-                        </label>
-                        <label class="space-y-2 text-sm text-slate-300">
-                            <span>Gemeente</span>
-                            <input v-model="form.city" type="text" :class="fieldClass">
-                        </label>
-                    </div>
-                </section>
-            </div>
-
-            <div v-else class="space-y-4">
-                <div>
-                    <h2 class="text-xl font-semibold text-white">Kaartdesign kiezen</h2>
-                    <div class="mt-1 text-sm text-slate-400">Kies welk kaartdesign gebruikt wordt voor het nieuwe lid.</div>
+        <div class="min-h-0 flex-1 overflow-y-auto px-8 py-6">
+            <div v-if="success" class="flex h-full min-h-[480px] flex-col items-center justify-center text-center">
+                <div class="flex h-24 w-24 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300">
+                    <svg class="h-12 w-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
                 </div>
+                <h3 class="mt-6 text-3xl font-semibold text-white">Lid succesvol aangemaakt</h3>
+                <p class="mt-3 max-w-2xl text-lg text-slate-300">{{ successMessage }}</p>
+            </div>
 
-                <div v-if="templates.length" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div v-else-if="step === 1" class="grid gap-8 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+                <section class="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">
+                    <h3 class="text-xl font-semibold text-white">Gegevens</h3>
+                    <div class="mt-5 grid gap-5 md:grid-cols-2">
+                        <label class="space-y-2 text-sm text-slate-300"><span>Voornaam *</span><input :value="form.first_name" type="text" :class="fieldClass" @input="update('first_name', $event.target.value)"></label>
+                        <label class="space-y-2 text-sm text-slate-300"><span>Naam *</span><input :value="form.last_name" type="text" :class="fieldClass" @input="update('last_name', $event.target.value)"></label>
+                        <label class="space-y-2 text-sm text-slate-300"><span>E-mail *</span><input :value="form.email" type="email" :class="fieldClass" @input="update('email', $event.target.value)"></label>
+                        <label class="space-y-2 text-sm text-slate-300"><span>Telefoon</span><input :value="form.phone" type="text" :class="fieldClass" @input="update('phone', $event.target.value)"></label>
+                        <label class="space-y-2 text-sm text-slate-300"><span>Paswoord *</span><input :value="form.password" type="password" :class="fieldClass" @input="update('password', $event.target.value)"></label>
+                        <label class="space-y-2 text-sm text-slate-300"><span>Herhaal paswoord *</span><input :value="form.password_confirmation" type="password" :class="fieldClass" @input="update('password_confirmation', $event.target.value)"></label>
+                        <label class="space-y-2 text-sm text-slate-300"><span>Geboortedatum</span><input :value="form.birth_date" type="date" :class="fieldClass" @input="update('birth_date', $event.target.value)"></label>
+                        <label class="space-y-2 text-sm text-slate-300">
+                            <span>Type</span>
+                            <select :value="form.type" :class="fieldClass" @change="update('type', $event.target.value)">
+                                <option value="adult">Volwassen</option>
+                                <option value="student">Student</option>
+                            </select>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">
+                    <h3 class="text-xl font-semibold text-white">Adres</h3>
+                    <div class="mt-5 grid gap-5 md:grid-cols-[minmax(0,1fr)_120px]">
+                        <label class="space-y-2 text-sm text-slate-300"><span>Straat</span><input :value="form.street" type="text" :class="fieldClass" @input="update('street', $event.target.value)"></label>
+                        <label class="space-y-2 text-sm text-slate-300"><span>Nr</span><input :value="form.house_number" type="text" :class="fieldClass" @input="update('house_number', $event.target.value)"></label>
+                    </div>
+                    <div class="mt-5 grid gap-5 md:grid-cols-[180px_minmax(0,1fr)]">
+                        <label class="space-y-2 text-sm text-slate-300"><span>Postcode</span><input :value="form.postal_code" type="text" :class="fieldClass" @input="update('postal_code', $event.target.value)"></label>
+                        <label class="space-y-2 text-sm text-slate-300"><span>Gemeente</span><input :value="form.city" type="text" :class="fieldClass" @input="update('city', $event.target.value)"></label>
+                    </div>
+                </section>
+            </div>
+
+            <div v-else class="space-y-6">
+                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     <button
                         v-for="template in templates"
                         :key="template.id"
                         type="button"
-                        class="rounded-[1.75rem] border p-5 text-left transition"
-                        :class="template.id === form.badge_template_id ? 'border-cyan-400 bg-cyan-500/10 text-white shadow-lg shadow-cyan-950/20' : 'border-slate-800 bg-slate-900/70 text-slate-300 hover:border-slate-600 hover:bg-slate-900'"
-                        @click="form.badge_template_id = template.id"
+                        class="rounded-3xl border p-6 text-left transition"
+                        :class="template.id === form.badge_template_id ? 'border-cyan-400 bg-cyan-500/10 text-white shadow-lg shadow-cyan-950/40' : 'border-slate-800 bg-slate-950/70 text-slate-300 hover:border-slate-700 hover:bg-slate-900'"
+                        @click="update('badge_template_id', template.id)"
                     >
-                        <div class="text-lg font-semibold">{{ template.name }}</div>
-                        <div class="mt-2 text-sm text-slate-400">{{ template.description || 'Geen beschrijving beschikbaar.' }}</div>
+                        <div class="aspect-[1.58/1] rounded-2xl border border-slate-700/80 bg-gradient-to-br from-slate-800 to-slate-950 p-4">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">Kaart design</div>
+                            <div class="mt-6 text-xl font-semibold text-white">{{ template.name }}</div>
+                            <div class="mt-3 text-sm text-slate-300">{{ template.description || 'Member badge design' }}</div>
+                        </div>
                     </button>
                 </div>
 
-                <div v-else class="rounded-2xl border border-dashed border-slate-700 bg-slate-900/50 px-5 py-6 text-slate-400">
-                    Er zijn nog geen member kaartdesigns beschikbaar.
+                <div v-if="!templates.length" class="rounded-3xl border border-dashed border-slate-700 bg-slate-950/70 px-6 py-8 text-center text-slate-400">
+                    Er zijn nog geen kaartdesigns beschikbaar.
                 </div>
             </div>
         </div>
 
-        <div class="flex items-center justify-between gap-4 border-t border-slate-800 pt-5">
-            <button type="button" class="rounded-2xl border border-slate-700 bg-slate-900 px-6 py-4 text-lg font-semibold text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40" :disabled="step === 1 || saving" @click="step = 1">Vorige</button>
+        <div class="border-t border-slate-800 px-8 py-5">
+            <div v-if="error" class="mb-4 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-base text-rose-200">{{ error }}</div>
 
-            <div class="flex items-center gap-3">
-                <button type="button" class="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-6 py-4 text-lg font-semibold text-rose-100 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-40" :disabled="saving" @click="$emit('cancel')">Annuleren</button>
-                <button v-if="step === 1" type="button" class="rounded-2xl bg-cyan-500 px-8 py-4 text-lg font-semibold text-slate-950 transition hover:bg-cyan-400" @click="goNext">Volgende</button>
-                <button v-else type="button" class="rounded-2xl bg-emerald-500 px-8 py-4 text-lg font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60" :disabled="saving" @click="submit">{{ saving ? 'Opslaan...' : 'Opslaan' }}</button>
+            <div class="flex items-center justify-between gap-4">
+                <button
+                    type="button"
+                    class="rounded-2xl border border-slate-700 bg-slate-800 px-5 py-3 text-base font-semibold text-slate-200 transition hover:bg-slate-700 disabled:opacity-40"
+                    :disabled="step === 1 || saving || success"
+                    @click="$emit('previous')"
+                >
+                    Vorige
+                </button>
+
+                <div class="flex items-center gap-3">
+                    <button
+                        type="button"
+                        class="rounded-2xl border border-slate-700 bg-slate-800 px-5 py-3 text-base font-semibold text-slate-200 transition hover:bg-slate-700 disabled:opacity-40"
+                        :disabled="saving"
+                        @click="$emit('cancel')"
+                    >
+                        Annuleren
+                    </button>
+
+                    <button
+                        v-if="step === 1 && !success"
+                        type="button"
+                        class="rounded-2xl bg-cyan-600 px-5 py-3 text-base font-semibold text-white transition hover:bg-cyan-500"
+                        @click="$emit('next')"
+                    >
+                        Volgende
+                    </button>
+
+                    <button
+                        v-else-if="!success"
+                        type="button"
+                        class="rounded-2xl bg-emerald-600 px-5 py-3 text-base font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+                        :disabled="saving || !form.badge_template_id"
+                        @click="$emit('save')"
+                    >
+                        {{ saving ? 'Bezig met opslaan...' : 'Opslaan' }}
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </template>
 
 <script setup>
-import { reactive, ref, watch } from 'vue'
-
-const props = defineProps({
+defineProps({
+    form: { type: Object, required: true },
+    step: { type: Number, default: 1 },
     templates: { type: Array, default: () => [] },
     saving: { type: Boolean, default: false },
     error: { type: String, default: '' },
+    success: { type: Boolean, default: false },
+    successMessage: { type: String, default: '' },
 })
 
-const emit = defineEmits(['submit', 'cancel'])
+const emit = defineEmits(['update', 'next', 'previous', 'cancel', 'save'])
 
-const step = ref(1)
-const form = reactive(createDefaultForm(props.templates))
+const fieldClass = 'w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-base text-white outline-none transition focus:border-cyan-400'
 
-watch(() => props.templates, (templates) => {
-    if (!form.badge_template_id) {
-        form.badge_template_id = defaultTemplateId(templates)
-    }
-}, { deep: true })
-
-function createDefaultForm(templates) {
-    return {
-        first_name: '',
-        last_name: '',
-        email: '',
-        phone: '',
-        password: '',
-        password_confirmation: '',
-        birth_date: '',
-        membership_type: 'adult',
-        street: '',
-        house_number: '',
-        postal_code: '',
-        city: '',
-        badge_template_id: defaultTemplateId(templates),
-    }
+function update(field, value) {
+    emit('update', { field, value })
 }
-
-function defaultTemplateId(templates) {
-    return templates.find(template => template.is_default)?.id ?? templates[0]?.id ?? null
-}
-
-function goNext() {
-    if (!form.first_name || !form.last_name || !form.email || !form.password || !form.password_confirmation || !form.membership_type) {
-        return
-    }
-
-    step.value = 2
-}
-
-function submit() {
-    emit('submit', { ...form })
-}
-
-const currentStep = step
-const fieldClass = 'w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-4 text-lg text-white outline-none transition focus:border-cyan-400'
-const toggleClass = 'border-slate-700 bg-slate-950 text-slate-200 hover:border-slate-500 hover:bg-slate-900'
-const selectedToggleClass = 'border-cyan-400 bg-cyan-500/10 text-white shadow-lg shadow-cyan-950/20'
 </script>
