@@ -13,11 +13,24 @@ use commands::config::{
 };
 use tauri::Manager;
 
+fn should_force_setup() -> bool {
+    std::env::args().any(|arg| arg == "--setup")
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             let app_handle = app.handle().clone();
+
+            if should_force_setup() {
+                if let Some(main_window) = app_handle.get_webview_window("main") {
+                    let _ = main_window.show();
+                    let _ = main_window.set_focus();
+                }
+
+                return Ok(());
+            }
 
             if let Ok(Some(config)) = load_desktop_config_from_disk(&app_handle) {
                 let normalized = normalize_desktop_config(config);

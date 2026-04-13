@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri:dev": "tauri dev",
+    "tauri:setup": "tauri dev -- -- --setup",
     "tauri:build": "tauri build"
   },
   "dependencies": {
