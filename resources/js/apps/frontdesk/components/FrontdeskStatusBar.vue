@@ -32,6 +32,10 @@
                     <span class="h-2.5 w-2.5 rounded-full" :class="displayDotClass"></span>
                     <span>Display: <span class="font-semibold text-white">{{ displayLabel }}</span></span>
                 </span>
+
+                <span class="rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-slate-300">
+                    Runtime: <span class="font-semibold text-white">{{ runtimeLabel }}</span>
+                </span>
             </div>
 
             <button
@@ -52,15 +56,19 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { ArrowRightOnRectangleIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '../stores/authStore'
 import { usePosStore } from '../modules/pos/stores/usePosStore'
+import { frontdeskConfig } from '../config/frontdeskConfig'
+import { getDeviceRuntimeSummary } from '../services/deviceService'
 
 const auth = useAuthStore()
 const posStore = usePosStore()
-const tenantName = window.PlayDrive?.tenantName || 'Onbekende tenant'
+const tenantName = frontdeskConfig.tenantName || 'Onbekende tenant'
+const runtimeSummary = getDeviceRuntimeSummary()
 
 const deviceName = computed(() => posStore.posDevice?.name || 'Niet gekoppeld')
 const displayLabel = computed(() => posStore.posDevice?.display_name || 'Geen externe display')
 const deviceDotClass = computed(() => posStore.posDevice?.device_token ? 'bg-emerald-400' : 'bg-slate-500')
 const displayDotClass = computed(() => posStore.posDevice?.display_device_id ? 'bg-emerald-400' : 'bg-amber-400')
+const runtimeLabel = computed(() => runtimeSummary.environment === 'tauri' ? 'Lokale app' : 'Web')
 
 const now = ref(new Date())
 let interval = null

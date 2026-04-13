@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { frontdeskConfig } from '../config/frontdeskConfig'
 
 import DashboardPage from '../modules/dashboard/pages/DashboardPage.vue'
 import PosPage from '../modules/pos/pages/PosPage.vue'
@@ -21,6 +22,6 @@ const routes = [
 ]
 
 export default createRouter({
-    history: createWebHistory('/frontdesk'),
+    history: createWebHistory(frontdeskConfig.frontdeskBasePath),
     routes,
 })
