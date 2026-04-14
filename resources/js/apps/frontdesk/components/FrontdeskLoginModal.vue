@@ -1,15 +1,19 @@
 <template>
     <div class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 p-4">
-        <div
-            class="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl"
-            @keydown="handleKeydown"
-            tabindex="0"
-            ref="modalRef"
-        >
+        <div class="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl">
             <div class="border-b border-slate-800 px-6 py-5">
+                <div class="mb-5 flex justify-center">
+                    <img
+                        :src="'/images/logos/logo_header.png'"
+                        alt="Playdrive"
+                        class="h-12 w-auto object-contain"
+                    />
+                </div>
+
                 <h2 class="text-2xl font-bold text-white">Medewerker login</h2>
                 <p class="mt-1 text-sm text-slate-400">
-                    Log in met login + paswoord of scan je NFC-kaart.
+                    Log in met login + paswoord.
+                    <span v-if="rfidAvailable">Of scan je NFC-kaart via de desktop-app.</span>
                 </p>
             </div>
 
@@ -48,51 +52,58 @@
                     </button>
                 </form>
 
-                <div class="relative">
-                    <div class="absolute inset-0 flex items-center">
-                        <div class="w-full border-t border-slate-800"></div>
-                    </div>
-                    <div class="relative flex justify-center">
-                        <span class="bg-slate-900 px-3 text-xs uppercase tracking-wider text-slate-500">of</span>
-                    </div>
-                </div>
-
-                <div class="rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-4">
-                    <div class="text-sm font-medium text-slate-200">NFC/RFID-kaart</div>
-                    <div class="mt-1 text-sm text-slate-400">
-                        Scan de kaart nu. Gedetecteerde UID:
+                <template v-if="rfidAvailable">
+                    <div class="relative">
+                        <div class="absolute inset-0 flex items-center">
+                            <div class="w-full border-t border-slate-800"></div>
+                        </div>
+                        <div class="relative flex justify-center">
+                            <span class="bg-slate-900 px-3 text-xs uppercase tracking-wider text-slate-500">of</span>
+                        </div>
                     </div>
 
-                    <div class="mt-3 rounded-xl border border-dashed border-slate-700 px-4 py-3 font-mono text-sm text-cyan-300">
-                        {{ scannedUid || 'Wachten op scan...' }}
-                    </div>
+                    <div class="rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-4">
+                        <div class="text-sm font-medium text-slate-200">NFC/RFID-kaart</div>
+                        <div class="mt-1 text-sm text-slate-400">
+                            Scan je kaart via de desktop-lezer.
+                        </div>
 
-                    <button
-                        type="button"
-                        class="mt-4 w-full rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 font-semibold text-slate-200 transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        :disabled="busy || !scannedUid"
-                        @click="submitCardLogin"
-                    >
-                        {{ busy ? 'Bezig...' : 'Inloggen met kaart' }}
-                    </button>
-                </div>
+                        <div v-if="scannedUid" class="mt-3 rounded-xl border border-dashed border-slate-700 px-4 py-3 font-mono text-sm text-cyan-300">
+                            {{ scannedUid }}
+                        </div>
+
+                        <div class="mt-4">
+                            <ScanRfidButton
+                                v-model="scannedUid"
+                                label="Scan NFC"
+                                title="NFC-kaart scannen"
+                                description="Houd je medewerkerskaart bij de lezer om in te loggen."
+                                confirm-label="Gebruik kaart"
+                                :auto-confirm="true"
+                                :disabled="busy"
+                                @confirmed="submitCardLogin"
+                            />
+                        </div>
+                    </div>
+                </template>
             </div>
         </div>
     </div>
 </template>
 
 <script setup>
-import { nextTick, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useAuthStore } from '../stores/authStore'
+import ScanRfidButton from '../../../shared/components/scanners/ScanRfidButton.vue'
+import { isTauriRuntime } from '../../../shared/runtime/environment'
 
 const auth = useAuthStore()
 
-const modalRef = ref(null)
 const busy = ref(false)
 const errorMessage = ref('')
 const scannedUid = ref('')
-const rfidBuffer = ref('')
-let rfidTimer = null
+
+const rfidAvailable = computed(() => isTauriRuntime())
 
 const form = ref({
     username: '',
@@ -115,7 +126,7 @@ async function submitLogin() {
 }
 
 async function submitCardLogin() {
-    if (!scannedUid.value) {
+    if (!scannedUid.value || !rfidAvailable.value) {
         return
     }
 
@@ -125,7 +136,6 @@ async function submitCardLogin() {
     try {
         await auth.loginWithCard(scannedUid.value)
         scannedUid.value = ''
-        rfidBuffer.value = ''
     } catch (error) {
         errorMessage.value = error?.data?.errors?.rfid_uid?.[0]
             || error?.data?.message
@@ -134,48 +144,4 @@ async function submitCardLogin() {
         busy.value = false
     }
 }
-
-function finalizeScan() {
-    const value = rfidBuffer.value.trim()
-
-    if (!value) {
-        return
-    }
-
-    scannedUid.value = value
-    rfidBuffer.value = ''
-}
-
-function handleKeydown(event) {
-    if (auth.isAuthenticated) {
-        return
-    }
-
-    if (event.key === 'Enter') {
-        if (rfidBuffer.value.trim().length > 0) {
-            event.preventDefault()
-            finalizeScan()
-            submitCardLogin()
-        }
-
-        return
-    }
-
-    if (event.key.length === 1) {
-        rfidBuffer.value += event.key
-
-        if (rfidTimer) {
-            clearTimeout(rfidTimer)
-        }
-
-        rfidTimer = setTimeout(() => {
-            finalizeScan()
-        }, 120)
-    }
-}
-
-onMounted(async () => {
-    await nextTick()
-    modalRef.value?.focus()
-})
 </script>

@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col gap-2">
+    <div v-if="rfidAvailable" class="flex flex-col gap-2">
         <button
             type="button"
             :disabled="disabled"
@@ -19,13 +19,10 @@
 
         <ScanRfidModal
             v-model:open="openModal"
-            :model-value="modelValue"
             :title="title"
             :description="description"
             :confirm-label="confirmLabel"
             :auto-confirm="autoConfirm"
-            :timeout-ms="timeoutMs"
-            @update:model-value="handleScanned"
             @scanned="handleScanned"
             @confirmed="handleConfirmed"
         />
@@ -36,6 +33,7 @@
 import { computed, ref } from 'vue'
 import { CreditCardIcon } from '@heroicons/vue/24/outline'
 import ScanRfidModal from './ScanRfidModal.vue'
+import { isTauriRuntime } from '../../runtime/environment'
 
 const props = defineProps({
     modelValue: {
@@ -70,15 +68,12 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
-    timeoutMs: {
-        type: Number,
-        default: 15000,
-    },
 })
 
 const emit = defineEmits(['update:modelValue', 'scanned', 'confirmed'])
 
 const openModal = ref(false)
+const rfidAvailable = computed(() => isTauriRuntime())
 
 const buttonLabel = computed(() => {
     if (props.showValue && props.modelValue) {
