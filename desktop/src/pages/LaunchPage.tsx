@@ -1,5 +1,5 @@
 import type { DesktopConfig } from '../lib/config'
-import { buildLaunchUrl } from '../lib/config'
+import { buildBaseUrl, buildLaunchUrl } from '../lib/config'
 
 type LaunchPageProps = {
   config: DesktopConfig
@@ -32,7 +32,7 @@ export default function LaunchPage({
         <dl className="summary-grid">
           <div>
             <dt>Server</dt>
-            <dd>{config.serverUrl}</dd>
+              <dd>{buildBaseUrl(config)}</dd>
           </div>
           <div>
             <dt>Profiel</dt>
