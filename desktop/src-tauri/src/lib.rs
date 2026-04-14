@@ -1,5 +1,6 @@
 mod commands {
     pub mod config;
+    pub mod rfid;
 }
 
 use commands::config::{
@@ -11,6 +12,7 @@ use commands::config::{
     reset_desktop_config,
     save_desktop_config,
 };
+use commands::rfid::{cancel_rfid_scan, scan_rfid_once};
 use tauri::Manager;
 
 fn should_force_setup() -> bool {
@@ -54,6 +56,8 @@ pub fn run() {
             save_desktop_config,
             reset_desktop_config,
             open_configured_profile,
+            scan_rfid_once,
+            cancel_rfid_scan,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Playdrive Desktop");

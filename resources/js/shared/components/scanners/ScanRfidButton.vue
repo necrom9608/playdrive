@@ -19,10 +19,13 @@
 
         <ScanRfidModal
             v-model:open="openModal"
+            :model-value="modelValue"
             :title="title"
             :description="description"
             :confirm-label="confirmLabel"
             :auto-confirm="autoConfirm"
+            :timeout-ms="timeoutMs"
+            @update:model-value="handleScanned"
             @scanned="handleScanned"
             @confirmed="handleConfirmed"
         />
@@ -66,6 +69,10 @@ const props = defineProps({
     showValue: {
         type: Boolean,
         default: false,
+    },
+    timeoutMs: {
+        type: Number,
+        default: 15000,
     },
 })
 
