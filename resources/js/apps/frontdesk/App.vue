@@ -1,7 +1,13 @@
 <template>
     <div>
-        <FrontdeskLayout v-if="auth.initialized && auth.isAuthenticated" />
-        <FrontdeskLoginModal v-if="auth.initialized && !auth.isAuthenticated" />
+        <SplashScreen
+            :visible="showSplash"
+            title="PLAYDRIVE"
+            subtitle="Frontdesk wordt opgestart…"
+            status-text="Frontdesk"
+        />
+        <FrontdeskLayout v-if="!showSplash && auth.initialized && auth.isAuthenticated" />
+        <FrontdeskLoginModal v-if="!showSplash && auth.initialized && !auth.isAuthenticated" />
     </div>
 </template>
 
@@ -10,8 +16,11 @@ import { onMounted, onBeforeUnmount } from 'vue'
 import FrontdeskLayout from './layouts/FrontdeskLayout.vue'
 import FrontdeskLoginModal from './components/FrontdeskLoginModal.vue'
 import { useAuthStore } from './stores/authStore'
+import SplashScreen from '../../shared/components/SplashScreen.vue'
+import { useSplashScreen } from '../../shared/composables/useSplashScreen'
 
 const auth = useAuthStore()
+const { showSplash, hideSplash } = useSplashScreen(2000)
 
 function handleAuthRequired() {
     auth.user = null
@@ -20,7 +29,12 @@ function handleAuthRequired() {
 
 onMounted(async () => {
     window.addEventListener('frontdesk-auth-required', handleAuthRequired)
-    await auth.initialize()
+
+    try {
+        await auth.initialize()
+    } finally {
+        await hideSplash()
+    }
 })
 
 onBeforeUnmount(() => {

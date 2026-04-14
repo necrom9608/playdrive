@@ -37,10 +37,6 @@ pub fn run() {
 
                 if !normalized.tenant_slug.trim().is_empty() && !normalized.profile.trim().is_empty() {
                     if open_playdrive_window(&app_handle, &normalized).is_ok() {
-                        if let Some(main_window) = app_handle.get_webview_window("main") {
-                            let _ = main_window.close();
-                        }
-
                         return Ok(());
                     }
                 }
