@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager};
 use url::Url;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -148,7 +148,10 @@ pub fn build_base_url(config: &DesktopConfig) -> Result<Url, String> {
 }
 
 pub fn build_launch_url(config: &DesktopConfig) -> Result<Url, String> {
-    let mut base = build_base_url(config)?.to_string().trim_end_matches('/').to_string();
+    let mut base = build_base_url(config)?
+        .to_string()
+        .trim_end_matches('/')
+        .to_string();
 
     let route = match config.profile.as_str() {
         "frontdesk" => "/frontdesk",
@@ -185,29 +188,54 @@ pub fn open_playdrive_window(app: &AppHandle, config: &DesktopConfig) -> Result<
     validate_config(&normalized)?;
     let target = build_launch_url(&normalized)?;
 
-    if let Some(existing) = app.get_webview_window("playdrive") {
-        let _ = existing.close();
+    let main_window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "Main window niet gevonden.".to_string())?;
+
+    main_window
+        .set_title(&format!("Playdrive - {}", normalized.device_name))
+        .map_err(|error| format!("Titel instellen mislukt: {error}"))?;
+
+    if normalized.fullscreen {
+        main_window
+            .set_fullscreen(true)
+            .map_err(|error| format!("Fullscreen instellen mislukt: {error}"))?;
+
+        main_window
+            .set_resizable(false)
+            .map_err(|error| format!("Resizable uitschakelen mislukt: {error}"))?;
+    } else {
+        main_window
+            .set_fullscreen(false)
+            .map_err(|error| format!("Fullscreen uitschakelen mislukt: {error}"))?;
+
+        main_window
+            .set_resizable(true)
+            .map_err(|error| format!("Resizable inschakelen mislukt: {error}"))?;
+
+        main_window
+            .set_size(tauri::Size::Logical(tauri::LogicalSize {
+                width: 1920.0,
+                height: 1080.0,
+            }))
+            .map_err(|error| format!("Venstergrootte instellen mislukt: {error}"))?;
+
+        main_window
+            .center()
+            .map_err(|error| format!("Venster centreren mislukt: {error}"))?;
     }
 
-    let playdrive_window = WebviewWindowBuilder::new(
-        app,
-        "playdrive",
-        WebviewUrl::External(target),
-    )
-    .title(format!("Playdrive - {}", normalized.device_name))
-    .fullscreen(normalized.fullscreen)
-    .resizable(!normalized.fullscreen)
-    .center()
-    .build()
-    .map_err(|error| format!("Profielvenster starten mislukt: {error}"))?;
-
-    playdrive_window
+    main_window
         .show()
-        .map_err(|error| format!("Playdrive-venster tonen mislukt: {error}"))?;
+        .map_err(|error| format!("Main window tonen mislukt: {error}"))?;
 
-    playdrive_window
+    main_window
+        .navigate(target)
+        .map_err(|error| format!("Navigeren naar Playdrive mislukt: {error}"))?;
+
+    main_window
         .set_focus()
-        .map_err(|error| format!("Focus zetten op Playdrive-venster mislukt: {error}"))?;
+        .map_err(|error| format!("Focus zetten op main window mislukt: {error}"))?;
 
     Ok(())
 }
@@ -221,7 +249,10 @@ pub fn load_desktop_config(app: AppHandle) -> Result<Option<DesktopConfig>, Stri
 }
 
 #[tauri::command]
-pub fn save_desktop_config(app: AppHandle, config: DesktopConfig) -> Result<DesktopConfig, String> {
+pub fn save_desktop_config(
+    app: AppHandle,
+    config: DesktopConfig,
+) -> Result<DesktopConfig, String> {
     let normalized = normalize_desktop_config(config);
     validate_config(&normalized)?;
 
@@ -257,10 +288,5 @@ pub fn reset_desktop_config(app: AppHandle) -> Result<bool, String> {
 pub fn open_configured_profile(app: AppHandle, config: DesktopConfig) -> Result<(), String> {
     let normalized = normalize_desktop_config(config);
     open_playdrive_window(&app, &normalized)?;
-
-    if let Some(main_window) = app.get_webview_window("main") {
-        let _ = main_window.close();
-    }
-
     Ok(())
 }
