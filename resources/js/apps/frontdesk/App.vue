@@ -6,13 +6,14 @@
             subtitle="Frontdesk wordt opgestart…"
             status-text="Frontdesk"
         />
+
         <FrontdeskLayout v-if="!showSplash && auth.initialized && auth.isAuthenticated" />
         <FrontdeskLoginModal v-if="!showSplash && auth.initialized && !auth.isAuthenticated" />
     </div>
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount } from 'vue'
+import { onMounted, onBeforeUnmount, nextTick } from 'vue'
 import FrontdeskLayout from './layouts/FrontdeskLayout.vue'
 import FrontdeskLoginModal from './components/FrontdeskLoginModal.vue'
 import { useAuthStore } from './stores/authStore'
@@ -27,10 +28,20 @@ function handleAuthRequired() {
     auth.initialized = true
 }
 
+function waitForPaint() {
+    return new Promise((resolve) => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(resolve)
+        })
+    })
+}
+
 onMounted(async () => {
     window.addEventListener('frontdesk-auth-required', handleAuthRequired)
 
     try {
+        await nextTick()
+        await waitForPaint()
         await auth.initialize()
     } finally {
         await hideSplash()

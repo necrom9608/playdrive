@@ -1,4 +1,5 @@
 <template>
+    <div class="text-red-500 text-2xl">SPLASH TEST</div>
     <transition name="splash-fade">
         <div v-if="props.visible" class="fixed inset-0 z-[9999] overflow-hidden bg-[#030814] text-white">
             <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(59,130,246,0.18),transparent_30%),radial-gradient(circle_at_80%_78%,rgba(168,85,247,0.14),transparent_28%),radial-gradient(circle_at_top,#0f2d63_0%,#071327_46%,#030814_100%)]"></div>
