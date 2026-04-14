@@ -158,9 +158,9 @@ async function submitCardLogin() {
     inset: 0;
     background: linear-gradient(
         115deg,
-        transparent 25%,
-        rgba(255, 255, 255, 0.02) 45%,
-        rgba(255, 255, 255, 0.01) 52%,
+        transparent 15%,
+        rgba(255, 255, 255, 0.03) 45%,
+        rgba(255, 255, 255, 0.02) 52%,
         transparent 68%
     );
     transform: translateX(-160%);
