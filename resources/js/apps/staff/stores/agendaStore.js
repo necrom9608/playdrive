@@ -1,27 +1,39 @@
 import { defineStore } from 'pinia'
 import { apiFetch } from '../../../shared/services/api'
 
-function today() {
-  return new Date().toISOString().slice(0, 10)
+function localToday() {
+  return formatLocalDate(new Date())
+}
+
+function parseLocalDate(dateString) {
+  const [year, month, day] = (dateString || '').split('-').map(Number)
+  return new Date(year, (month || 1) - 1, day || 1)
+}
+
+function formatLocalDate(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function shiftDate(dateString, days) {
-  const date = new Date(`${dateString}T00:00:00`)
+  const date = parseLocalDate(dateString)
   date.setDate(date.getDate() + days)
-  return date.toISOString().slice(0, 10)
+  return formatLocalDate(date)
 }
 
 function shiftMonth(dateString, months) {
-  const date = new Date(`${dateString}T00:00:00`)
+  const date = parseLocalDate(dateString)
   date.setMonth(date.getMonth() + months, 1)
-  return date.toISOString().slice(0, 10)
+  return formatLocalDate(date)
 }
 
 export const useStaffAgendaStore = defineStore('staffAgenda', {
-  state: () => ({ loading: false, view: 'day', date: today(), data: { range: {}, summary: {}, day_registrations: [], days: [] } }),
+  state: () => ({ loading: false, view: 'day', date: localToday(), data: { range: {}, summary: {}, day_registrations: [], days: [] } }),
   actions: {
     setToday() {
-      this.date = today()
+      this.date = localToday()
     },
     shiftRange(direction) {
       if (this.view === 'month') {

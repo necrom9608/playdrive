@@ -28,7 +28,7 @@
             </template>
 
             <template v-else>
-              <div class="min-w-0">
+              <div v-if="!isAgendaRoute" class="min-w-0">
                 <h1 class="truncate text-lg font-semibold text-white sm:text-xl">{{ currentPageTitle }}</h1>
               </div>
             </template>
@@ -53,13 +53,14 @@
         <AgendaFilters
           v-if="isAgendaRoute"
           v-model="agendaPickerValue"
-          embedded
+          :expanded="agendaFiltersExpanded"
           :range-label="agendaStore.data.range?.label"
           :input-type="agendaPickerType"
           @change="handleAgendaPickerChange"
           @previous="navigateAgenda(-1)"
           @next="navigateAgenda(1)"
           @today="goAgendaToday"
+          @toggle-expanded="agendaFiltersExpanded = !agendaFiltersExpanded"
         />
       </div>
     </header>
@@ -88,8 +89,8 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { computed, ref } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 import {
   ArrowRightOnRectangleIcon,
   CalendarDaysIcon,
@@ -106,7 +107,6 @@ const auth = useStaffAuthStore()
 const dashboardStore = useStaffDashboardStore()
 const agendaStore = useStaffAgendaStore()
 const route = useRoute()
-const router = useRouter()
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: Squares2X2Icon, match: '/' },
@@ -120,14 +120,13 @@ const isAgendaRoute = computed(() => route.path.startsWith('/agenda'))
 const dashboard = computed(() => dashboardStore.data || {})
 
 const currentPageTitle = computed(() => {
-  if (route.path.startsWith('/agenda')) return 'Agenda'
   if (route.path.startsWith('/tasks')) return 'Taken'
   if (route.path.startsWith('/settings')) return 'Settings'
   return 'Staff'
 })
 
 const mainTopPaddingClass = computed(() => {
-  if (isAgendaRoute.value) return 'pt-52 sm:pt-56'
+  if (isAgendaRoute.value) return agendaFiltersExpanded.value ? 'pt-52 sm:pt-56' : 'pt-36 sm:pt-40'
   return 'pt-24 sm:pt-24'
 })
 
@@ -164,12 +163,7 @@ function isActive(item) {
 
 async function toggleAttendance() {
   if (dashboardStore.saving) return
-
-  if (dashboard.value.attendance?.is_checked_in) {
-    await dashboardStore.checkOut()
-  } else {
-    await dashboardStore.checkIn()
-  }
+  await dashboardStore.toggleAttendance()
 }
 
 function handleAgendaPickerChange() {
@@ -187,11 +181,11 @@ function navigateAgenda(direction) {
 }
 
 function toWeekInputValue(dateString) {
-  const date = new Date(`${dateString}T00:00:00`)
+  const date = parseLocalDate(dateString)
   const day = (date.getDay() + 6) % 7
   date.setDate(date.getDate() - day + 3)
   const firstThursday = new Date(date.getFullYear(), 0, 4)
-  const diff = date - firstThursday
+  const diff = date.getTime() - firstThursday.getTime()
   const week = 1 + Math.round(diff / 604800000)
   return `${date.getFullYear()}-W${String(week).padStart(2, '0')}`
 }
@@ -211,12 +205,22 @@ function fromWeekInputValue(value) {
     monday.setDate(simple.getDate() + 8 - day)
   }
 
-  return monday.toISOString().slice(0, 10)
+  return formatLocalDate(monday)
 }
 
-if (!auth.user) {
-  router.replace('/login')
+function parseLocalDate(dateString) {
+  const [year, month, day] = (dateString || '').split('-').map(Number)
+  return new Date(year, (month || 1) - 1, day || 1)
 }
+
+function formatLocalDate(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const agendaFiltersExpanded = ref(false)
 </script>
 
 <style scoped>
@@ -239,11 +243,11 @@ if (!auth.user) {
 
 @keyframes splash-drift-two {
   0% { transform: translate3d(0, 0, 0) scale(1); }
-  100% { transform: translate3d(-30px, 26px, 0) scale(1.12); }
+  100% { transform: translate3d(-24px, 18px, 0) scale(1.07); }
 }
 
 @keyframes splash-drift-three {
   0% { transform: translate3d(0, 0, 0) scale(1); }
-  100% { transform: translate3d(18px, -18px, 0) scale(1.1); }
+  100% { transform: translate3d(16px, -16px, 0) scale(1.06); }
 }
 </style>
