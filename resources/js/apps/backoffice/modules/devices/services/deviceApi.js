@@ -12,13 +12,13 @@ export function pairDevice(payload) {
 }
 
 export function unpairPosDevice(id) {
-    return apiFetch(`/api/backoffice/devices/pos/${id}/unpair`, {
+    return apiFetch(`/api/backoffice/devices/${id}/unpair`, {
         method: 'POST',
     })
 }
 
 export function updateDisplayDevice(id, payload) {
-    return apiFetch(`/api/backoffice/devices/displays/${id}`, {
+    return apiFetch(`/api/backoffice/devices/display/${id}`, {
         method: 'PUT',
         body: JSON.stringify(payload),
     })

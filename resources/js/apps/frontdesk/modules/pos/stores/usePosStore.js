@@ -4,7 +4,9 @@ import { generateUuid } from '../../../../../shared/utils/identity'
 import {
     getOrCreateDeviceUuid,
     getStoredDeviceToken,
-    storeDeviceToken
+    storeDeviceToken,
+    resolveConfiguredDeviceName,
+    storeDeviceName
 } from '../../../services/deviceService'
 
 const POS_DEVICE_STORAGE_PREFIX = 'playdrive_pos_device'
@@ -19,6 +21,10 @@ function getStoredPosDeviceToken() {
 
 function storePosDeviceToken(token) {
     storeDeviceToken(token, POS_DEVICE_STORAGE_PREFIX)
+}
+
+function storePosDeviceName(name) {
+    storeDeviceName(name, POS_DEVICE_STORAGE_PREFIX)
 }
 
 function generateLineId() {
@@ -311,18 +317,23 @@ export const usePosStore = defineStore('pos', {
         async initializeDisplayBridge() {
             try {
                 const pairingUuid = new URLSearchParams(window.location.search).get('display')
+                const configuredDeviceName = await resolveConfiguredDeviceName(POS_DEVICE_STORAGE_PREFIX, 'Frontdesk POS')
                 const response = await axios.post('/api/display/bootstrap', {
                     role: 'pos',
                     device_uuid: getOrCreatePosDeviceUuid(),
                     device_token: getStoredPosDeviceToken(),
                     pairing_uuid: pairingUuid || null,
-                    name: 'Frontdesk POS',
+                    name: configuredDeviceName,
                 })
 
                 this.posDevice = response.data?.data ?? null
 
                 if (this.posDevice?.device_token) {
                     storePosDeviceToken(this.posDevice.device_token)
+                }
+
+                if (this.posDevice?.name) {
+                    storePosDeviceName(this.posDevice.name)
                 }
 
                 this.displaySyncReady = true
