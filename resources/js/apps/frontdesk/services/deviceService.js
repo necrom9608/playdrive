@@ -1,58 +1,18 @@
 import { generateUuid } from '../../../shared/utils/identity'
 import { getStorageItem, setStorageItem, removeStorageItem } from '../../../shared/utils/storage'
-import { getRuntimeSummary, isTauriRuntime } from '../../../shared/runtime/environment'
+import { getRuntimeSummary } from '../../../shared/runtime/environment'
 
 const DEFAULT_KEYS = {
     uuid: 'playdrive_frontdesk_device_uuid',
     token: 'playdrive_frontdesk_device_token',
-}
-
-const NAME_STORAGE_KEY = 'playdrive_frontdesk_device_name'
-
-async function getTauriInvoke() {
-    const module = await import('@tauri-apps/api/core')
-    return module.invoke
-}
-
-export function getStoredDeviceName() {
-    return (getStorageItem(NAME_STORAGE_KEY) || '').trim()
-}
-
-export function storeDeviceName(name) {
-    const normalized = String(name ?? '').trim()
-
-    if (!normalized) {
-        removeStorageItem(NAME_STORAGE_KEY)
-        return ''
-    }
-
-    setStorageItem(NAME_STORAGE_KEY, normalized)
-    return normalized
-}
-
-export async function loadConfiguredDeviceName() {
-    if (isTauriRuntime()) {
-        try {
-            const invoke = await getTauriInvoke()
-            const config = await invoke('load_desktop_config')
-            const tauriName = String(config?.deviceName ?? config?.device_name ?? '').trim()
-
-            if (tauriName) {
-                storeDeviceName(tauriName)
-                return tauriName
-            }
-        } catch (error) {
-            console.warn('Desktopconfig laden voor toestelnaam mislukt.', error)
-        }
-    }
-
-    return getStoredDeviceName()
+    name: 'playdrive_frontdesk_device_name',
 }
 
 function resolveKeys(prefix = 'playdrive_frontdesk_device') {
     return {
         uuid: `${prefix}_uuid`,
         token: `${prefix}_token`,
+        name: `${prefix}_name`,
     }
 }
 
@@ -97,4 +57,45 @@ export function clearDeviceToken(prefix = 'playdrive_frontdesk_device') {
         : resolveKeys(prefix)
 
     removeStorageItem(keys.token)
+}
+
+
+export function getStoredDeviceName(prefix = 'playdrive_frontdesk_device') {
+    const keys = prefix === 'playdrive_frontdesk_device'
+        ? DEFAULT_KEYS
+        : resolveKeys(prefix)
+
+    return getStorageItem(keys.name)
+}
+
+export function storeDeviceName(name, prefix = 'playdrive_frontdesk_device') {
+    const keys = prefix === 'playdrive_frontdesk_device'
+        ? DEFAULT_KEYS
+        : resolveKeys(prefix)
+
+    if (name && String(name).trim()) {
+        setStorageItem(keys.name, String(name).trim())
+    }
+}
+
+export async function loadConfiguredDeviceName(prefix = 'playdrive_frontdesk_device') {
+    const runtime = getRuntimeSummary()
+
+    if (runtime.environment === 'tauri') {
+        try {
+            const { invoke } = await import('@tauri-apps/api/core')
+            const config = await invoke('load_desktop_config')
+            const configuredName = config?.deviceName ?? config?.device_name ?? ''
+
+            if (configuredName && String(configuredName).trim()) {
+                const normalizedName = String(configuredName).trim()
+                storeDeviceName(normalizedName, prefix)
+                return normalizedName
+            }
+        } catch (error) {
+            console.warn('Desktop config laden mislukt, fallback naar lokale toestelnaam.', error)
+        }
+    }
+
+    return getStoredDeviceName(prefix) || ''
 }

@@ -57,15 +57,14 @@ import { ArrowRightOnRectangleIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '../stores/authStore'
 import { usePosStore } from '../modules/pos/stores/usePosStore'
 import { frontdeskConfig } from '../config/frontdeskConfig'
-import { getDeviceRuntimeSummary, getStoredDeviceName } from '../services/deviceService'
+import { getDeviceRuntimeSummary } from '../services/deviceService'
 
 const auth = useAuthStore()
 const posStore = usePosStore()
 const tenantName = frontdeskConfig.tenantName || 'Onbekende tenant'
 const runtimeSummary = getDeviceRuntimeSummary()
 
-const configuredDeviceName = getStoredDeviceName()
-const deviceName = computed(() => posStore.posDevice?.name || configuredDeviceName || 'Niet gekoppeld')
+const deviceName = computed(() => posStore.posDevice?.name || posStore.configuredDeviceName || 'Niet gekoppeld')
 const displayLabel = computed(() => posStore.posDevice?.display_name || 'Geen externe display')
 const deviceDotClass = computed(() => posStore.posDevice?.device_token ? 'bg-emerald-400' : 'bg-slate-500')
 const displayDotClass = computed(() => posStore.posDevice?.display_device_id ? 'bg-emerald-400' : 'bg-amber-400')

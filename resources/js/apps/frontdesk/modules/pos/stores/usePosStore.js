@@ -4,7 +4,10 @@ import { generateUuid } from '../../../../../shared/utils/identity'
 import {
     getOrCreateDeviceUuid,
     getStoredDeviceToken,
-    storeDeviceToken
+    storeDeviceToken,
+    getStoredDeviceName,
+    storeDeviceName,
+    loadConfiguredDeviceName
 } from '../../../services/deviceService'
 
 const POS_DEVICE_STORAGE_PREFIX = 'playdrive_pos_device'
@@ -19,6 +22,14 @@ function getStoredPosDeviceToken() {
 
 function storePosDeviceToken(token) {
     storeDeviceToken(token, POS_DEVICE_STORAGE_PREFIX)
+}
+
+function getStoredPosDeviceName() {
+    return getStoredDeviceName(POS_DEVICE_STORAGE_PREFIX)
+}
+
+function storePosDeviceName(name) {
+    storeDeviceName(name, POS_DEVICE_STORAGE_PREFIX)
 }
 
 function generateLineId() {
@@ -124,6 +135,7 @@ export const usePosStore = defineStore('pos', {
         posDevice: null,
         displaySyncReady: false,
         displaySyncError: null,
+        configuredDeviceName: getStoredPosDeviceName() || '',
     }),
 
     getters: {
@@ -311,25 +323,28 @@ export const usePosStore = defineStore('pos', {
         async initializeDisplayBridge() {
             try {
                 const pairingUuid = new URLSearchParams(window.location.search).get('display')
-                const configuredDeviceName = (await loadConfiguredPosDeviceName()) || getStoredPosDeviceName() || 'Frontdesk POS'
-                storePosDeviceName(configuredDeviceName)
+                const configuredName = (await loadConfiguredDeviceName(POS_DEVICE_STORAGE_PREFIX)) || getStoredPosDeviceName() || 'Frontdesk POS'
+
+                this.configuredDeviceName = configuredName
+                storePosDeviceName(configuredName)
 
                 const response = await axios.post('/api/display/bootstrap', {
                     role: 'pos',
                     device_uuid: getOrCreatePosDeviceUuid(),
                     device_token: getStoredPosDeviceToken(),
                     pairing_uuid: pairingUuid || null,
-                    name: configuredDeviceName,
+                    name: configuredName,
                 })
 
                 this.posDevice = response.data?.data ?? null
 
-                if (this.posDevice?.name) {
-                    storePosDeviceName(this.posDevice.name)
-                }
-
                 if (this.posDevice?.device_token) {
                     storePosDeviceToken(this.posDevice.device_token)
+                }
+
+                if (this.posDevice?.name) {
+                    this.configuredDeviceName = this.posDevice.name
+                    storePosDeviceName(this.posDevice.name)
                 }
 
                 this.displaySyncReady = true
