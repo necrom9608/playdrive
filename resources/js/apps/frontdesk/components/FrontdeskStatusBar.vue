@@ -5,13 +5,9 @@
         <div class="relative flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
             <div class="flex flex-wrap items-center gap-2">
                 <div class="flex items-center pr-4">
-                    <span class="text-base font-semibold text-white">
-                        {{ formattedDateTime }}
-                    </span>
-
-                    <span class="ml-3 text-xs font-medium text-slate-400/90">
-                        v{{ appVersion }}
-                    </span>
+    <span class="text-base font-semibold text-white">
+        {{ formattedDateTime }}
+    </span>
 
                     <span class="ml-4 h-5 w-px bg-slate-700"></span>
                 </div>
@@ -61,15 +57,15 @@ import { ArrowRightOnRectangleIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '../stores/authStore'
 import { usePosStore } from '../modules/pos/stores/usePosStore'
 import { frontdeskConfig } from '../config/frontdeskConfig'
-import { getDeviceRuntimeSummary } from '../services/deviceService'
+import { getDeviceRuntimeSummary, getStoredDeviceName } from '../services/deviceService'
 
 const auth = useAuthStore()
 const posStore = usePosStore()
 const tenantName = frontdeskConfig.tenantName || 'Onbekende tenant'
 const runtimeSummary = getDeviceRuntimeSummary()
-const appVersion = import.meta.env.VITE_WEB_VERSION || 'dev'
 
-const deviceName = computed(() => posStore.posDevice?.name || 'Niet gekoppeld')
+const configuredDeviceName = getStoredDeviceName()
+const deviceName = computed(() => posStore.posDevice?.name || configuredDeviceName || 'Niet gekoppeld')
 const displayLabel = computed(() => posStore.posDevice?.display_name || 'Geen externe display')
 const deviceDotClass = computed(() => posStore.posDevice?.device_token ? 'bg-emerald-400' : 'bg-slate-500')
 const displayDotClass = computed(() => posStore.posDevice?.display_device_id ? 'bg-emerald-400' : 'bg-amber-400')

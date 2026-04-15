@@ -5,33 +5,54 @@ import { getRuntimeSummary, isTauriRuntime } from '../../../shared/runtime/envir
 const DEFAULT_KEYS = {
     uuid: 'playdrive_frontdesk_device_uuid',
     token: 'playdrive_frontdesk_device_token',
-    name: 'playdrive_frontdesk_device_name',
+}
+
+const NAME_STORAGE_KEY = 'playdrive_frontdesk_device_name'
+
+async function getTauriInvoke() {
+    const module = await import('@tauri-apps/api/core')
+    return module.invoke
+}
+
+export function getStoredDeviceName() {
+    return (getStorageItem(NAME_STORAGE_KEY) || '').trim()
+}
+
+export function storeDeviceName(name) {
+    const normalized = String(name ?? '').trim()
+
+    if (!normalized) {
+        removeStorageItem(NAME_STORAGE_KEY)
+        return ''
+    }
+
+    setStorageItem(NAME_STORAGE_KEY, normalized)
+    return normalized
+}
+
+export async function loadConfiguredDeviceName() {
+    if (isTauriRuntime()) {
+        try {
+            const invoke = await getTauriInvoke()
+            const config = await invoke('load_desktop_config')
+            const tauriName = String(config?.deviceName ?? config?.device_name ?? '').trim()
+
+            if (tauriName) {
+                storeDeviceName(tauriName)
+                return tauriName
+            }
+        } catch (error) {
+            console.warn('Desktopconfig laden voor toestelnaam mislukt.', error)
+        }
+    }
+
+    return getStoredDeviceName()
 }
 
 function resolveKeys(prefix = 'playdrive_frontdesk_device') {
     return {
         uuid: `${prefix}_uuid`,
         token: `${prefix}_token`,
-        name: `${prefix}_name`,
-    }
-}
-
-function getKeys(prefix = 'playdrive_frontdesk_device') {
-    return prefix === 'playdrive_frontdesk_device'
-        ? DEFAULT_KEYS
-        : resolveKeys(prefix)
-}
-
-async function getTauriInvoke() {
-    if (!isTauriRuntime()) {
-        return null
-    }
-
-    try {
-        const module = await import('@tauri-apps/api/core')
-        return module.invoke
-    } catch {
-        return null
     }
 }
 
@@ -40,7 +61,9 @@ export function getDeviceRuntimeSummary() {
 }
 
 export function getOrCreateDeviceUuid(prefix = 'playdrive_frontdesk_device') {
-    const keys = getKeys(prefix)
+    const keys = prefix === 'playdrive_frontdesk_device'
+        ? DEFAULT_KEYS
+        : resolveKeys(prefix)
 
     let value = getStorageItem(keys.uuid)
 
@@ -53,61 +76,25 @@ export function getOrCreateDeviceUuid(prefix = 'playdrive_frontdesk_device') {
 }
 
 export function getStoredDeviceToken(prefix = 'playdrive_frontdesk_device') {
-    const keys = getKeys(prefix)
+    const keys = prefix === 'playdrive_frontdesk_device'
+        ? DEFAULT_KEYS
+        : resolveKeys(prefix)
+
     return getStorageItem(keys.token)
 }
 
 export function storeDeviceToken(token, prefix = 'playdrive_frontdesk_device') {
-    const keys = getKeys(prefix)
+    const keys = prefix === 'playdrive_frontdesk_device'
+        ? DEFAULT_KEYS
+        : resolveKeys(prefix)
+
     setStorageItem(keys.token, token)
 }
 
 export function clearDeviceToken(prefix = 'playdrive_frontdesk_device') {
-    const keys = getKeys(prefix)
+    const keys = prefix === 'playdrive_frontdesk_device'
+        ? DEFAULT_KEYS
+        : resolveKeys(prefix)
+
     removeStorageItem(keys.token)
-}
-
-export function getStoredDeviceName(prefix = 'playdrive_frontdesk_device') {
-    const keys = getKeys(prefix)
-    return getStorageItem(keys.name)
-}
-
-export function storeDeviceName(name, prefix = 'playdrive_frontdesk_device') {
-    const keys = getKeys(prefix)
-
-    if (!name || !String(name).trim()) {
-        removeStorageItem(keys.name)
-        return
-    }
-
-    setStorageItem(keys.name, String(name).trim())
-}
-
-export async function resolveConfiguredDeviceName(prefix = 'playdrive_frontdesk_device', fallback = 'Frontdesk POS') {
-    const storedName = getStoredDeviceName(prefix)
-
-    if (storedName) {
-        return storedName
-    }
-
-    const invoke = await getTauriInvoke()
-
-    if (!invoke) {
-        return fallback
-    }
-
-    try {
-        const config = await invoke('load_desktop_config')
-        const configuredName = config?.deviceName || config?.device_name || null
-
-        if (configuredName && String(configuredName).trim()) {
-            const normalized = String(configuredName).trim()
-            storeDeviceName(normalized, prefix)
-            return normalized
-        }
-    } catch {
-        // ignore and fall back below
-    }
-
-    return fallback
 }
