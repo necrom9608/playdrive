@@ -5,9 +5,13 @@
         <div class="relative flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
             <div class="flex flex-wrap items-center gap-2">
                 <div class="flex items-center pr-4">
-    <span class="text-base font-semibold text-white">
-        {{ formattedDateTime }}
-    </span>
+                    <span class="text-base font-semibold text-white">
+                        {{ formattedDateTime }}
+                    </span>
+
+                    <span class="ml-3 text-xs font-medium text-slate-400/90">
+                        v{{ appVersion }}
+                    </span>
 
                     <span class="ml-4 h-5 w-px bg-slate-700"></span>
                 </div>
@@ -63,6 +67,7 @@ const auth = useAuthStore()
 const posStore = usePosStore()
 const tenantName = frontdeskConfig.tenantName || 'Onbekende tenant'
 const runtimeSummary = getDeviceRuntimeSummary()
+const appVersion = import.meta.env.VITE_WEB_VERSION || 'dev'
 
 const deviceName = computed(() => posStore.posDevice?.name || 'Niet gekoppeld')
 const displayLabel = computed(() => posStore.posDevice?.display_name || 'Geen externe display')

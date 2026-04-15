@@ -7,7 +7,48 @@
         </div>
 
         <div class="relative mx-auto flex h-screen w-full max-w-[1600px] flex-col px-6 py-6">
-            <div v-if="loading" class="flex flex-1 items-center justify-center text-center text-xl text-slate-300">
+
+            <div v-if="showConfig" class="flex flex-1 items-center justify-center text-center">
+                <div class="w-full max-w-2xl rounded-[2rem] border border-white/10 bg-slate-900/70 px-8 py-10 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
+                    <p class="text-sm uppercase tracking-[0.28em] text-cyan-300/80">Display configuratie</p>
+                    <h2 class="mt-4 text-3xl font-black tracking-tight text-white">{{ tenantName }}</h2>
+                    <p class="mt-3 text-base text-slate-400">Geef een duidelijke toestelnaam in voor dit scherm.</p>
+
+                    <div class="mt-8 text-left">
+                        <label for="display-name" class="mb-2 block text-sm font-medium text-slate-300">Toestelnaam</label>
+                        <input
+                            id="display-name"
+                            v-model="configDeviceName"
+                            type="text"
+                            maxlength="80"
+                            class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-lg text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/40"
+                            placeholder="Bijvoorbeeld Display Inkom"
+                            @keyup.enter="saveDisplayConfiguration"
+                        />
+                        <p v-if="configError" class="mt-3 text-sm text-red-300">{{ configError }}</p>
+                    </div>
+
+                    <div class="mt-8 flex items-center justify-end gap-3">
+                        <button
+                            v-if="hasDisplayName"
+                            type="button"
+                            class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
+                            @click="cancelConfiguration"
+                        >
+                            Annuleren
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+                            @click="saveDisplayConfiguration"
+                        >
+                            Opslaan
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div v-else-if="loading" class="flex flex-1 items-center justify-center text-center text-xl text-slate-300">
                 Display initialiseren...
             </div>
 
@@ -22,7 +63,9 @@
                 v-else-if="!isPaired"
                 :tenant-name="tenantName"
                 :tenant-logo-url="tenantLogoUrl"
-                :pairing-code="pairingCode"
+                :device-name="displayName"
+                @logo-hold-start="startConfigAccess"
+                @logo-hold-end="cancelConfigAccess"
             />
 
             <DisplayMemberRegistration
@@ -54,13 +97,38 @@
                 :grouped-order-items="groupedOrderItems"
                 :grouped-order-count="groupedOrderCount"
                 :order-total="orderTotal"
+                @logo-hold-start="startConfigAccess"
+                @logo-hold-end="cancelConfigAccess"
             />
 
             <DisplayStandby
                 v-else
                 :tenant-name="tenantName"
                 :tenant-logo-url="tenantLogoUrl"
+                @logo-hold-start="startConfigAccess"
+                @logo-hold-end="cancelConfigAccess"
             />
+
+            <div v-if="showPinPrompt" class="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/80 px-6 backdrop-blur-sm">
+                <div class="w-full max-w-md rounded-[2rem] border border-white/10 bg-slate-900/95 px-6 py-7 shadow-2xl shadow-slate-950/50">
+                    <p class="text-center text-sm uppercase tracking-[0.24em] text-cyan-300/80">Configuratie</p>
+                    <h3 class="mt-3 text-center text-2xl font-bold text-white">Geef je pincode in</h3>
+                    <input
+                        v-model="pinInput"
+                        type="password"
+                        inputmode="numeric"
+                        maxlength="12"
+                        class="mt-6 w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-center text-2xl tracking-[0.35em] text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/40"
+                        placeholder="••••"
+                        @keyup.enter="submitPin"
+                    />
+                    <p v-if="pinError" class="mt-3 text-center text-sm text-red-300">{{ pinError }}</p>
+                    <div class="mt-6 flex items-center justify-end gap-3">
+                        <button type="button" class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10" @click="closePinPrompt">Annuleren</button>
+                        <button type="button" class="rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300" @click="submitPin">Open configuratie</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -72,11 +140,12 @@ import DisplayDisconnected from '../components/DisplayDisconnected.vue'
 import DisplayOverview from '../components/DisplayOverview.vue'
 import DisplayStandby from '../components/DisplayStandby.vue'
 import DisplayMemberRegistration from '../components/DisplayMemberRegistration.vue'
-import { getDisplayToken, getOrCreateDisplayUuid, storeDisplayToken } from '../shared/device'
+import { getDisplayName, getDisplayToken, getOrCreateDisplayUuid, storeDisplayName, storeDisplayToken } from '../shared/device'
 import { getEcho, leaveChannel } from '../shared/realtime'
 
 const tenantName = window.PlayDrive?.tenantName || 'PlayDrive'
 const tenantLogoUrl = window.PlayDrive?.tenantLogoUrl || ''
+const displayConfigPin = String(window.PlayDrive?.displayConfigPin || '2580')
 
 const loading = ref(true)
 const error = ref('')
@@ -90,14 +159,24 @@ const memberError = ref('')
 const memberSuccess = ref(false)
 const memberSuccessMessage = ref('')
 const memberForm = ref(createDefaultMemberForm())
+const displayName = ref(getDisplayName())
+const configDeviceName = ref(displayName.value)
+const configError = ref('')
+const showConfig = ref(!displayName.value)
+const showPinPrompt = ref(false)
+const pinInput = ref('')
+const pinError = ref('')
+const hasDisplayName = computed(() => displayName.value.trim().length > 0)
 
 const IDLE_TIMEOUT_MS = 20000
+const CONFIG_ACCESS_HOLD_MS = 5000
 
 let intervalId = null
 let idleTimerId = null
 let echo = null
 let channel = null
 let subscribedChannelName = null
+let configAccessTimerId = null
 
 const reservation = computed(() => payload.value?.reservation ?? {})
 const order = computed(() => payload.value?.order ?? {})
@@ -532,6 +611,62 @@ function subscribeToChannel() {
         })
 }
 
+function startConfigAccess() {
+    cancelConfigAccess()
+    configAccessTimerId = window.setTimeout(() => {
+        showPinPrompt.value = true
+        pinInput.value = ''
+        pinError.value = ''
+    }, CONFIG_ACCESS_HOLD_MS)
+}
+
+function cancelConfigAccess() {
+    if (configAccessTimerId) {
+        clearTimeout(configAccessTimerId)
+        configAccessTimerId = null
+    }
+}
+
+function closePinPrompt() {
+    showPinPrompt.value = false
+    pinInput.value = ''
+    pinError.value = ''
+}
+
+function submitPin() {
+    if (String(pinInput.value).trim() !== displayConfigPin) {
+        pinError.value = 'Ongeldige pincode.'
+        return
+    }
+
+    closePinPrompt()
+    configDeviceName.value = displayName.value
+    configError.value = ''
+    showConfig.value = true
+}
+
+function cancelConfiguration() {
+    configDeviceName.value = displayName.value
+    configError.value = ''
+    showConfig.value = false
+}
+
+async function saveDisplayConfiguration() {
+    const normalizedName = String(configDeviceName.value || '').trim()
+
+    if (!normalizedName) {
+        configError.value = 'Geef een toestelnaam in.'
+        return
+    }
+
+    displayName.value = storeDisplayName(normalizedName)
+    configDeviceName.value = displayName.value
+    configError.value = ''
+    showConfig.value = false
+
+    await bootstrap()
+}
+
 async function loadState() {
     console.log('[display] loadState start')
 
@@ -571,7 +706,7 @@ async function bootstrap() {
             role: 'display',
             device_uuid: getOrCreateDisplayUuid(),
             device_token: getDisplayToken(),
-            name: 'Customer Display',
+            name: displayName.value || 'Customer Display',
         })
 
         console.log('[display] bootstrap response', response.data)
@@ -583,6 +718,10 @@ async function bootstrap() {
         applyState(response.data?.data ?? {})
         await loadState()
 
+        if (intervalId) {
+            clearInterval(intervalId)
+        }
+
         intervalId = window.setInterval(loadState, 3000)
         console.log('[display] polling started', 3000)
     } catch (err) {
@@ -592,7 +731,15 @@ async function bootstrap() {
     }
 }
 
-onMounted(bootstrap)
+onMounted(() => {
+    if (hasDisplayName.value) {
+        bootstrap()
+        return
+    }
+
+    loading.value = false
+    showConfig.value = true
+})
 
 onBeforeUnmount(() => {
     console.log('[display] beforeUnmount')
@@ -601,6 +748,7 @@ onBeforeUnmount(() => {
         clearInterval(intervalId)
     }
 
+    cancelConfigAccess()
     clearIdleTimer()
 
     if (subscribedChannelName) {

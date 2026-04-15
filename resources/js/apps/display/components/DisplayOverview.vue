@@ -6,6 +6,8 @@
                 :tenant-logo-url="tenantLogoUrl"
                 :reservation="reservation"
                 :reservation-name="reservation?.name || ''"
+                @logo-hold-start="emit('logo-hold-start')"
+                @logo-hold-end="emit('logo-hold-end')"
             />
 
             <DisplayStatsCard
@@ -28,6 +30,8 @@
 import DisplayHeaderCard from './DisplayHeaderCard.vue'
 import DisplayListCard from './DisplayListCard.vue'
 import DisplayStatsCard from './DisplayStatsCard.vue'
+
+const emit = defineEmits(['logo-hold-start', 'logo-hold-end'])
 
 defineProps({
     tenantName: {

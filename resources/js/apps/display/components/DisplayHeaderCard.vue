@@ -2,7 +2,7 @@
     <section class="overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900/65 p-5 shadow-2xl shadow-slate-950/40 backdrop-blur-xl">
         <div class="flex items-center gap-5">
             <div class="h-16 w-52 max-w-[45%] flex-shrink-0">
-                <DisplayTenantLogo :src="tenantLogoUrl" :tenant-name="tenantName" class="h-full w-full" />
+                <DisplayTenantLogo :src="tenantLogoUrl" :tenant-name="tenantName" class="h-full w-full" @pointerdown="emit('logo-hold-start')" @pointerup="emit('logo-hold-end')" @pointerleave="emit('logo-hold-end')" @pointercancel="emit('logo-hold-end')" />
             </div>
 
             <div class="min-w-0 flex-1 rounded-[1.5rem] bg-white/[0.03] px-4 py-4">
@@ -48,6 +48,8 @@ import {
     TagIcon,
 } from '@heroicons/vue/24/outline'
 import DisplayTenantLogo from './DisplayTenantLogo.vue'
+
+const emit = defineEmits(['logo-hold-start', 'logo-hold-end'])
 
 const props = defineProps({
     tenantName: {

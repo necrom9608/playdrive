@@ -18,6 +18,7 @@ class DeviceManagementController extends Controller
         $displays = DisplayDevice::query()
             ->where('tenant_id', $currentTenant->id())
             ->withCount('posDevices')
+            ->with(['posDevices:id,name,display_device_id'])
             ->orderBy('name')
             ->orderBy('id')
             ->get();
@@ -46,6 +47,12 @@ class DeviceManagementController extends Controller
 
         $pos = PosDevice::query()->where('tenant_id', $currentTenant->id())->findOrFail($data['pos_device_id']);
         $display = DisplayDevice::query()->where('tenant_id', $currentTenant->id())->findOrFail($data['display_device_id']);
+
+        PosDevice::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->where('display_device_id', $display->id)
+            ->where('id', '!=', $pos->id)
+            ->update(['display_device_id' => null]);
 
         $pos->update([
             'display_device_id' => $display->id,

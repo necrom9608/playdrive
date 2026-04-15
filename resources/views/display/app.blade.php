@@ -23,6 +23,7 @@
             tenantSlug: @js($currentTenant?->slug ?? null),
             tenantLogoUrl: @js($currentTenant?->logo_path ? route('display.tenant-logo', ['v' => optional($currentTenant?->updated_at)->timestamp ?: time()]) : null),
             host: @js(request()->getHost()),
+            displayConfigPin: @js(env('DISPLAY_CONFIG_PIN', '2580')),
             realtime: {
                 appKey: @js(config('broadcasting.realtime.app_key', 'playdrive')),
                 host: @js(config('broadcasting.realtime.host', request()->getHost())),

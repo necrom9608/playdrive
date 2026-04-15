@@ -10,7 +10,7 @@
             <div class="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.08),transparent_45%)]"></div>
 
             <div class="relative mx-auto h-40 w-full max-w-[24rem] standby-logo-float">
-                <DisplayTenantLogo :src="tenantLogoUrl" :tenant-name="tenantName" class="h-full w-full justify-center" />
+                <DisplayTenantLogo :src="tenantLogoUrl" :tenant-name="tenantName" class="h-full w-full justify-center" @pointerdown="emit('logo-hold-start')" @pointerup="emit('logo-hold-end')" @pointerleave="emit('logo-hold-end')" @pointercancel="emit('logo-hold-end')" />
             </div>
 
             <div class="relative mt-8 text-xs uppercase tracking-[0.32em] text-cyan-300/75">Welkom</div>
@@ -35,6 +35,8 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import DisplayTenantLogo from './DisplayTenantLogo.vue'
+
+const emit = defineEmits(['logo-hold-start', 'logo-hold-end'])
 
 const props = defineProps({
     tenantName: {

@@ -1,5 +1,6 @@
 const UUID_KEY = 'playdrive_display_device_uuid'
 const TOKEN_KEY = 'playdrive_display_device_token'
+const NAME_KEY = 'playdrive_display_name'
 
 function generateUuid() {
     if (typeof window !== 'undefined' && window.crypto && typeof window.crypto.randomUUID === 'function') {
@@ -46,4 +47,20 @@ export function getDisplayToken() {
 
 export function storeDisplayToken(token) {
     localStorage.setItem(TOKEN_KEY, token)
+}
+
+export function getDisplayName() {
+    return (localStorage.getItem(NAME_KEY) || '').trim()
+}
+
+export function storeDisplayName(name) {
+    const normalizedName = String(name || '').trim()
+
+    if (!normalizedName) {
+        localStorage.removeItem(NAME_KEY)
+        return ''
+    }
+
+    localStorage.setItem(NAME_KEY, normalizedName)
+    return normalizedName
 }
