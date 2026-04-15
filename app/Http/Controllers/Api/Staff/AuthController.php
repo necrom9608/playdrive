@@ -139,6 +139,7 @@ class AuthController extends Controller
                 trim(implode(' ', array_filter([$user->street, $user->house_number]))),
                 trim(implode(' ', array_filter([$user->postal_code, $user->city]))),
             ]))) ?: null,
+            'is_admin' => (bool) $user->is_admin,
         ];
     }
 }

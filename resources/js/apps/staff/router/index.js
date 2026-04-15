@@ -7,9 +7,9 @@ import SettingsPage from '../pages/SettingsPage.vue'
 export default createRouter({
   history: createWebHistory('/staff/'),
   routes: [
-    { path: '/', name: 'staff.dashboard', component: DashboardPage },
-    { path: '/agenda', name: 'staff.agenda', component: AgendaPage },
-    { path: '/tasks', name: 'staff.tasks', component: TasksPage },
-    { path: '/settings', name: 'staff.settings', component: SettingsPage },
+    { path: '/', name: 'staff.dashboard', component: DashboardPage, meta: { title: 'Dashboard' } },
+    { path: '/agenda', name: 'staff.agenda', component: AgendaPage, meta: { title: 'Agenda' } },
+    { path: '/tasks', name: 'staff.tasks', component: TasksPage, meta: { title: 'Taken' } },
+    { path: '/settings', name: 'staff.settings', component: SettingsPage, meta: { title: 'Settings' } },
   ],
 })

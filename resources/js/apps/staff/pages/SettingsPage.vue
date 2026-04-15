@@ -1,32 +1,65 @@
 <template>
   <div class="space-y-4">
-    <section class="rounded-3xl border border-slate-800 bg-slate-900 p-5">
-      <h1 class="text-xl font-semibold text-white">Mijn gegevens</h1>
-      <p class="mt-1 text-sm text-slate-400">Pas je eigen gegevens en paswoord aan.</p>
+    <section class="rounded-[30px] border border-white/10 bg-slate-950/60 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.35)] backdrop-blur-xl">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h1 class="text-xl font-semibold text-white">Mijn gegevens</h1>
+          <p class="mt-1 text-sm text-slate-400">Pas je profiel, adres en paswoord aan.</p>
+        </div>
+        <button class="inline-flex items-center gap-2 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/15" @click="auth.logout()">
+          <ArrowLeftOnRectangleIcon class="h-5 w-5" />
+          Uitloggen
+        </button>
+      </div>
 
       <div v-if="store.message" class="mt-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{{ store.message }}</div>
       <div v-if="store.error" class="mt-4 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{{ store.error }}</div>
 
-      <form class="mt-5 space-y-4" @submit.prevent="submit">
-        <input v-model="store.form.name" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" placeholder="Naam">
-        <input v-model="store.form.username" disabled class="w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-slate-500" placeholder="Login">
-        <input v-model="store.form.email" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" placeholder="E-mail">
-        <input v-model="store.form.street" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" placeholder="Straat">
-        <div class="grid grid-cols-3 gap-3">
-          <input v-model="store.form.house_number" class="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" placeholder="Nr">
-          <input v-model="store.form.bus" class="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" placeholder="Bus">
-          <input v-model="store.form.postal_code" class="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" placeholder="Postcode">
-        </div>
-        <input v-model="store.form.city" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" placeholder="Gemeente">
-        <div class="border-t border-slate-800 pt-4">
-          <h2 class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Paswoord wijzigen</h2>
-          <div class="mt-3 space-y-3">
-            <input v-model="store.form.current_password" type="password" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" placeholder="Huidig paswoord">
-            <input v-model="store.form.password" type="password" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" placeholder="Nieuw paswoord">
-            <input v-model="store.form.password_confirmation" type="password" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white" placeholder="Bevestig nieuw paswoord">
+      <form class="mt-5 space-y-5" @submit.prevent="submit">
+        <section class="rounded-3xl border border-white/10 bg-white/5 p-4">
+          <div class="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-300">
+            <UserCircleIcon class="h-5 w-5" />
+            Basisgegevens
           </div>
-        </div>
-        <button :disabled="store.saving" class="w-full rounded-2xl bg-cyan-500 px-4 py-3 font-semibold text-slate-950">Opslaan</button>
+          <div class="mt-4 grid gap-3 md:grid-cols-2">
+            <input v-model="store.form.name" class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-white" placeholder="Naam">
+            <input v-model="store.form.username" disabled class="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-slate-500" placeholder="Login">
+            <input v-model="store.form.email" class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-white md:col-span-2" placeholder="E-mail">
+          </div>
+        </section>
+
+        <section class="rounded-3xl border border-white/10 bg-white/5 p-4">
+          <div class="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-300">
+            <MapPinIcon class="h-5 w-5" />
+            Adres
+          </div>
+          <div class="mt-4 space-y-3">
+            <input v-model="store.form.street" class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-white" placeholder="Straat">
+            <div class="grid grid-cols-3 gap-3">
+              <input v-model="store.form.house_number" class="rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-white" placeholder="Nr">
+              <input v-model="store.form.bus" class="rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-white" placeholder="Bus">
+              <input v-model="store.form.postal_code" class="rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-white" placeholder="Postcode">
+            </div>
+            <input v-model="store.form.city" class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-white" placeholder="Gemeente">
+          </div>
+        </section>
+
+        <section class="rounded-3xl border border-white/10 bg-white/5 p-4">
+          <div class="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-300">
+            <KeyIcon class="h-5 w-5" />
+            Paswoord wijzigen
+          </div>
+          <div class="mt-4 space-y-3">
+            <input v-model="store.form.current_password" type="password" class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-white" placeholder="Huidig paswoord">
+            <input v-model="store.form.password" type="password" class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-white" placeholder="Nieuw paswoord">
+            <input v-model="store.form.password_confirmation" type="password" class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-white" placeholder="Bevestig nieuw paswoord">
+          </div>
+        </section>
+
+        <button :disabled="store.saving" class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-4 py-3 font-semibold text-slate-950 shadow-[0_16px_30px_rgba(34,211,238,0.22)] disabled:cursor-not-allowed disabled:opacity-70">
+          <CheckCircleIcon class="h-5 w-5" />
+          Opslaan
+        </button>
       </form>
     </section>
   </div>
@@ -34,9 +67,19 @@
 
 <script setup>
 import { onMounted } from 'vue'
+import {
+  ArrowLeftOnRectangleIcon,
+  UserCircleIcon,
+  MapPinIcon,
+  KeyIcon,
+  CheckCircleIcon,
+} from '@heroicons/vue/24/outline'
 import { useStaffProfileStore } from '../stores/profileStore'
+import { useStaffAuthStore } from '../stores/authStore'
 
 const store = useStaffProfileStore()
+const auth = useStaffAuthStore()
+
 async function submit() { await store.saveProfile() }
 onMounted(() => store.fetchProfile())
 </script>

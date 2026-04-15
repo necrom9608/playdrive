@@ -14,6 +14,7 @@
         window.PlayDrive = {
             tenantName: @js($currentTenant?->name ?? null),
             tenantSlug: @js($currentTenant?->slug ?? null),
+            tenantLogoUrl: @js($currentTenant?->logo_path ? route('display.tenant-logo', ['v' => optional($currentTenant?->updated_at)->timestamp ?: time()]) : null),
             host: @js(request()->getHost()),
         };
     </script>
