@@ -25,6 +25,16 @@
 
         <button type="button" class="mt-4 w-full rounded-2xl border border-slate-700 px-4 py-3 text-sm text-slate-300" @click="forgotPassword">Paswoord vergeten</button>
       </form>
+
+      <a
+        v-if="!isInstalled"
+        href="/downloads/playdrive-staff.apk"
+        download
+        class="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm font-semibold text-cyan-300"
+      >
+        <ArrowDownTrayIcon class="h-4 w-4" />
+        Installeer de app op je toestel
+      </a>
     </div>
   </div>
 </template>
@@ -33,6 +43,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStaffAuthStore } from '../stores/authStore'
+import { ArrowDownTrayIcon } from '@heroicons/vue/24/outline'
 
 const auth = useStaffAuthStore()
 const router = useRouter()
@@ -41,6 +52,7 @@ const password = ref('')
 const loading = ref(false)
 const error = ref('')
 const message = ref('')
+const isInstalled = ref(window.matchMedia('(display-mode: standalone)').matches)
 
 async function submit() {
   loading.value = true

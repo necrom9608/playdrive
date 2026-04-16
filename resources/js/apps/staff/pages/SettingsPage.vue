@@ -16,9 +16,15 @@
         <ArrowDownTrayIcon class="h-5 w-5" />
         Installeer app
       </button>
-      <p v-else class="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-400">
-        Open deze pagina in Chrome om de app te installeren.
-      </p>
+      <a
+        v-else
+        href="/downloads/playdrive-staff.apk"
+        download
+        class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm font-semibold text-cyan-300"
+      >
+        <ArrowDownTrayIcon class="h-5 w-5" />
+        Download APK
+      </a>
     </section>
 
     <section class="rounded-[30px] border border-white/10 bg-slate-950/60 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.35)] backdrop-blur-xl">
