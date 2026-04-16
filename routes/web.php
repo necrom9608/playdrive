@@ -4,6 +4,13 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/frontdesk');
 
+// PWA manifest routes met correcte Content-Type header
+Route::get('/staff.webmanifest', function () {
+    return response()->file(public_path('staff.webmanifest'), [
+        'Content-Type' => 'application/manifest+json',
+    ]);
+});
+
 require base_path('routes/frontdesk-api.php');
 require base_path('routes/backoffice-api.php');
 require base_path('routes/staff-api.php');

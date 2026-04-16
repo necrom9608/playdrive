@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/images/logos/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/images/logos/icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="/images/logos/icon-512.png">
-    <link rel="manifest" href="/staff.webmanifest?v=3" crossorigin="use-credentials">
+    <link rel="manifest" href="/staff.webmanifest?v=3">
     <title>PlayDrive Staff</title>
     @vite(['resources/css/app.css', 'resources/js/apps/staff/app.js'])
     <script>
