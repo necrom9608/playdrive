@@ -60,6 +60,7 @@ class ProductController extends Controller
             'description' => $request->input('description'),
             'image_path' => $this->storeUploadedImage($request),
             'price_excl_vat' => $this->resolvePriceExclVat($request),
+            'price_incl_vat' => $this->resolvePriceInclVat($request),
             'vat_rate' => $request->input('vat_rate'),
             'is_active' => $request->boolean('is_active', true),
             'sort_order' => $request->integer('sort_order', 0),
@@ -95,6 +96,7 @@ class ProductController extends Controller
             'description' => $request->input('description'),
             'image_path' => $imagePath,
             'price_excl_vat' => $this->resolvePriceExclVat($request),
+            'price_incl_vat' => $this->resolvePriceInclVat($request),
             'vat_rate' => $request->input('vat_rate'),
             'is_active' => $request->boolean('is_active', true),
         ]);
@@ -129,6 +131,18 @@ class ProductController extends Controller
         }
 
         return response()->json(['success' => true]);
+    }
+
+    protected function resolvePriceInclVat(Request $request): float
+    {
+        if ($request->filled('price_incl_vat')) {
+            return round((float) $request->input('price_incl_vat'), 2);
+        }
+
+        $priceExclVat = (float) $request->input('price_excl_vat', 0);
+        $vatRate = (float) $request->input('vat_rate', 0);
+
+        return round($priceExclVat * (1 + ($vatRate / 100)), 2);
     }
 
     protected function resolvePriceExclVat(Request $request): float

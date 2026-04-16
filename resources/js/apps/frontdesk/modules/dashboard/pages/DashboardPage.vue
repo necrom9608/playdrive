@@ -58,23 +58,13 @@
         />
 
         <MemberAttendanceModal
-            :open="modals.memberAttendance"
-            :processing="memberAttendance.processing"
-            :error="memberAttendance.error"
-            :query="memberAttendance.query"
-            @close="closeMemberAttendanceModal"
-            @update:query="memberAttendance.query = $event"
-            @submit="submitMemberAttendance"
+            v-model:open="modals.memberAttendance"
+            @done="loadDashboard"
         />
 
         <StaffAttendanceModal
-            :open="modals.staffAttendance"
-            :processing="staffAttendance.processing"
-            :error="staffAttendance.error"
-            :rfid-uid="staffAttendance.rfid_uid"
-            @close="closeStaffAttendanceModal"
-            @update:rfid-uid="staffAttendance.rfid_uid = $event"
-            @submit="submitStaffAttendance"
+            v-model:open="modals.staffAttendance"
+            @done="loadDashboard"
         />
 
         <TaskCreateModal
@@ -135,18 +125,6 @@ const modals = reactive({
     memberAttendance: false,
     staffAttendance: false,
     task: false,
-})
-
-const memberAttendance = reactive({
-    query: '',
-    processing: false,
-    error: '',
-})
-
-const staffAttendance = reactive({
-    rfid_uid: '',
-    processing: false,
-    error: '',
 })
 
 const taskForm = reactive({
@@ -398,22 +376,6 @@ async function createMember(data) {
     await loadDashboard()
 }
 
-async function submitMemberAttendance() {
-    await axios.post('/api/frontdesk/members/attendance/toggle', {
-        query: memberAttendance.query,
-    })
-    modals.memberAttendance = false
-    await loadDashboard()
-}
-
-async function submitStaffAttendance() {
-    await axios.post('/api/frontdesk/staff-attendance/scan', {
-        rfid_uid: staffAttendance.rfid_uid,
-    })
-    modals.staffAttendance = false
-    await loadDashboard()
-}
-
 async function createTask() {
     taskForm.processing = true
     taskForm.error = ''
@@ -465,30 +427,16 @@ async function completeTask(task) {
 /* ---------------- UI ---------------- */
 
 function openMemberAttendanceModal() {
-    memberAttendance.query = ''
-    memberAttendance.processing = false
-    memberAttendance.error = ''
     modals.memberAttendance = true
 }
 
 function openStaffAttendanceModal() {
-    staffAttendance.rfid_uid = ''
-    staffAttendance.processing = false
-    staffAttendance.error = ''
     modals.staffAttendance = true
 }
 
 function openTaskModal() {
     resetTaskForm()
     modals.task = true
-}
-
-function closeMemberAttendanceModal() {
-    modals.memberAttendance = false
-}
-
-function closeStaffAttendanceModal() {
-    modals.staffAttendance = false
 }
 
 function closeTaskModal() {
@@ -517,7 +465,10 @@ function showFeedback(type, message) {
 
 function getTodayDateString() {
     const d = new Date()
-    return d.toISOString().slice(0, 10)
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
 }
 
 function formatDisplayDate(value) {

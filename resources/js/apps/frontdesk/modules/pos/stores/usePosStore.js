@@ -118,7 +118,7 @@ export const usePosStore = defineStore('pos', {
             confirmed: true,
             checked_in: true,
             checked_out: true,
-            paid: false,
+            paid: true,
             cancelled: false,
             no_show: false,
         },
@@ -887,7 +887,7 @@ export const usePosStore = defineStore('pos', {
                 confirmed: true,
                 checked_in: true,
                 checked_out: true,
-                paid: false,
+                paid: true,
                 cancelled: false,
                 no_show: false,
             }

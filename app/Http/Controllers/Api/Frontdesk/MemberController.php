@@ -354,7 +354,11 @@ class MemberController extends Controller
 
         $registration = DB::transaction(function () use ($member, $currentTenant, $actorUserId, $openRegistration) {
             if ($openRegistration) {
-                $openRegistration->status = Registration::STATUS_CHECKED_OUT;
+                $hasConsumption = ($openRegistration->bill_total_cents ?? 0) > 0;
+
+                $openRegistration->status = $hasConsumption
+                    ? Registration::STATUS_CHECKED_OUT
+                    : Registration::STATUS_PAID;
                 $openRegistration->checked_out_at = now();
                 $openRegistration->checked_out_by = $actorUserId;
                 $openRegistration->updated_by = $actorUserId;
@@ -406,7 +410,7 @@ class MemberController extends Controller
                 'no_show_by' => null,
                 'created_by' => $actorUserId,
                 'updated_by' => $actorUserId,
-                'played_minutes' => null,
+                'played_minutes' => 0,
                 'bill_total_cents' => 0,
                 'outside_opening_hours' => false,
                 'is_member' => true,
@@ -414,9 +418,14 @@ class MemberController extends Controller
             ]);
         });
 
+        $isPaid = $openRegistration && $registration->status === Registration::STATUS_PAID;
+
         return response()->json([
-            'message' => $openRegistration ? 'Lid uitgecheckt.' : 'Lid ingecheckt.',
+            'message' => $openRegistration
+                ? ($isPaid ? 'Lid uitgecheckt en betaald.' : 'Lid uitgecheckt.')
+                : 'Lid ingecheckt.',
             'action' => $openRegistration ? 'checked_out' : 'checked_in',
+            'auto_paid' => $isPaid,
             'member' => $this->loadMemberContext($member->fresh(), $currentTenant, $today),
             'registration' => [
                 'id' => $registration->id,
@@ -424,6 +433,7 @@ class MemberController extends Controller
                 'checked_in_at' => optional($registration->checked_in_at)?->toIso8601String(),
                 'checked_out_at' => optional($registration->checked_out_at)?->toIso8601String(),
                 'played_minutes' => $registration->played_minutes,
+                'bill_total_cents' => $registration->bill_total_cents ?? 0,
                 'is_member' => (bool) $registration->is_member,
                 'member_id' => $registration->member_id,
             ],
