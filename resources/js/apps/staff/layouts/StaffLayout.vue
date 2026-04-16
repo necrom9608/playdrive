@@ -1,5 +1,5 @@
 <template>
-  <div class="relative min-h-screen overflow-hidden bg-[#020617] text-slate-100">
+  <div class="relative h-screen overflow-hidden bg-[#020617] text-slate-100">
     <div class="pointer-events-none absolute inset-0">
       <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_28%),radial-gradient(circle_at_80%_18%,rgba(168,85,247,0.15),transparent_24%),linear-gradient(180deg,#020617_0%,#071126_45%,#020617_100%)]"></div>
       <div class="absolute -left-20 top-0 h-72 w-72 rounded-full bg-[rgba(59,130,246,0.16)] blur-3xl splash-drift-one"></div>
@@ -65,7 +65,7 @@
       </div>
     </header>
 
-    <main class="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 pb-28 sm:px-5" :class="mainTopPaddingClass">
+    <main class="relative z-10 mx-auto w-full max-w-6xl overflow-y-auto px-4 pb-28 sm:px-5" :class="mainTopPaddingClass" style="height: 100vh; height: 100dvh;">
       <RouterView />
     </main>
 

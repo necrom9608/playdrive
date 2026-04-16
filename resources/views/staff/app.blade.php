@@ -26,17 +26,5 @@
 </head>
 <body class="bg-slate-950">
 <div id="app"></div>
-<style>
-  /* Verberg browser UI bij scrollen in PWA modus */
-  html, body {
-    height: 100%;
-    overflow: hidden;
-  }
-  #app {
-    height: 100%;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-</style>
 </body>
 </html>
