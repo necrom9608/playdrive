@@ -10,7 +10,7 @@ app.mount('#app')
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/staff-sw.js').catch((error) => {
+    navigator.serviceWorker.register('/staff-sw.js', { scope: '/staff/' }).catch((error) => {
       console.error('Staff service worker registration failed', error)
     })
   })
