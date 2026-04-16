@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <section v-if="!isInstalled" class="rounded-[30px] border border-cyan-400/20 bg-cyan-500/5 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.35)] backdrop-blur-xl">
+    <section v-if="!pwa.isInstalled" class="rounded-[30px] border border-cyan-400/20 bg-cyan-500/5 p-5 shadow-[0_24px_70px_rgba(2,6,23,0.35)] backdrop-blur-xl">
       <div class="flex items-start justify-between gap-3">
         <div>
           <h2 class="text-xl font-semibold text-white">App installeren</h2>
@@ -9,7 +9,7 @@
         <ArrowDownTrayIcon class="h-6 w-6 shrink-0 text-cyan-400" />
       </div>
       <button
-        v-if="installPrompt"
+        v-if="pwa.installPrompt"
         class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-4 py-3 font-semibold text-slate-950 shadow-[0_16px_30px_rgba(34,211,238,0.22)]"
         @click="installApp"
       >
@@ -87,7 +87,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted } from 'vue'
 import {
   ArrowLeftOnRectangleIcon,
   ArrowDownTrayIcon,
@@ -98,36 +98,13 @@ import {
 } from '@heroicons/vue/24/outline'
 import { useStaffProfileStore } from '../stores/profileStore'
 import { useStaffAuthStore } from '../stores/authStore'
+import { usePwaStore } from '../stores/pwaStore'
 
 const store = useStaffProfileStore()
 const auth = useStaffAuthStore()
+const pwa = usePwaStore()
 
-const installPrompt = ref(null)
-const isInstalled = ref(window.matchMedia('(display-mode: standalone)').matches)
-
-function onBeforeInstallPrompt(e) {
-  e.preventDefault()
-  installPrompt.value = e
-}
-
-async function installApp() {
-  if (!installPrompt.value) return
-  installPrompt.value.prompt()
-  const { outcome } = await installPrompt.value.userChoice
-  if (outcome === 'accepted') {
-    isInstalled.value = true
-  }
-  installPrompt.value = null
-}
-
+async function installApp() { await pwa.triggerInstall() }
 async function submit() { await store.saveProfile() }
-
-onMounted(() => {
-  store.fetchProfile()
-  window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
-})
+onMounted(() => store.fetchProfile())
 </script>
