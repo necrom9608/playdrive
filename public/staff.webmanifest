@@ -5,7 +5,7 @@
   "description": "Staff module for PlayDrive",
   "start_url": "/staff/",
   "scope": "/staff/",
-  "display": "standalone",
+  "display": "fullscreen",
   "orientation": "portrait",
   "background_color": "#020617",
   "theme_color": "#020617",
