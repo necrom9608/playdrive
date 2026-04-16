@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "be.playdrive.gameinn.staff",
+      "sha256_cert_fingerprints": [
+        "F0:65:F1:67:78:FB:F7:7B:E8:02:42:97:7D:19:E2:8C:83:EC:0F:5B:EA:05:BE:C8:03:7C:D4:D7:EB:63:97:20"
+      ]
+    }
+  }
+]
