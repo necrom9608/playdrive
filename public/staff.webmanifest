@@ -40,14 +40,5 @@
       "type": "image/png",
       "purpose": "any"
     }
-  ],
-"screenshots": [
-  {
-    "src": "/images/screenshots/staff-screenshot.png",
-    "sizes": "1080x1920",
-    "type": "image/png",
-    "form_factor": "narrow",
-    "label": "PlayDrive Staff"
-  }
-]
+  ]
 }
