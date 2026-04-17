@@ -10,11 +10,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * v1.1 - Tenant wordt niet langer via subdomein bepaald bij login.
+ * De user wordt opgezocht op username (platform-breed), de tenant volgt uit de user.
+ */
 class AuthController extends Controller
 {
     public function me(Request $request, CurrentTenant $currentTenant): JsonResponse
     {
-        $user = $this->currentUser($request, $currentTenant);
+        $user = $this->currentUser($request);
 
         return response()->json([
             'authenticated' => $user !== null,
@@ -22,17 +26,15 @@ class AuthController extends Controller
         ]);
     }
 
-    public function login(Request $request, CurrentTenant $currentTenant): JsonResponse
+    public function login(Request $request): JsonResponse
     {
-        abort_unless($currentTenant->exists(), 404, 'Geen geldige tenant gevonden voor deze host.');
-
         $data = $request->validate([
             'username' => ['required', 'string'],
             'password' => ['required', 'string'],
         ]);
 
+        // Zoek user platform-breed op username (geen tenant_id filter via subdomein).
         $user = User::query()
-            ->where('tenant_id', $currentTenant->id())
             ->where('is_active', true)
             ->where('is_admin', true)
             ->where('username', $data['username'])
@@ -65,23 +67,23 @@ class AuthController extends Controller
         return response()->json(['success' => true]);
     }
 
-    private function currentUser(Request $request, CurrentTenant $currentTenant): ?User
+    private function currentUser(Request $request): ?User
     {
         $auth = $request->session()->get('backoffice_auth');
 
-        if (! is_array($auth) || ! $currentTenant->exists()) {
+        if (! is_array($auth)) {
             return null;
         }
 
         $userId = $auth['user_id'] ?? null;
         $tenantId = $auth['tenant_id'] ?? null;
 
-        if (! $userId || ! $tenantId || (int) $tenantId !== (int) $currentTenant->id()) {
+        if (! $userId || ! $tenantId) {
             return null;
         }
 
         return User::query()
-            ->where('tenant_id', $currentTenant->id())
+            ->where('tenant_id', (int) $tenantId)
             ->where('is_active', true)
             ->where('is_admin', true)
             ->find($userId);

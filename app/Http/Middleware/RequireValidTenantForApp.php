@@ -7,6 +7,10 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * v1.1 - Tenant-validatie enkel nog van toepassing op display en kiosk apps.
+ * Frontdesk, backoffice en staff lossen de tenant op via hun eigen auth-middleware.
+ */
 class RequireValidTenantForApp
 {
     public function handle(Request $request, Closure $next): Response
@@ -15,8 +19,10 @@ class RequireValidTenantForApp
         $first = $request->segment(1);
         $second = $request->segment(2);
 
-        $tenantWebApps = ['frontdesk', 'backoffice', 'kiosk', 'client', 'staff', 'display'];
-        $tenantApiApps = ['frontdesk', 'backoffice', 'display', 'staff'];
+        // Alleen display en kiosk vereisen nog een tenant via de host (subdomein/custom domain).
+        // Frontdesk, backoffice en staff lossen de tenant op via hun auth-middleware.
+        $tenantWebApps = ['kiosk', 'display'];
+        $tenantApiApps = ['display'];
 
         $requiresTenant = in_array($first, $tenantWebApps, true)
             || ($first === 'api' && in_array($second, $tenantApiApps, true));

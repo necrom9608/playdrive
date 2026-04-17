@@ -10,11 +10,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * v1.1 - Tenant wordt niet langer via subdomein bepaald bij login.
+ * De user wordt opgezocht op username (platform-breed), de tenant volgt uit de user.
+ */
 class AuthController extends Controller
 {
     public function me(Request $request, CurrentTenant $currentTenant): JsonResponse
     {
-        $user = $this->currentUser($request, $currentTenant);
+        $user = $this->currentUser($request);
 
         return response()->json([
             'authenticated' => $user !== null,
@@ -22,15 +26,15 @@ class AuthController extends Controller
         ]);
     }
 
-    public function login(Request $request, CurrentTenant $currentTenant): JsonResponse
+    public function login(Request $request): JsonResponse
     {
         $data = $request->validate([
             'username' => ['required', 'string'],
             'password' => ['required', 'string'],
         ]);
 
+        // Zoek user platform-breed op username (geen tenant_id filter via subdomein).
         $user = User::query()
-            ->where('tenant_id', $currentTenant->id())
             ->where('is_active', true)
             ->where('username', $data['username'])
             ->first();
@@ -49,14 +53,14 @@ class AuthController extends Controller
         ]);
     }
 
-    public function loginWithCard(Request $request, CurrentTenant $currentTenant): JsonResponse
+    public function loginWithCard(Request $request): JsonResponse
     {
         $data = $request->validate([
             'rfid_uid' => ['required', 'string', 'max:100'],
         ]);
 
+        // Zoek user platform-breed op RFID (geen tenant_id filter via subdomein).
         $user = User::query()
-            ->where('tenant_id', $currentTenant->id())
             ->where('is_active', true)
             ->where('rfid_uid', $data['rfid_uid'])
             ->first();
@@ -86,7 +90,7 @@ class AuthController extends Controller
         ]);
     }
 
-    protected function currentUser(Request $request, CurrentTenant $currentTenant): ?User
+    protected function currentUser(Request $request): ?User
     {
         $auth = $request->session()->get('frontdesk_auth');
 
@@ -97,12 +101,12 @@ class AuthController extends Controller
         $userId = $auth['user_id'] ?? null;
         $tenantId = $auth['tenant_id'] ?? null;
 
-        if (! $userId || ! $tenantId || (int) $tenantId !== (int) $currentTenant->id()) {
+        if (! $userId || ! $tenantId) {
             return null;
         }
 
         return User::query()
-            ->where('tenant_id', $currentTenant->id())
+            ->where('tenant_id', (int) $tenantId)
             ->where('is_active', true)
             ->find($userId);
     }

@@ -2,11 +2,17 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Tenant;
 use App\Models\User;
+use App\Support\CurrentTenant;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * v1.1 - Tenant wordt niet langer via subdomein opgelost maar via de ingelogde user.
+ * Na succesvolle authenticatie wordt de CurrentTenant ingesteld op basis van user->tenant_id.
+ */
 class RequireStaffAuth
 {
     public function handle(Request $request, Closure $next): Response
@@ -34,6 +40,10 @@ class RequireStaffAuth
             $request->session()->forget('staff_auth');
             return response()->json(['message' => 'Sessie verlopen.'], 401);
         }
+
+        // Stel CurrentTenant in op basis van de ingelogde user (i.p.v. subdomein).
+        $tenant = Tenant::find($user->tenant_id);
+        app()->instance(CurrentTenant::class, new CurrentTenant($tenant));
 
         $request->attributes->set('staff_user', $user);
 
