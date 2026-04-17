@@ -17,6 +17,7 @@ export const useMembersStore = defineStore('members', {
         memberBadgeTemplates: [],
         members: [],
         selectedMemberId: null,
+        _pollTimer: null,
     }),
 
     getters: {
@@ -75,6 +76,34 @@ export const useMembersStore = defineStore('members', {
 
         selectMember(id) {
             this.selectedMemberId = id
+        },
+
+        startPolling(intervalMs = 30000) {
+            this.stopPolling()
+            this._pollTimer = setInterval(() => {
+                axios.get('/api/frontdesk/members', {
+                    params: {
+                        search: this.search || undefined,
+                        selected_statuses: this.selectedStatuses.length ? this.selectedStatuses : undefined,
+                    },
+                }).then(response => {
+                    const newMembers = response.data?.data?.members ?? []
+                    this.members = newMembers
+                    this.summary = response.data?.data?.summary ?? this.summary
+                    this.memberBadgeTemplates = response.data?.data?.member_badge_templates ?? this.memberBadgeTemplates
+                    if (this.selectedMemberId) {
+                        const existing = newMembers.find(m => m.id === this.selectedMemberId)
+                        if (!existing) this.selectedMemberId = newMembers[0]?.id ?? null
+                    }
+                }).catch(() => {})
+            }, intervalMs)
+        },
+
+        stopPolling() {
+            if (this._pollTimer) {
+                clearInterval(this._pollTimer)
+                this._pollTimer = null
+            }
         },
 
         async openCreateViaDisplay(posStore) {

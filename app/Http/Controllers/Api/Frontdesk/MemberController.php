@@ -440,25 +440,31 @@ class MemberController extends Controller
             ->where('tenant_id', $currentTenant->id())
             ->value('account_id');
 
-        $openRegistration = Registration::query()
-            ->where('tenant_id', $currentTenant->id())
-            ->where('is_member', true)
-            ->where(function ($q) use ($member, $toggleAccountId) {
-                $q->where('member_id', $member->id);
-                if ($toggleAccountId) {
-                    $q->orWhere('account_id', $toggleAccountId);
-                }
-            })
-            ->where('status', Registration::STATUS_CHECKED_IN)
-            // Alleen registraties van vandaag — voorkomt dat stale historische
-            // checked_in sessies (bijv. na data-migratie) direct uitgecheckt worden
-            ->whereDate('checked_in_at', now()->toDateString())
-            ->latest('id')
-            ->first();
-
         $hasAccountIdColumn = Schema::hasColumn('registrations', 'account_id');
 
-        $registration = DB::transaction(function () use ($member, $currentTenant, $actorUserId, $openRegistration, $toggleAccountId, $hasAccountIdColumn) {
+        $result = DB::transaction(function () use ($member, $currentTenant, $actorUserId, $toggleAccountId, $hasAccountIdColumn) {
+            // Vergrendel het member-record zodat gelijktijdige requests op elkaar wachten
+            // en nooit twee check-ins tegelijk kunnen aanmaken (double-submit fix)
+            Member::query()
+                ->where('id', $member->id)
+                ->lockForUpdate()
+                ->first();
+
+            // Zoek open registratie BINNEN de transaction (na de lock)
+            $openRegistration = Registration::query()
+                ->where('tenant_id', $currentTenant->id())
+                ->where('is_member', true)
+                ->where(function ($q) use ($member, $toggleAccountId) {
+                    $q->where('member_id', $member->id);
+                    if ($toggleAccountId) {
+                        $q->orWhere('account_id', $toggleAccountId);
+                    }
+                })
+                ->where('status', Registration::STATUS_CHECKED_IN)
+                ->whereDate('checked_in_at', now()->toDateString())
+                ->latest('id')
+                ->first();
+
             if ($openRegistration) {
                 $hasConsumption = ($openRegistration->bill_total_cents ?? 0) > 0;
 
@@ -476,7 +482,7 @@ class MemberController extends Controller
 
                 $openRegistration->save();
 
-                return $openRegistration->fresh();
+                return ['registration' => $openRegistration->fresh(), 'action' => 'checked_out'];
             }
 
             $payload = [
@@ -495,7 +501,7 @@ class MemberController extends Controller
                 'participants_adults'     => 1,
                 'participants_supervisors' => 0,
                 'comment'                 => 'Lidbezoek',
-                'stats'                   => null,
+                'stats'                   => [],
                 'status'                  => Registration::STATUS_CHECKED_IN,
                 'invoice_requested'       => false,
                 'invoice_company_name'    => null,
@@ -526,16 +532,18 @@ class MemberController extends Controller
                 $payload['account_id'] = $toggleAccountId;
             }
 
-            return Registration::query()->create($payload);
+            return ['registration' => Registration::query()->create($payload), 'action' => 'checked_in'];
         });
 
-        $isPaid = $openRegistration && $registration->status === Registration::STATUS_PAID;
+        $registration = $result['registration'];
+        $action       = $result['action'];
+        $isPaid       = $action === 'checked_out' && $registration->status === Registration::STATUS_PAID;
 
         return response()->json([
-            'message'      => $openRegistration
+            'message'      => $action === 'checked_out'
                 ? ($isPaid ? 'Lid uitgecheckt en betaald.' : 'Lid uitgecheckt.')
                 : 'Lid ingecheckt.',
-            'action'       => $openRegistration ? 'checked_out' : 'checked_in',
+            'action'       => $action,
             'auto_paid'    => $isPaid,
             'member'       => $this->loadMemberContext($member->fresh(), $currentTenant, $today),
             'registration' => [
@@ -685,6 +693,7 @@ class MemberController extends Controller
             'days_until_expiry'           => $daysUntilExpiry,
             'status'                      => $status,
             'is_active'                   => (bool) $member->is_active,
+            'is_new'                      => $member->created_at && $member->created_at->diffInHours(now()) < 24,
             'last_played_at'              => $lastPlayedAt?->toIso8601String(),
             'last_played_label'           => $lastPlayedAt?->format('d/m/Y H:i') ?: 'Nog niet gespeeld',
             'play_days'                   => (int) ($playStat->play_days ?? 0),

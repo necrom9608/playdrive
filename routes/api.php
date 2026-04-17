@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Public\AccountRegistrationController;
 use App\Http\Controllers\Api\PublicApi\PublicSubmissionController;
 use Illuminate\Support\Facades\Route;
 
@@ -10,4 +11,10 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('public')->middleware('public.api')->group(function () {
     Route::post('/reservations', [PublicSubmissionController::class, 'storeReservation']);
     Route::post('/gift-vouchers', [PublicSubmissionController::class, 'storeGiftVoucher']);
+});
+
+// Publieke registratie — geen API key vereist, enkel rate limiting
+Route::prefix('register')->middleware('throttle:10,1')->group(function () {
+    Route::get('/{tenantSlug}', [AccountRegistrationController::class, 'tenantInfo']);
+    Route::post('/{tenantSlug}', [AccountRegistrationController::class, 'store']);
 });
