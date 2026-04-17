@@ -4,12 +4,14 @@
 
         <div class="relative flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
             <div class="flex flex-wrap items-center gap-2">
-                <div class="flex items-center pr-4">
-    <span class="text-base font-semibold text-white">
-        {{ formattedDateTime }}
-    </span>
-
-                    <span class="ml-4 h-5 w-px bg-slate-700"></span>
+                <div class="flex items-center gap-3 pr-4">
+                    <span class="text-base font-semibold text-white">
+                        {{ formattedDateTime }}
+                    </span>
+                    <span class="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-300">
+                        v{{ appVersion }}
+                    </span>
+                    <span class="h-5 w-px bg-slate-700"></span>
                 </div>
 
                 <span class="rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-slate-300">
@@ -58,6 +60,8 @@ import { useAuthStore } from '../stores/authStore'
 import { usePosStore } from '../modules/pos/stores/usePosStore'
 import { frontdeskConfig } from '../config/frontdeskConfig'
 import { getDeviceRuntimeSummary } from '../services/deviceService'
+
+const appVersion = import.meta.env.VITE_APP_VERSION || '?'
 
 const auth = useAuthStore()
 const posStore = usePosStore()

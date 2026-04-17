@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api\Display;
 
 use App\Http\Controllers\Controller;
+use App\Models\Account;
 use App\Models\BadgeTemplate;
 use App\Models\DisplayDevice;
 use App\Models\Member;
 use App\Models\PhysicalCard;
+use App\Models\TenantMembership;
 use App\Support\CurrentTenant;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -22,21 +24,21 @@ class DisplayMemberController extends Controller
         $tenantId = $currentTenant->id();
 
         $data = $request->validate([
-            'device_uuid' => ['required', 'uuid'],
-            'device_token' => ['required', 'string'],
-            'first_name' => ['required', 'string', 'max:255'],
-            'last_name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:100'],
-            'password' => ['required', 'string', 'min:6'],
+            'device_uuid'          => ['required', 'uuid'],
+            'device_token'         => ['required', 'string'],
+            'first_name'           => ['required', 'string', 'max:255'],
+            'last_name'            => ['required', 'string', 'max:255'],
+            'email'                => ['required', 'email', 'max:255'],
+            'phone'                => ['nullable', 'string', 'max:100'],
+            'password'             => ['required', 'string', 'min:6'],
             'password_confirmation' => ['required', 'same:password'],
-            'birth_date' => ['nullable', 'date'],
-            'membership_type' => ['required', Rule::in(['adult', 'student'])],
-            'street' => ['nullable', 'string', 'max:255'],
-            'house_number' => ['nullable', 'string', 'max:50'],
-            'postal_code' => ['nullable', 'string', 'max:20'],
-            'city' => ['nullable', 'string', 'max:255'],
-            'badge_template_id' => [
+            'birth_date'           => ['nullable', 'date'],
+            'membership_type'      => ['required', Rule::in(['adult', 'student'])],
+            'street'               => ['nullable', 'string', 'max:255'],
+            'house_number'         => ['nullable', 'string', 'max:50'],
+            'postal_code'          => ['nullable', 'string', 'max:20'],
+            'city'                 => ['nullable', 'string', 'max:255'],
+            'badge_template_id'    => [
                 'nullable',
                 'integer',
                 Rule::exists(BadgeTemplate::class, 'id')->where(fn ($query) => $query
@@ -57,43 +59,70 @@ class DisplayMemberController extends Controller
         $displayDevice->forceFill(['last_seen_at' => now()])->save();
 
         $startDate = now()->startOfDay();
-        $endDate = $startDate->copy()->addYear();
+        $endDate   = $startDate->copy()->addYear();
 
         $member = DB::transaction(function () use ($data, $tenantId, $startDate, $endDate) {
+            $email = strtolower(trim($data['email']));
+
+            // Account aanmaken of hergebruiken op basis van e-mail
+            $account = Account::query()->firstOrCreate(
+                ['email' => $email],
+                [
+                    'first_name'   => $data['first_name'],
+                    'last_name'    => $data['last_name'],
+                    'phone'        => $this->nullableValue($data['phone'] ?? null),
+                    'birth_date'   => $this->nullableValue($data['birth_date'] ?? null),
+                    'street'       => $this->nullableValue($data['street'] ?? null),
+                    'house_number' => $this->nullableValue($data['house_number'] ?? null),
+                    'postal_code'  => $this->nullableValue($data['postal_code'] ?? null),
+                    'city'         => $this->nullableValue($data['city'] ?? null),
+                    'password'     => $data['password'],
+                ]
+            );
+
+            // Member record (backward compat)
             $payload = [
-                'tenant_id' => $tenantId,
-                'first_name' => $data['first_name'],
-                'last_name' => $data['last_name'],
-                'email' => $data['email'],
-                'login' => $data['email'],
-                'password' => $data['password'],
-                'street' => $this->nullableValue($data['street'] ?? null),
-                'house_number' => $this->nullableValue($data['house_number'] ?? null),
-                'postal_code' => $this->nullableValue($data['postal_code'] ?? null),
-                'city' => $this->nullableValue($data['city'] ?? null),
+                'tenant_id'            => $tenantId,
+                'first_name'           => $data['first_name'],
+                'last_name'            => $data['last_name'],
+                'email'                => $email,
+                'password'             => $data['password'],
+                'street'               => $this->nullableValue($data['street'] ?? null),
+                'house_number'         => $this->nullableValue($data['house_number'] ?? null),
+                'postal_code'          => $this->nullableValue($data['postal_code'] ?? null),
+                'city'                 => $this->nullableValue($data['city'] ?? null),
                 'membership_starts_at' => $startDate->toDateString(),
-                'membership_ends_at' => $endDate->toDateString(),
-                'is_active' => true,
+                'membership_ends_at'   => $endDate->toDateString(),
+                'is_active'            => true,
             ];
 
             if (Schema::hasColumn('members', 'membership_type')) {
                 $payload['membership_type'] = $data['membership_type'];
             }
-
             if (Schema::hasColumn('members', 'birth_date')) {
                 $payload['birth_date'] = $this->nullableValue($data['birth_date'] ?? null);
             }
-
             if (Schema::hasColumn('members', 'phone')) {
                 $payload['phone'] = $this->nullableValue($data['phone'] ?? null);
             } else {
                 $phone = trim((string) ($data['phone'] ?? ''));
                 if ($phone !== '') {
-                    $payload['comment'] = trim('Telefoon: ' . $phone);
+                    $payload['comment'] = 'Telefoon: ' . $phone;
                 }
             }
 
             $member = Member::query()->create($payload);
+
+            // TenantMembership aanmaken
+            TenantMembership::query()->create([
+                'legacy_member_id'     => $member->id,
+                'account_id'           => $account->id,
+                'tenant_id'            => $tenantId,
+                'membership_type'      => $data['membership_type'],
+                'membership_starts_at' => $startDate->toDateString(),
+                'membership_ends_at'   => $endDate->toDateString(),
+                'is_active'            => true,
+            ]);
 
             $this->syncMemberCard($member, $tenantId, $data['badge_template_id'] ?? null);
 
@@ -101,11 +130,11 @@ class DisplayMemberController extends Controller
         });
 
         $displayDevice->forceFill([
-            'current_mode' => DisplayDevice::MODE_STANDBY,
+            'current_mode'    => DisplayDevice::MODE_STANDBY,
             'current_payload' => [
                 'member_created' => true,
-                'member' => [
-                    'id' => $member->id,
+                'member'         => [
+                    'id'        => $member->id,
                     'full_name' => trim($member->first_name . ' ' . $member->last_name),
                 ],
             ],
@@ -113,8 +142,8 @@ class DisplayMemberController extends Controller
 
         return response()->json([
             'message' => 'Lid succesvol aangemaakt.',
-            'data' => [
-                'id' => $member->id,
+            'data'    => [
+                'id'        => $member->id,
                 'full_name' => trim($member->first_name . ' ' . $member->last_name),
             ],
         ], 201);
@@ -125,7 +154,6 @@ class DisplayMemberController extends Controller
         if ($value === null) {
             return null;
         }
-
         if (is_string($value) && trim($value) === '') {
             return null;
         }
@@ -139,15 +167,20 @@ class DisplayMemberController extends Controller
             ? (int) $badgeTemplateId
             : $this->defaultMemberBadgeTemplateId($tenantId);
 
+        $membership = TenantMembership::query()
+            ->where('legacy_member_id', $member->id)
+            ->where('tenant_id', $tenantId)
+            ->first();
+
         return PhysicalCard::query()->create([
-            'tenant_id' => $tenantId,
-            'card_type' => PhysicalCard::TYPE_MEMBER,
+            'tenant_id'         => $tenantId,
+            'card_type'         => PhysicalCard::TYPE_MEMBER,
             'badge_template_id' => $resolvedBadgeTemplateId,
-            'holder_type' => PhysicalCard::TYPE_MEMBER,
-            'holder_id' => $member->id,
-            'label' => sprintf('MEMBER #%d - %s', $member->id, trim($member->first_name . ' ' . $member->last_name)),
-            'status' => PhysicalCard::STATUS_IN_CIRCULATION,
-            'issued_at' => Carbon::now()->startOfDay(),
+            'holder_type'       => PhysicalCard::TYPE_MEMBER,
+            'holder_id'         => $membership?->id ?? $member->id,
+            'label'             => sprintf('MEMBER #%d - %s', $member->id, trim($member->first_name . ' ' . $member->last_name)),
+            'status'            => PhysicalCard::STATUS_IN_CIRCULATION,
+            'issued_at'         => Carbon::now()->startOfDay(),
         ]);
     }
 
