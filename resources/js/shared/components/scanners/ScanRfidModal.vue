@@ -81,6 +81,9 @@
 </template>
 
 <script setup>
+// v1.1 - close() stopt de native scan synchroon voor de modal sluit.
+// Dit voorkomt dat een hangende scan-promise de UI blokkeert na sluiten.
+
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { cancelRfidNativeScan, scanRfidNative } from '../../services/rfidService'
 
@@ -149,7 +152,11 @@ onBeforeUnmount(() => {
   stopNativeScan()
 })
 
+// v1.1 - stopNativeScan() wordt aangeroepen VOOR de emit zodat de Rust thread
+// geannuleerd is tegen de tijd dat de parent reageert op de close.
 function close() {
+  clearTimeout(autoConfirmTimer)
+  stopNativeScan()
   emit('update:open', false)
 }
 

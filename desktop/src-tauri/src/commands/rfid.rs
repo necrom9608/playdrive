@@ -1,4 +1,8 @@
-use pcsc::{Card, Context, Protocols, ReaderState, Scope, ShareMode, State};
+// v1.2 - scan_rfid_once is nu async en draait op een aparte thread via tauri::async_runtime::spawn_blocking.
+// Dit voorkomt dat de Tauri main thread blokkeert en de UI bevriest bij het sluiten
+// van de modal zonder te scannen. Geen extra tokio dependency nodig.
+
+use pcsc::{Card, Context, Protocols, Scope, ShareMode};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tauri::AppHandle;
@@ -7,7 +11,6 @@ static RFID_SCAN_CANCELLED: AtomicBool = AtomicBool::new(false);
 
 const GET_UID_APDU: [u8; 5] = [0xFF, 0xCA, 0x00, 0x00, 0x00];
 const DEFAULT_TIMEOUT_MS: u64 = 15_000;
-const POLL_INTERVAL_MS: u64 = 250;
 
 #[tauri::command]
 pub fn cancel_rfid_scan() -> Result<bool, String> {
@@ -15,46 +18,55 @@ pub fn cancel_rfid_scan() -> Result<bool, String> {
     Ok(true)
 }
 
+// async + spawn_blocking zorgt ervoor dat de poll-loop op een aparte thread draait
+// en de Tauri main thread (en dus de UI) niet blokkeert.
 #[tauri::command]
-pub fn scan_rfid_once(_app: AppHandle, timeout_ms: Option<u64>) -> Result<String, String> {
+pub async fn scan_rfid_once(_app: AppHandle, timeout_ms: Option<u64>) -> Result<String, String> {
     RFID_SCAN_CANCELLED.store(false, Ordering::SeqCst);
 
-    let context = Context::establish(Scope::User)
-        .map_err(|error| format!("PC/SC context starten mislukt: {error}"))?;
-
-    let mut readers_buf = [0; 2048];
-    let readers = context
-        .list_readers(&mut readers_buf)
-        .map_err(|error| format!("Kaartlezers ophalen mislukt: {error}"))?;
-
-    let reader_name = readers
-        .into_iter()
-        .next()
-        .ok_or_else(|| "Geen NFC/RFID-kaartlezer gevonden.".to_string())?;
-
     let timeout = Duration::from_millis(timeout_ms.unwrap_or(DEFAULT_TIMEOUT_MS));
-    let started_at = std::time::Instant::now();
 
-    loop {
-        if RFID_SCAN_CANCELLED.load(Ordering::SeqCst) {
-            return Err("RFID-scan geannuleerd.".into());
-        }
+    // Verplaats de blocking poll-loop naar een aparte thread via Tauri's ingebouwde runtime.
+    // Geen extra tokio dependency nodig.
+    tauri::async_runtime::spawn_blocking(move || {
+        let context = Context::establish(Scope::User)
+            .map_err(|error| format!("PC/SC context starten mislukt: {error}"))?;
 
-        if started_at.elapsed() >= timeout {
-            return Err("Geen RFID-tag gedetecteerd binnen de wachttijd.".into());
-        }
+        let mut readers_buf = [0; 2048];
+        let readers = context
+            .list_readers(&mut readers_buf)
+            .map_err(|error| format!("Kaartlezers ophalen mislukt: {error}"))?;
 
-        match context.connect(reader_name, ShareMode::Shared, Protocols::ANY) {
-            Ok(card) => {
-                let uid = read_uid(&card)?;
-                RFID_SCAN_CANCELLED.store(false, Ordering::SeqCst);
-                return Ok(uid);
+        let reader_name = readers
+            .into_iter()
+            .next()
+            .ok_or_else(|| "Geen NFC/RFID-kaartlezer gevonden.".to_string())?;
+
+        let started_at = std::time::Instant::now();
+
+        loop {
+            if RFID_SCAN_CANCELLED.load(Ordering::SeqCst) {
+                return Err("RFID-scan geannuleerd.".into());
             }
-            Err(_) => {
-                std::thread::sleep(Duration::from_millis(200));
+
+            if started_at.elapsed() >= timeout {
+                return Err("Geen RFID-tag gedetecteerd binnen de wachttijd.".into());
+            }
+
+            match context.connect(reader_name, ShareMode::Shared, Protocols::ANY) {
+                Ok(card) => {
+                    let uid = read_uid(&card)?;
+                    RFID_SCAN_CANCELLED.store(false, Ordering::SeqCst);
+                    return Ok(uid);
+                }
+                Err(_) => {
+                    std::thread::sleep(Duration::from_millis(200));
+                }
             }
         }
-    }
+    })
+    .await
+    .map_err(|error| format!("Scan thread mislukt: {error}"))?
 }
 
 fn read_uid(card: &Card) -> Result<String, String> {
