@@ -17,6 +17,20 @@ function parseColor(value, fallback = 'transparent') {
     return value
 }
 
+function proxyImageUrl(src) {
+    if (!src) return src
+    // Alleen externe URLs proxyen (andere origin dan huidige pagina)
+    try {
+        const url = new URL(src)
+        if (url.origin !== window.location.origin) {
+            return `/api/backoffice/image-proxy?url=${encodeURIComponent(src)}`
+        }
+    } catch (_) {
+        // relatieve URL of ongeldige URL – ongewijzigd laten
+    }
+    return src
+}
+
 function loadImage(src) {
     return new Promise((resolve, reject) => {
         if (!src) {
@@ -25,12 +39,10 @@ function loadImage(src) {
         }
 
         const img = new Image()
-        if (/^https?:/i.test(src) && !src.startsWith(window.location.origin)) {
-            img.crossOrigin = 'anonymous'
-        }
+        // Laad via proxy zodat canvas niet tainted raakt door CORS
+        img.src = proxyImageUrl(src)
         img.onload = () => resolve(img)
         img.onerror = () => reject(new Error(`Afbeelding kon niet geladen worden: ${src}`))
-        img.src = src
     })
 }
 

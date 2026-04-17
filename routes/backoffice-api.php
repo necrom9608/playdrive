@@ -15,9 +15,13 @@ use App\Http\Controllers\Api\Backoffice\DayTotalsController;
 use App\Http\Controllers\Api\Backoffice\VoucherTemplateController;
 use App\Http\Controllers\Api\Backoffice\PhysicalCardController;
 use App\Http\Controllers\Api\Backoffice\StaffAttendanceManagementController;
+use App\Http\Controllers\Api\Backoffice\ImageProxyController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api/backoffice')->group(function () {
+    // Image proxy: laad externe storage-afbeeldingen via de eigen server om CORS/mixed-content te omzeilen
+    Route::get('/image-proxy', [ImageProxyController::class, 'proxy']);
+
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/login', [AuthController::class, 'login']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
