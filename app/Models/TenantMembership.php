@@ -45,6 +45,11 @@ class TenantMembership extends Model
         return $this->belongsTo(Account::class);
     }
 
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
     public function physicalCards(): HasMany
     {
         return $this->hasMany(PhysicalCard::class, 'holder_id')
@@ -53,8 +58,7 @@ class TenantMembership extends Model
     }
 
     // ------------------------------------------------------------------
-    // Accessors — zodat code die memberHolder->first_name etc. verwacht
-    // gewoon blijft werken zonder aanpassingen
+    // Accessors
     // ------------------------------------------------------------------
 
     public function getFirstNameAttribute(): ?string

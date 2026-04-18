@@ -1,0 +1,22 @@
+{
+    "name": "PlayDrive",
+    "short_name": "PlayDrive",
+    "description": "Jouw PlayDrive lidmaatschap en venues",
+    "start_url": "/member",
+    "display": "standalone",
+    "background_color": "#030814",
+    "theme_color": "#030814",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/images/logos/icon.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/images/logos/icon.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

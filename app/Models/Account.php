@@ -5,10 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Laravel\Sanctum\HasApiTokens;
 
-class Account extends Model
+/**
+ * Account is de globale identiteit van een PlayDrive-gebruiker.
+ * Eén account kan gekoppeld zijn aan meerdere tenants via TenantMembership.
+ *
+ * Uitgebreid met HasApiTokens voor de member-api Sanctum token auth.
+ */
+class Account extends Authenticatable
 {
-    use HasFactory;
+    use HasFactory, HasApiTokens;
 
     protected $fillable = [
         'email',
