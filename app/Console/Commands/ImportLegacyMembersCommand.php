@@ -118,7 +118,6 @@ class ImportLegacyMembersCommand extends Command
                         'first_name' => $firstName ?: 'Onbekend',
                         'last_name' => $lastName ?: 'Onbekend',
                         'email' => $this->normalizeEmail($normalized['email'] ?? null),
-                        'login' => null,
                         'password' => null,
                         'street' => $this->cleanValue($normalized['street'] ?? null),
                         'house_number' => null,
@@ -140,7 +139,6 @@ class ImportLegacyMembersCommand extends Command
                         if ($updateExisting) {
                             $existing->update([
                                 'email' => $payload['email'],
-                                'login' => $payload['login'],
                                 'password' => $payload['password'],
                                 'street' => $payload['street'],
                                 'house_number' => $payload['house_number'],

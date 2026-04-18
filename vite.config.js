@@ -14,6 +14,9 @@ export default defineConfig({
                 'resources/js/apps/client/app.js',
                 'resources/js/apps/staff/app.js',
                 'resources/js/apps/display/app.js',
+                // Member app
+                'resources/css/member.css',
+                'resources/js/apps/member/app.js',
             ],
             refresh: true,
         }),

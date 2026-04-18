@@ -1,5 +1,11 @@
 <template>
     <div class="flex h-full min-h-0 flex-col gap-6">
+        <NewRegistrationsPanel
+            :registrations="newRegistrations"
+            :activating="activatingId"
+            @activate="openActivateModal"
+        />
+
         <MembersSummaryCards :summary="store.summary" />
 
         <MembersFilters
@@ -90,22 +96,35 @@
             @close="closeModal"
             @submit="handleSubmit"
         />
+
+        <ActivateMembershipModal
+            :open="showActivateModal"
+            :registration="activatingRegistration"
+            @close="showActivateModal = false"
+            @activated="handleActivated"
+        />
     </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import axios from '@/lib/http'
 import MembersSummaryCards from '../components/MembersSummaryCards.vue'
 import MembersFilters from '../components/MembersFilters.vue'
 import MembersTable from '../components/MembersTable.vue'
 import MemberModal from '../components/MemberModal.vue'
+import NewRegistrationsPanel from '../components/NewRegistrationsPanel.vue'
+import ActivateMembershipModal from '../components/ActivateMembershipModal.vue'
 import { useMembersStore } from '../stores/useMembersStore'
 import { usePosStore } from '@/apps/frontdesk/modules/pos/stores/usePosStore'
 
 const store = useMembersStore()
 const showModal = ref(false)
 const editingMemberId = ref(null)
+const newRegistrations = ref([])
+const showActivateModal = ref(false)
+const activatingRegistration = ref(null)
+const activatingId = ref(null)
 const posStore = usePosStore()
 
 const editingMember = computed(() => {
@@ -118,7 +137,34 @@ const editingMember = computed(() => {
 
 onMounted(() => {
     store.fetchMembers()
+    store.startPolling(30000)
+    fetchNewRegistrations()
+    setInterval(fetchNewRegistrations, 20000)
 })
+
+onUnmounted(() => {
+    store.stopPolling()
+})
+
+async function fetchNewRegistrations() {
+    try {
+        const { data } = await axios.get('/api/frontdesk/new-registrations')
+        newRegistrations.value = data.data ?? []
+    } catch {
+        // stille fail
+    }
+}
+
+function openActivateModal(registration) {
+    activatingRegistration.value = registration
+    showActivateModal.value = true
+}
+
+async function handleActivated() {
+    activatingId.value = activatingRegistration.value?.membership_id
+    await Promise.all([fetchNewRegistrations(), store.fetchMembers()])
+    activatingId.value = null
+}
 
 function openCreateModal() {
     editingMemberId.value = null

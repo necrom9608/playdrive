@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Frontdesk\GiftVoucherController;
 use App\Http\Controllers\Api\Frontdesk\LocationSearchController;
 use App\Http\Controllers\Api\Display\MemberRegistrationController;
 use App\Http\Controllers\Api\Frontdesk\MemberController;
+use App\Http\Controllers\Api\Frontdesk\NewRegistrationController;
 use App\Http\Controllers\Api\Frontdesk\OrderController;
 use App\Http\Controllers\Api\Frontdesk\PhysicalCardController;
 use App\Http\Controllers\Api\Frontdesk\PricingController;
@@ -76,6 +77,8 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::put('/members/{member}', [MemberController::class, 'update']);
         Route::post('/members/{member}/renew', [MemberController::class, 'renew']);
         Route::post('/members/{member}/send-email', [MemberController::class, 'sendEmail']);
+        Route::get('/new-registrations', [NewRegistrationController::class, 'index']);
+        Route::post('/new-registrations/activate', [NewRegistrationController::class, 'activate']);
 
         Route::get('/tasks', [TaskController::class, 'index']);
         Route::post('/tasks', [TaskController::class, 'store']);

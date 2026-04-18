@@ -11,13 +11,13 @@ class Registration extends Model
 {
     use HasFactory;
 
-    public const STATUS_NEW = 'new';
-    public const STATUS_CONFIRMED = 'confirmed';
-    public const STATUS_CHECKED_IN = 'checked_in';
-    public const STATUS_CHECKED_OUT = 'checked_out';
-    public const STATUS_PAID = 'paid';
-    public const STATUS_CANCELLED = 'cancelled';
-    public const STATUS_NO_SHOW = 'no_show';
+    public const STATUS_NEW          = 'new';
+    public const STATUS_CONFIRMED    = 'confirmed';
+    public const STATUS_CHECKED_IN   = 'checked_in';
+    public const STATUS_CHECKED_OUT  = 'checked_out';
+    public const STATUS_PAID         = 'paid';
+    public const STATUS_CANCELLED    = 'cancelled';
+    public const STATUS_NO_SHOW      = 'no_show';
 
     protected $fillable = [
         'tenant_id',
@@ -59,52 +59,71 @@ class Registration extends Model
         'outside_opening_hours',
         'is_member',
         'member_id',
+        'account_id',
     ];
+
     protected $casts = [
-        'event_date' => 'date',
-        'event_time' => 'string',
-        'stats' => 'array',
-        'invoice_requested' => 'boolean',
-        'outside_opening_hours' => 'boolean',
-        'is_member' => 'boolean',
-        'checked_in_at' => 'datetime',
-        'checked_out_at' => 'datetime',
-        'cancelled_at' => 'datetime',
-        'no_show_at' => 'datetime',
-        'participants_children' => 'integer',
-        'participants_adults' => 'integer',
+        'event_date'             => 'date',
+        'event_time'             => 'string',
+        'stats'                  => 'array',
+        'invoice_requested'      => 'boolean',
+        'outside_opening_hours'  => 'boolean',
+        'is_member'              => 'boolean',
+        'checked_in_at'          => 'datetime',
+        'checked_out_at'         => 'datetime',
+        'cancelled_at'           => 'datetime',
+        'no_show_at'             => 'datetime',
+        'participants_children'  => 'integer',
+        'participants_adults'    => 'integer',
         'participants_supervisors' => 'integer',
-        'played_minutes' => 'integer',
-        'bill_total_cents' => 'integer',
+        'played_minutes'         => 'integer',
+        'bill_total_cents'       => 'integer',
     ];
 
     public static function statusOptions(): array
     {
         return [
-            self::STATUS_NEW => 'Nieuw',
-            self::STATUS_CONFIRMED => 'Bevestigd',
-            self::STATUS_CHECKED_IN => 'Ingecheckt',
+            self::STATUS_NEW         => 'Nieuw',
+            self::STATUS_CONFIRMED   => 'Bevestigd',
+            self::STATUS_CHECKED_IN  => 'Ingecheckt',
             self::STATUS_CHECKED_OUT => 'Uitgecheckt',
-            self::STATUS_PAID => 'Betaald',
-            self::STATUS_CANCELLED => 'Geannuleerd',
-            self::STATUS_NO_SHOW => 'No-show',
+            self::STATUS_PAID        => 'Betaald',
+            self::STATUS_CANCELLED   => 'Geannuleerd',
+            self::STATUS_NO_SHOW     => 'No-show',
         ];
     }
 
     public function getStatusLabelAttribute(): string
     {
         return match ($this->status) {
-            self::STATUS_NEW => 'Nieuw',
-            self::STATUS_CONFIRMED => 'Bevestigd',
-            self::STATUS_CHECKED_IN => 'Ingecheckt',
+            self::STATUS_NEW         => 'Nieuw',
+            self::STATUS_CONFIRMED   => 'Bevestigd',
+            self::STATUS_CHECKED_IN  => 'Ingecheckt',
             self::STATUS_CHECKED_OUT => 'Uitgecheckt',
-            self::STATUS_PAID => 'Betaald',
-            self::STATUS_CANCELLED => 'Geannuleerd',
-            self::STATUS_NO_SHOW => 'No-show',
-            default => 'Onbekend',
+            self::STATUS_PAID        => 'Betaald',
+            self::STATUS_CANCELLED   => 'Geannuleerd',
+            self::STATUS_NO_SHOW     => 'No-show',
+            default                  => 'Onbekend',
         };
     }
 
+    // ------------------------------------------------------------------
+    // Relaties
+    // ------------------------------------------------------------------
+
+    /**
+     * De persoon (globaal account) gekoppeld aan deze registratie.
+     * Vervangt geleidelijk de member() relatie.
+     */
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class);
+    }
+
+    /**
+     * Backward compat: lid via de members tabel.
+     * Wordt verwijderd zodal de members tabel gedropped wordt (stap 5).
+     */
     public function member(): BelongsTo
     {
         return $this->belongsTo(Member::class);
@@ -124,7 +143,6 @@ class Registration extends Model
     {
         return $this->belongsTo(CateringOption::class);
     }
-
 
     public function orders(): HasMany
     {
@@ -167,5 +185,4 @@ class Registration extends Model
             + (int) $this->participants_adults
             + (int) $this->participants_supervisors;
     }
-
 }

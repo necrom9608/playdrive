@@ -8,15 +8,15 @@ use Illuminate\Support\Str;
 
 class PhysicalCard extends Model
 {
-    public const STATUS_STOCK = 'stock';
+    public const STATUS_STOCK         = 'stock';
     public const STATUS_IN_CIRCULATION = 'in_circulation';
-    public const STATUS_RETURNED = 'returned';
-    public const STATUS_BLOCKED = 'blocked';
-    public const STATUS_RETIRED = 'retired';
+    public const STATUS_RETURNED      = 'returned';
+    public const STATUS_BLOCKED       = 'blocked';
+    public const STATUS_RETIRED       = 'retired';
 
     public const TYPE_VOUCHER = 'voucher';
-    public const TYPE_STAFF = 'staff';
-    public const TYPE_MEMBER = 'member';
+    public const TYPE_STAFF   = 'staff';
+    public const TYPE_MEMBER  = 'member';
 
     protected $fillable = [
         'tenant_id',
@@ -40,19 +40,15 @@ class PhysicalCard extends Model
         'updated_by',
     ];
 
-
-
     protected static function booted(): void
     {
         static::creating(function (self $card): void {
             if ($card->card_type !== self::TYPE_MEMBER) {
                 return;
             }
-
             if (! empty($card->rfid_uid)) {
                 return;
             }
-
             $tenantId = (int) ($card->tenant_id ?? 0);
             $holderId = (int) ($card->holder_id ?? 0);
             $card->rfid_uid = sprintf('TMP-MEMBER-%d-%d-%s', $tenantId, $holderId, Str::upper(Str::random(8)));
@@ -62,8 +58,8 @@ class PhysicalCard extends Model
     protected function casts(): array
     {
         return [
-            'printed_at' => 'datetime',
-            'issued_at' => 'datetime',
+            'printed_at'  => 'datetime',
+            'issued_at'   => 'datetime',
             'returned_at' => 'datetime',
         ];
     }
@@ -71,11 +67,11 @@ class PhysicalCard extends Model
     public static function statusOptions(): array
     {
         return [
-            self::STATUS_STOCK => 'Op stock',
+            self::STATUS_STOCK          => 'Op stock',
             self::STATUS_IN_CIRCULATION => 'In omloop',
-            self::STATUS_RETURNED => 'Teruggebracht',
-            self::STATUS_BLOCKED => 'Geblokkeerd',
-            self::STATUS_RETIRED => 'Buiten gebruik',
+            self::STATUS_RETURNED       => 'Teruggebracht',
+            self::STATUS_BLOCKED        => 'Geblokkeerd',
+            self::STATUS_RETIRED        => 'Buiten gebruik',
         ];
     }
 
@@ -83,8 +79,8 @@ class PhysicalCard extends Model
     {
         return [
             self::TYPE_VOUCHER => 'Voucher',
-            self::TYPE_STAFF => 'Staff',
-            self::TYPE_MEMBER => 'Member',
+            self::TYPE_STAFF   => 'Staff',
+            self::TYPE_MEMBER  => 'Member',
         ];
     }
 
@@ -118,8 +114,12 @@ class PhysicalCard extends Model
         return $this->belongsTo(User::class, 'holder_id');
     }
 
+    /**
+     * Voor member-kaarten: holder_id verwijst naar tenant_memberships.id.
+     * Via de eager-loaded account krijgen we naam/email.
+     */
     public function memberHolder(): BelongsTo
     {
-        return $this->belongsTo(Member::class, 'holder_id');
+        return $this->belongsTo(TenantMembership::class, 'holder_id');
     }
 }

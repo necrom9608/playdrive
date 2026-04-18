@@ -210,6 +210,7 @@ const result = ref(null)
 
 let autoConfirmTimer = null
 let scanRequestId = 0
+let confirmFired = false
 
 // ── Watchers ──────────────────────────────────────────────────────────────────
 
@@ -238,8 +239,10 @@ watch(queryValue, (value) => {
 
 async function handleConfirm() {
     const query = queryValue.value.trim()
-    if (!query || processing.value) return
+    if (!query || processing.value || confirmFired) return
+    confirmFired = true
 
+    clearTimeout(autoConfirmTimer)
     stopNativeScan()
     processing.value = true
     scanError.value = ''
@@ -278,6 +281,7 @@ function reset() {
     processing.value = false
     scanError.value = ''
     errorMessage.value = ''
+    confirmFired = false
 }
 
 function close() {

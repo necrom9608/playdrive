@@ -81,7 +81,7 @@
 </template>
 
 <script setup>
-// v1.1 - close() stopt de native scan synchroon voor de modal sluit.
+// v1.2 - confirmFired guard voorkomt dubbele confirmed-emit bij autoConfirm + klik/enter.
 // Dit voorkomt dat een hangende scan-promise de UI blokkeert na sluiten.
 
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
@@ -105,6 +105,7 @@ const isScanning = ref(false)
 const scanError = ref('')
 let autoConfirmTimer = null
 let scanRequestId = 0
+let confirmFired = false
 
 const normalizedValue = computed(() => localValue.value.trim().replace(/[\r\n]+/g, ''))
 const descriptionText = computed(() => props.description || 'Scan een RFID-tag of badge.')
@@ -116,12 +117,14 @@ watch(
 
     if (!isOpen) {
       localValue.value = props.modelValue ?? ''
+      confirmFired = false
       stopNativeScan()
       return
     }
 
     localValue.value = props.modelValue ?? ''
     scanError.value = ''
+    confirmFired = false
 
     await nextTick()
     inputRef.value?.focus()
@@ -163,7 +166,11 @@ function close() {
 function handleConfirm() {
   const value = normalizedValue.value
   if (!value) return
+  // Guard: voorkomt dat timer én klik/enter tegelijk een dubbel request sturen
+  if (confirmFired) return
+  confirmFired = true
 
+  clearTimeout(autoConfirmTimer)
   emit('update:modelValue', value)
   emit('confirmed', value)
   close()

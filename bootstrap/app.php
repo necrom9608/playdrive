@@ -10,6 +10,7 @@ use App\Http\Middleware\ValidatePublicApiKey;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -18,6 +19,16 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
+        then: function () {
+            // Member API
+            Route::middleware('api')
+                ->group(base_path('routes/member-api.php'));
+
+            // Member web app
+            Route::middleware('web')
+                ->prefix('member')
+                ->group(base_path('routes/member.php'));
+        },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [

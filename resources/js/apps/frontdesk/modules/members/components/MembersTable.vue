@@ -28,7 +28,10 @@
                     v-for="member in members"
                     :key="member.id"
                     class="cursor-pointer border-t border-slate-800 transition hover:bg-slate-800/30"
-                    :class="member.id === selectedMemberId ? 'bg-slate-800/60' : ''"
+                    :class="[
+                        member.id === selectedMemberId ? 'bg-slate-800/60' : '',
+                        member.is_new ? 'border-l-2 border-l-cyan-500' : '',
+                    ]"
                     @click="$emit('select', member.id)"
                 >
                     <td class="px-5 py-4 align-top">
@@ -38,8 +41,16 @@
                     </td>
 
                     <td class="px-5 py-4 align-top">
-                        <div class="font-semibold text-white">{{ member.full_name }}</div>
-                        <div class="mt-1 text-xs text-slate-500">{{ member.login || 'Geen login' }}</div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-semibold text-white">{{ member.full_name }}</span>
+                            <span
+                                v-if="member.is_new"
+                                class="inline-flex items-center rounded-full bg-cyan-500/15 border border-cyan-400/30 px-2 py-0.5 text-xs font-semibold text-cyan-300 animate-pulse"
+                            >
+                                Nieuw
+                            </span>
+                        </div>
+                        <div class="mt-1 text-xs text-slate-500">{{ member.email || 'Geen e-mail' }}</div>
                     </td>
 
                     <td class="px-5 py-4 align-top text-slate-200">
