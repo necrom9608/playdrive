@@ -4,6 +4,11 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/frontdesk');
 
+// Dev frame — enkel buiten productie beschikbaar
+if (! app()->isProduction()) {
+    Route::get('/_devframe/member', fn () => view('devframe.member'))->name('devframe.member');
+}
+
 // PWA manifest routes met correcte Content-Type header
 Route::get('/staff.webmanifest', function () {
     return response()->file(public_path('staff.webmanifest'), [

@@ -67,10 +67,10 @@ return [
             'model' => env('AUTH_MODEL', User::class),
         ],
 
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
+        'accounts' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Account::class,
+        ],
     ],
 
     /*
@@ -97,6 +97,13 @@ return [
             'provider' => 'users',
             'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
             'expire' => 60,
+            'throttle' => 60,
+        ],
+
+        'accounts' => [
+            'provider' => 'accounts',
+            'table' => 'account_password_reset_tokens',
+            'expire' => 1440, // 24 uur — uitnodigingslinks mogen langer geldig zijn
             'throttle' => 60,
         ],
     ],

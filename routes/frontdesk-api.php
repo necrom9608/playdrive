@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\Frontdesk\GiftVoucherController;
 use App\Http\Controllers\Api\Frontdesk\LocationSearchController;
 use App\Http\Controllers\Api\Display\MemberRegistrationController;
 use App\Http\Controllers\Api\Frontdesk\MemberController;
+use App\Http\Controllers\Api\Frontdesk\MemberInviteController;
+use App\Http\Controllers\Api\Frontdesk\MailLogController;
 use App\Http\Controllers\Api\Frontdesk\NewRegistrationController;
 use App\Http\Controllers\Api\Frontdesk\OrderController;
 use App\Http\Controllers\Api\Frontdesk\PhysicalCardController;
@@ -73,10 +75,12 @@ Route::prefix('api/frontdesk')->group(function () {
 
         Route::get('/members', [MemberController::class, 'index']);
         Route::post('/members/attendance/toggle', [MemberController::class, 'toggleAttendance']);
-        Route::post('/members', [MemberController::class, 'store']);
-        Route::put('/members/{member}', [MemberController::class, 'update']);
-        Route::post('/members/{member}/renew', [MemberController::class, 'renew']);
-        Route::post('/members/{member}/send-email', [MemberController::class, 'sendEmail']);
+        Route::put('/members/{tenantMembership}', [MemberController::class, 'update']);
+        Route::post('/members/{tenantMembership}/renew', [MemberController::class, 'renew']);
+        Route::post('/members/{tenantMembership}/invite', MemberInviteController::class);
+
+        Route::get('/mail-logs', [MailLogController::class, 'index']);
+        Route::get('/mail-logs/{mailLog}', [MailLogController::class, 'show']);
         Route::get('/new-registrations', [NewRegistrationController::class, 'index']);
         Route::post('/new-registrations/activate', [NewRegistrationController::class, 'activate']);
 

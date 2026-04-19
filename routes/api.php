@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Public\AccountRegistrationController;
 use App\Http\Controllers\Api\PublicApi\PublicSubmissionController;
+use App\Http\Controllers\Api\ResendWebhookController;
 use Illuminate\Support\Facades\Route;
 
 // Externe, stateless API-routes komen hier.
@@ -18,3 +19,6 @@ Route::prefix('register')->middleware('throttle:10,1')->group(function () {
     Route::get('/{tenantSlug}', [AccountRegistrationController::class, 'tenantInfo']);
     Route::post('/{tenantSlug}', [AccountRegistrationController::class, 'store']);
 });
+
+// Resend webhook — geen auth, wel throttle
+Route::post('/webhooks/resend', ResendWebhookController::class)->middleware('throttle:120,1');

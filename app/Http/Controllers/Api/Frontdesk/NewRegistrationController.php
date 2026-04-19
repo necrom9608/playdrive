@@ -3,14 +3,12 @@
 namespace App\Http\Controllers\Api\Frontdesk;
 
 use App\Http\Controllers\Controller;
-use App\Models\Account;
-use App\Models\Member;
 use App\Models\TenantMembership;
 use App\Support\CurrentTenant;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class NewRegistrationController extends Controller
 {
@@ -77,39 +75,13 @@ class NewRegistrationController extends Controller
             ? Carbon::parse($data['membership_ends_at'])->startOfDay()
             : $startDate->copy()->addYear();
 
-        DB::transaction(function () use ($membership, $data, $startDate, $endsDate, $currentTenant, $request) {
-            $account = $membership->account;
-
-            // TenantMembership activeren
+        DB::transaction(function () use ($membership, $data, $startDate, $endsDate) {
             $membership->update([
                 'is_active'            => true,
                 'membership_type'      => $data['membership_type'] ?? 'adult',
                 'membership_starts_at' => $startDate->toDateString(),
                 'membership_ends_at'   => $endsDate->toDateString(),
             ]);
-
-            // Backward compat: ook een Member record aanmaken
-            $member = Member::query()->create([
-                'tenant_id'            => $currentTenant->id(),
-                'first_name'           => $account->first_name,
-                'last_name'            => $account->last_name,
-                'email'                => $account->email,
-                'phone'                => $account->phone,
-                'birth_date'           => $account->birth_date,
-                'street'               => $account->street,
-                'house_number'         => $account->house_number,
-                'box'                  => $account->box,
-                'postal_code'          => $account->postal_code,
-                'city'                 => $account->city,
-                'country'              => $account->country,
-                'membership_type'      => $data['membership_type'] ?? 'adult',
-                'membership_starts_at' => $startDate->toDateString(),
-                'membership_ends_at'   => $endsDate->toDateString(),
-                'is_active'            => true,
-            ]);
-
-            // Koppel member aan membership via legacy_member_id
-            $membership->update(['legacy_member_id' => $member->id]);
         });
 
         return response()->json([
