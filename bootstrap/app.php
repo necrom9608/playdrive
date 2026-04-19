@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\RequireBackofficeAuth;
+use App\Http\Middleware\RequirePlaydriveCentralHost;
 use App\Http\Middleware\RequireFrontdeskAuth;
 use App\Http\Middleware\RequirePlaydriveAdminAuth;
 use App\Http\Middleware\RequireStaffAuth;
@@ -46,6 +47,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'backoffice.auth' => RequireBackofficeAuth::class,
             'staff.auth' => RequireStaffAuth::class,
             'playdrive.admin.auth' => RequirePlaydriveAdminAuth::class,
+            'playdrive.admin.host' => RequirePlaydriveCentralHost::class,
             'public.api' => ValidatePublicApiKey::class,
         ]);
     })

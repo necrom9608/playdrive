@@ -13,7 +13,7 @@
         <div>
             <div class="text-sm font-semibold uppercase tracking-[0.3em] text-cyan-400">PlayDrive Admin</div>
             <h1 class="mt-3 text-3xl font-bold text-white">Tenantbeheer</h1>
-            <p class="mt-2 text-slate-400">Beheer tenants en hun domeinen centraal via <span class="font-semibold text-white">/admin</span>.</p>
+            <p class="mt-2 text-slate-400">Centrale module voor PlayDrive om tenants, basisgegevens en domeinen te beheren.</p>
         </div>
         <form method="POST" action="{{ route('admin.logout') }}">
             @csrf
@@ -29,9 +29,29 @@
         <div class="mb-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{{ $errors->first() }}</div>
     @endif
 
-    <div class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+    <section class="mb-6 grid gap-4 md:grid-cols-4">
+        <div class="rounded-3xl border border-slate-800 bg-slate-900 p-5 shadow-xl">
+            <div class="text-xs uppercase tracking-[0.2em] text-slate-400">Tenants</div>
+            <div class="mt-3 text-3xl font-bold text-white">{{ $stats['total'] }}</div>
+        </div>
+        <div class="rounded-3xl border border-slate-800 bg-slate-900 p-5 shadow-xl">
+            <div class="text-xs uppercase tracking-[0.2em] text-slate-400">Actief</div>
+            <div class="mt-3 text-3xl font-bold text-emerald-300">{{ $stats['active'] }}</div>
+        </div>
+        <div class="rounded-3xl border border-slate-800 bg-slate-900 p-5 shadow-xl">
+            <div class="text-xs uppercase tracking-[0.2em] text-slate-400">Inactief</div>
+            <div class="mt-3 text-3xl font-bold text-amber-300">{{ $stats['inactive'] }}</div>
+        </div>
+        <div class="rounded-3xl border border-slate-800 bg-slate-900 p-5 shadow-xl">
+            <div class="text-xs uppercase tracking-[0.2em] text-slate-400">Domeinen</div>
+            <div class="mt-3 text-3xl font-bold text-cyan-300">{{ $stats['domains'] }}</div>
+        </div>
+    </section>
+
+    <div class="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <section class="rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-xl">
             <h2 class="text-xl font-semibold text-white">Nieuwe tenant</h2>
+            <p class="mt-1 text-sm text-slate-400">Maak een tenant aan met de basisgegevens en de gekoppelde app-domeinen.</p>
             <form method="POST" action="{{ route('admin.tenants.store') }}" class="mt-5 space-y-5">
                 @csrf
                 @include('admin.tenants.partials.form', ['tenant' => null])
@@ -50,6 +70,13 @@
                             </div>
                             <div class="mt-2 text-sm text-slate-400">Slug: <span class="font-semibold text-white">{{ $tenant->slug }}</span></div>
                             <div class="mt-1 text-sm text-slate-400">Primair domein: <span class="font-semibold text-white">{{ $tenant->primary_domain ?: '—' }}</span></div>
+                            @if($tenant->company_name || $tenant->email || $tenant->phone)
+                                <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
+                                    @if($tenant->company_name)<span>Bedrijf: <span class="font-semibold text-white">{{ $tenant->company_name }}</span></span>@endif
+                                    @if($tenant->email)<span>E-mail: <span class="font-semibold text-white">{{ $tenant->email }}</span></span>@endif
+                                    @if($tenant->phone)<span>Tel: <span class="font-semibold text-white">{{ $tenant->phone }}</span></span>@endif
+                                </div>
+                            @endif
                         </div>
                         <form method="POST" action="{{ route('admin.tenants.destroy', $tenant) }}" onsubmit="return confirm('Tenant {{ $tenant->name }} verwijderen?')">
                             @csrf
