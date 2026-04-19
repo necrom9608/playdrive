@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\Backoffice\VoucherTemplateController;
 use App\Http\Controllers\Api\Backoffice\PhysicalCardController;
 use App\Http\Controllers\Api\Backoffice\StaffAttendanceManagementController;
 use App\Http\Controllers\Api\Backoffice\ImageProxyController;
+use App\Http\Controllers\Api\Backoffice\MailLogController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api/backoffice')->group(function () {
@@ -117,5 +118,8 @@ Route::prefix('api/backoffice')->group(function () {
         Route::post('/cards/{card}/render-image', [PhysicalCardController::class, 'uploadRenderImage']);
         Route::post('/cards/{card}/mark-printed', [PhysicalCardController::class, 'markPrinted']);
         Route::get('/cards/{card}/pdf', [PhysicalCardController::class, 'pdf']);
+
+        Route::get('/mail-logs', [MailLogController::class, 'index']);
+        Route::get('/mail-logs/{mailLog}', [MailLogController::class, 'show']);
     });
 });

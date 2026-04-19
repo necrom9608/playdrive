@@ -30,6 +30,5 @@ const navigation = [
     { label: 'CADEAUBONNEN', to: '/vouchers', icon: 'ticket' },
     { label: 'LEDEN', to: '/members', icon: 'identification' },
     { label: 'PERSONEEL', to: '/staff', icon: 'users' },
-    { label: 'MAILS', to: '/mail-logs', icon: 'envelope' },
 ]
 </script>

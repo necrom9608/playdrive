@@ -9,7 +9,6 @@ import AgendaPage from '../modules/agenda/pages/AgendaPage.vue'
 import StaffPage from '../modules/staff/pages/StaffPage.vue'
 import MembersPage from '../modules/members/pages/MembersPage.vue'
 import TasksPage from '../modules/tasks/pages/TasksPage.vue'
-import MailLogsPage from '../modules/maillogs/pages/MailLogsPage.vue'
 
 const routes = [
     { path: '/', name: 'frontdesk.dashboard', component: DashboardPage },
@@ -20,7 +19,6 @@ const routes = [
     { path: '/staff', name: 'frontdesk.staff', component: StaffPage },
     { path: '/members', name: 'frontdesk.members', component: MembersPage },
     { path: '/tasks', name: 'frontdesk.tasks', component: TasksPage },
-    { path: '/mail-logs', name: 'frontdesk.mail-logs', component: MailLogsPage },
 ]
 
 export default createRouter({

@@ -13,6 +13,7 @@ import StaffAttendancePage from '../modules/staff-attendance/pages/StaffAttendan
 import DevicesPage from '../modules/devices/pages/DevicesPage.vue'
 import VoucherTemplatesPage from '../modules/voucher-templates/pages/VoucherTemplatesPage.vue'
 import CardsPage from '../modules/cards/pages/CardsPage.vue'
+import MailLogsPage from '../modules/maillogs/pages/MailLogsPage.vue'
 
 const routes = [
     { path: '/', name: 'backoffice.dashboard', component: DashboardPage },
@@ -49,6 +50,7 @@ const routes = [
     { path: '/staff', name: 'backoffice.staff', component: StaffPage },
     { path: '/staff-attendance', name: 'backoffice.staff-attendance', component: StaffAttendancePage },
     { path: '/devices', name: 'backoffice.devices', component: DevicesPage },
+    { path: '/mail-logs', name: 'backoffice.mail-logs', component: MailLogsPage },
 ]
 
 export default createRouter({

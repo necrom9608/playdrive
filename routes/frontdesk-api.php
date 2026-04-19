@@ -10,7 +10,6 @@ use App\Http\Controllers\Api\Frontdesk\LocationSearchController;
 use App\Http\Controllers\Api\Display\MemberRegistrationController;
 use App\Http\Controllers\Api\Frontdesk\MemberController;
 use App\Http\Controllers\Api\Frontdesk\MemberInviteController;
-use App\Http\Controllers\Api\Frontdesk\MailLogController;
 use App\Http\Controllers\Api\Frontdesk\NewRegistrationController;
 use App\Http\Controllers\Api\Frontdesk\OrderController;
 use App\Http\Controllers\Api\Frontdesk\PhysicalCardController;
@@ -79,8 +78,6 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::post('/members/{tenantMembership}/renew', [MemberController::class, 'renew']);
         Route::post('/members/{tenantMembership}/invite', MemberInviteController::class);
 
-        Route::get('/mail-logs', [MailLogController::class, 'index']);
-        Route::get('/mail-logs/{mailLog}', [MailLogController::class, 'show']);
         Route::get('/new-registrations', [NewRegistrationController::class, 'index']);
         Route::post('/new-registrations/activate', [NewRegistrationController::class, 'activate']);
 
