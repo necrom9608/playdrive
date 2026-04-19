@@ -7,11 +7,10 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-        env('APP_URL', 'http://localhost'),
+        'http://playdrive.test',
         'capacitor://localhost',
         'http://localhost',
         'http://localhost:5173',
-        'ionic://localhost',
     ],
 
     'allowed_origins_patterns' => [],

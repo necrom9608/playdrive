@@ -1,5 +1,6 @@
 <template>
-    <div class="px-4 pt-3 pb-6 space-y-4">
+    <div class="px-4 pt-4 pb-6 space-y-4">
+
         <!-- Onboarding — geen venues -->
         <div v-if="!venue.loading && venue.venues.length === 0" class="glass-card rounded-3xl p-8 text-center space-y-4 mt-8">
             <div class="w-16 h-16 rounded-2xl bg-blue-500/15 border border-blue-500/25 flex items-center justify-center mx-auto">
@@ -22,16 +23,6 @@
 
         <!-- Dashboard — met venues -->
         <template v-else-if="venue.activeVenue">
-            <!-- Welkom -->
-            <div class="flex items-center justify-between pt-1">
-                <div>
-                    <p class="text-xs text-slate-400">Welkom terug</p>
-                    <h2 class="text-xl font-semibold text-white">{{ auth.account?.first_name }}</h2>
-                </div>
-                <div class="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
-                    <span class="text-sm font-semibold text-blue-300">{{ initials }}</span>
-                </div>
-            </div>
 
             <!-- Sub-navigatie -->
             <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -108,20 +99,12 @@ import {
     GiftIcon,
     TrophyIcon,
 } from '@heroicons/vue/24/outline'
-import { useAuthStore } from '../../stores/useAuthStore'
 import { useVenueStore } from '../../stores/useVenueStore'
 import StatusBadge from '../../components/StatusBadge.vue'
 
 const router = useRouter()
 const route = useRoute()
-const auth = useAuthStore()
 const venue = useVenueStore()
-
-const initials = computed(() => {
-    const a = auth.account
-    if (!a) return '?'
-    return `${a.first_name?.[0] ?? ''}${a.last_name?.[0] ?? ''}`.toUpperCase()
-})
 
 const membershipLabel = computed(() => {
     const s = venue.activeVenue?.membership_status
@@ -132,14 +115,14 @@ const membershipLabel = computed(() => {
 
 const subTabs = [
     { to: '/mijn/lidmaatschap', label: 'Lidmaatschap', icon: IdentificationIcon },
-    { to: '/mijn/tickets', label: 'Tickets', icon: TicketIcon },
-    { to: '/mijn/bonnen', label: 'Bonnen', icon: GiftIcon },
-    { to: '/mijn/stats', label: 'Stats', icon: TrophyIcon },
+    { to: '/mijn/tickets',      label: 'Tickets',      icon: TicketIcon },
+    { to: '/mijn/bonnen',       label: 'Bonnen',       icon: GiftIcon },
+    { to: '/mijn/stats',        label: 'Stats',        icon: TrophyIcon },
 ]
 
 const quickActions = [
     { label: 'Tickets', to: '/mijn/tickets', icon: TicketIcon, color: 'bg-violet-500/15 border border-violet-500/25 text-violet-400' },
-    { label: 'Bonnen', to: '/mijn/bonnen', icon: GiftIcon, color: 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-400' },
-    { label: 'Stats', to: '/mijn/stats', icon: TrophyIcon, color: 'bg-amber-500/15 border border-amber-500/25 text-amber-400' },
+    { label: 'Bonnen',  to: '/mijn/bonnen',  icon: GiftIcon,   color: 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-400' },
+    { label: 'Stats',   to: '/mijn/stats',   icon: TrophyIcon, color: 'bg-amber-500/15 border border-amber-500/25 text-amber-400' },
 ]
 </script>

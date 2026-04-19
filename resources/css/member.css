@@ -153,3 +153,22 @@
 .splash-title {
     font-family: 'MicroSquare', 'Instrument Sans', sans-serif;
 }
+
+/* Achtergrond drift animaties — zelfde als splashscreen */
+.splash-drift-one {
+    animation: splash-drift-one 7s ease-in-out infinite alternate;
+}
+
+.splash-drift-two {
+    animation: splash-drift-two 8s ease-in-out infinite alternate;
+}
+
+@keyframes splash-drift-one {
+    from { transform: translate3d(0, 0, 0); }
+    to   { transform: translate3d(22px, 14px, 0); }
+}
+
+@keyframes splash-drift-two {
+    from { transform: translate3d(0, 0, 0); }
+    to   { transform: translate3d(-18px, -12px, 0); }
+}

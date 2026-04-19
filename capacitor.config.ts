@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
     appName: 'PlayDrive',
     webDir: 'public/member',
     server: {
-        androidScheme: 'https',
+        androidScheme: 'http',
     },
     plugins: {
         SplashScreen: {
