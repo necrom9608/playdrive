@@ -15,11 +15,9 @@ class AdminSetPasswordCommand extends Command
         $this->info('PlayDrive admin-panel — inloggegevens instellen');
         $this->line('');
 
-        // Username
         $currentUsername = env('PLAYDRIVE_ADMIN_USERNAME', 'admin');
-        $username = $this->ask('Gebruikersnaam', $currentUsername);
+        $username        = $this->ask('Gebruikersnaam', $currentUsername);
 
-        // Password
         $password = $this->secret('Nieuw paswoord (min. 8 tekens)');
 
         if (strlen($password) < 8) {
@@ -65,15 +63,22 @@ class AdminSetPasswordCommand extends Command
 
         $content = file_get_contents($envPath);
 
-        // Escape value if it contains spaces or special chars
-        $escapedValue = preg_match('/\s/', $value) ? "\"{$value}\"" : $value;
+        // Waarden met speciale tekens (zoals $ in bcrypt hashes) moeten
+        // tussen aanhalingstekens staan in .env
+        $needsQuoting = preg_match('/[\s\$"\'\\\\#]/', $value);
+        $envValue     = $needsQuoting ? '"' . addslashes($value) . '"' : $value;
 
-        if (preg_match("/^{$key}=.*/m", $content)) {
-            // Key bestaat — vervang
-            $content = preg_replace("/^{$key}=.*/m", "{$key}={$escapedValue}", $content);
+        if (preg_match('/^' . preg_quote($key, '/') . '=/m', $content)) {
+            // Key bestaat — vervang de hele regel via preg_replace_callback
+            // zodat de vervangingswaarde nooit als regex backreference behandeld wordt
+            $content = preg_replace_callback(
+                '/^' . preg_quote($key, '/') . '=.*$/m',
+                fn () => $key . '=' . $envValue,
+                $content
+            );
         } else {
             // Key bestaat niet — voeg toe onderaan
-            $content .= PHP_EOL . "{$key}={$escapedValue}";
+            $content .= PHP_EOL . $key . '=' . $envValue;
         }
 
         file_put_contents($envPath, $content);
