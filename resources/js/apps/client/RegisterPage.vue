@@ -40,17 +40,31 @@
                 class="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-8 text-center backdrop-blur-sm">
                 <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-400/30 bg-emerald-500/15">
                     <svg class="h-7 w-7 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
                 </div>
-                <h2 class="text-xl font-semibold text-white">Account aangemaakt!</h2>
+                <h2 class="text-xl font-semibold text-white">Bevestig je e-mailadres</h2>
                 <p class="mt-3 text-sm leading-relaxed text-slate-300">
-                    Welkom bij <span class="font-semibold text-white">{{ tenant.name }}</span>.<br>
-                    Kom langs de balie om je abonnement te activeren.
+                    We hebben een bevestigingsmail gestuurd naar
                 </p>
-                <div class="mt-6 rounded-2xl border border-white/8 bg-white/4 px-4 py-3 text-sm text-slate-400">
-                    Je kan je aanmelden met <span class="font-medium text-slate-200">{{ registeredEmail }}</span>
+                <div class="mt-3 rounded-2xl border border-white/8 bg-white/4 px-4 py-3 text-sm font-medium text-slate-200">
+                    {{ registeredEmail }}
                 </div>
+                <p class="mt-4 text-sm leading-relaxed text-slate-400">
+                    Klik op de link in de e-mail om je account te activeren.<br>
+                    Controleer ook je spam- of ongewenste e-mailmap.
+                </p>
+                <button
+                    type="button"
+                    :disabled="resendLoading || resendSent"
+                    class="mt-6 text-xs text-slate-500 underline-offset-2 hover:text-slate-300 disabled:opacity-50 transition"
+                    :class="resendSent ? '' : 'underline cursor-pointer'"
+                    @click="resend"
+                >
+                    <span v-if="resendLoading">Bezig met verzenden…</span>
+                    <span v-else-if="resendSent">✓ Nieuwe e-mail verstuurd</span>
+                    <span v-else>Geen e-mail ontvangen? Opnieuw versturen</span>
+                </button>
             </div>
 
             <!-- Formulier -->
@@ -173,6 +187,8 @@ const loading = ref(false)
 const success = ref(false)
 const registeredEmail = ref('')
 const generalError = ref('')
+const resendLoading = ref(false)
+const resendSent = ref(false)
 const errors = reactive({
     first_name: '',
     last_name: '',
@@ -224,6 +240,23 @@ async function submit() {
         }
     } finally {
         loading.value = false
+    }
+}
+
+async function resend() {
+    if (resendLoading.value || resendSent.value) return
+    resendLoading.value = true
+    try {
+        await axios.post('/api/register/resend-verification', {
+            email: registeredEmail.value,
+            tenant_slug: tenantSlug,
+        })
+        resendSent.value = true
+    } catch {
+        // Stil falen — privacy
+        resendSent.value = true
+    } finally {
+        resendLoading.value = false
     }
 }
 </script>

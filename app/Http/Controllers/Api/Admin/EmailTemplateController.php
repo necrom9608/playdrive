@@ -16,6 +16,14 @@ class EmailTemplateController extends Controller
     {
         return [
             [
+                'key'         => 'account-verification',
+                'label'       => 'E-mailbevestiging bij registratie',
+                'description' => 'Verstuurd wanneer een nieuwe gebruiker een account aanmaakt via de website. Bevat een link om het e-mailadres te bevestigen.',
+                'subject'     => 'Bevestig je e-mailadres — PlayDrive',
+                'variables'   => ['first_name', 'last_name', 'tenant_name', 'verify_url'],
+                'body'        => $this->readBladeBody('emails.account-verification'),
+            ],
+            [
                 'key'         => 'member-invite',
                 'label'       => 'Liduitnodiging',
                 'description' => 'Verstuurd wanneer een bestaand lid wordt uitgenodigd om zijn account te activeren.',
@@ -126,6 +134,7 @@ class EmailTemplateController extends Controller
             'last_name'             => 'Peeters',
             'tenant_name'           => 'Game-Inn',
             'reset_url'             => 'https://example.com/reset?token=preview',
+            'verify_url'            => 'https://example.com/api/register/verify/preview-token',
             'membership_started_at' => date('d/m/Y'),
             'membership_expires_at' => date('d/m/Y', strtotime('+1 year')),
             'receipt_date'          => date('d/m/Y'),
