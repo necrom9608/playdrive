@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -13,10 +15,11 @@ use Laravel\Sanctum\HasApiTokens;
  * Eén account kan gekoppeld zijn aan meerdere tenants via TenantMembership.
  *
  * Uitgebreid met HasApiTokens voor de member-api Sanctum token auth.
+ * Uitgebreid met MustVerifyEmail voor e-mailbevestiging bij registratie.
  */
-class Account extends Authenticatable
+class Account extends Authenticatable implements MustVerifyEmail
 {
-    use HasFactory, HasApiTokens;
+    use HasFactory, HasApiTokens, Notifiable;
 
     protected $fillable = [
         'email',
@@ -40,8 +43,9 @@ class Account extends Authenticatable
     protected function casts(): array
     {
         return [
-            'birth_date' => 'date',
-            'password'   => 'hashed',
+            'birth_date'        => 'date',
+            'password'          => 'hashed',
+            'email_verified_at' => 'datetime',
         ];
     }
 

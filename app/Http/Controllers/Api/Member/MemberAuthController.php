@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Member;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -32,6 +33,9 @@ class MemberAuthController extends Controller
             'email'      => strtolower(trim($data['email'])),
             'password'   => $data['password'],
         ]);
+
+        // Stuur verificatiemail
+        event(new Registered($account));
 
         $token = $account->createToken(
             $request->input('device_name', 'mobile')
@@ -145,17 +149,18 @@ class MemberAuthController extends Controller
     private function accountData(Account $account): array
     {
         return [
-            'id'           => $account->id,
-            'first_name'   => $account->first_name,
-            'last_name'    => $account->last_name,
-            'email'        => $account->email,
-            'phone'        => $account->phone ?? null,
-            'birth_date'   => $account->birth_date?->toDateString(),
-            'street'       => $account->street ?? null,
-            'house_number' => $account->house_number ?? null,
-            'postal_code'  => $account->postal_code ?? null,
-            'city'         => $account->city ?? null,
-            'country'      => $account->country ?? null,
+            'id'                => $account->id,
+            'first_name'        => $account->first_name,
+            'last_name'         => $account->last_name,
+            'email'             => $account->email,
+            'email_verified'    => $account->hasVerifiedEmail(),
+            'phone'             => $account->phone ?? null,
+            'birth_date'        => $account->birth_date?->toDateString(),
+            'street'            => $account->street ?? null,
+            'house_number'      => $account->house_number ?? null,
+            'postal_code'       => $account->postal_code ?? null,
+            'city'              => $account->city ?? null,
+            'country'           => $account->country ?? null,
         ];
     }
 }

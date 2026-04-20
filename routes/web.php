@@ -2,8 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('/', '/frontdesk');
-
 // Dev frame — enkel buiten productie beschikbaar
 if (! app()->isProduction()) {
     Route::get('/_devframe/member', fn () => view('devframe.member'))->name('devframe.member');
@@ -29,3 +27,6 @@ Route::prefix('staff')->group(base_path('routes/staff.php'));
 Route::prefix('display')->group(base_path('routes/display.php'));
 
 require base_path('routes/admin.php');
+
+// Website — catch-all op / — moet als laatste staan
+Route::group([], base_path('routes/website.php'));

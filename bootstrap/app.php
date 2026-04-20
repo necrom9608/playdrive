@@ -43,12 +43,12 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'frontdesk.auth' => RequireFrontdeskAuth::class,
-            'backoffice.auth' => RequireBackofficeAuth::class,
-            'staff.auth' => RequireStaffAuth::class,
+            'frontdesk.auth'      => RequireFrontdeskAuth::class,
+            'backoffice.auth'     => RequireBackofficeAuth::class,
+            'staff.auth'          => RequireStaffAuth::class,
             'playdrive.admin.auth' => RequirePlaydriveAdminAuth::class,
             'playdrive.admin.host' => RequirePlaydriveCentralHost::class,
-            'public.api' => ValidatePublicApiKey::class,
+            'public.api'          => ValidatePublicApiKey::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

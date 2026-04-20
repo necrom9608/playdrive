@@ -17,6 +17,9 @@ export default defineConfig({
                 // Member app
                 'resources/css/member.css',
                 'resources/js/apps/member/app.js',
+                // Website
+                'resources/css/website.css',
+                'resources/js/apps/website/app.js',
             ],
             refresh: true,
         }),
