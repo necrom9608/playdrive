@@ -18,7 +18,7 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => [
-                'name' => 'Admin',
+                'name' => config('playdrive-admin.username', 'Admin'),
             ],
         ]);
     }
@@ -30,10 +30,9 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        $expectedUsername     = (string) env('PLAYDRIVE_ADMIN_USERNAME', 'admin');
-        $expectedPassword     = (string) env('PLAYDRIVE_ADMIN_PASSWORD', 'change-me');
-        // Trim quotes that may have been added around the hash in .env
-        $expectedPasswordHash = trim((string) env('PLAYDRIVE_ADMIN_PASSWORD_HASH', ''), '"\'');
+        $expectedUsername     = (string) config('playdrive-admin.username', 'admin');
+        $expectedPassword     = (string) config('playdrive-admin.password', 'change-me');
+        $expectedPasswordHash = trim((string) config('playdrive-admin.password_hash', ''), '"\'');
 
         $validPassword = $expectedPasswordHash !== ''
             ? Hash::check($data['password'], $expectedPasswordHash)
@@ -50,7 +49,7 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => [
-                'name' => 'Admin',
+                'name' => $expectedUsername,
             ],
         ]);
     }
