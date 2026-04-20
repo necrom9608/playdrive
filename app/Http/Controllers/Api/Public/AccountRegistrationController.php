@@ -53,8 +53,21 @@ class AccountRegistrationController extends Controller
             return $account;
         });
 
-        // Stuur verificatiemail
-        $this->sendVerificationMail($account, $tenant->slug, $tenant->display_name);
+        // Stuur verificatiemail — los van de transactie zodat een mailfout
+        // de registratie niet ongedaan maakt.
+        try {
+            $this->sendVerificationMail($account, $tenant->slug, $tenant->display_name);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Verificatiemail kon niet verstuurd worden', [
+                'account_id' => $account->id,
+                'error'      => $e->getMessage(),
+            ]);
+            // Registratie is geslaagd, maar mail mislukt — toon aangepast bericht
+            return response()->json([
+                'message'      => 'Account succesvol aangemaakt.',
+                'mail_warning' => 'De bevestigingsmail kon niet verstuurd worden. Neem contact op met de beheerder.',
+            ], 201);
+        }
 
         return response()->json([
             'message' => 'Account succesvol aangemaakt. Controleer je e-mail om je account te bevestigen.',
@@ -149,7 +162,7 @@ class AccountRegistrationController extends Controller
             ->where('account_id', $account->id)
             ->delete();
 
-        $token = Str::random(64);
+        $token = \Illuminate\Support\Str::random(64);
 
         AccountEmailVerification::query()->create([
             'account_id'  => $account->id,
@@ -160,7 +173,7 @@ class AccountRegistrationController extends Controller
 
         $verifyUrl = config('app.url') . '/api/register/verify/' . $token;
 
-        Mail::to($account->email)->send(
+        \Illuminate\Support\Facades\Mail::to($account->email)->send(
             new AccountVerificationMail($account, $verifyUrl, $tenantName)
         );
     }

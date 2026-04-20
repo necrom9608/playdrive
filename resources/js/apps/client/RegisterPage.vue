@@ -54,6 +54,12 @@
                     Klik op de link in de e-mail om je account te activeren.<br>
                     Controleer ook je spam- of ongewenste e-mailmap.
                 </p>
+
+                <!-- Mail warning indien verzending mislukt -->
+                <div v-if="mailWarning"
+                    class="mt-4 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                    ⚠️ {{ mailWarning }}
+                </div>
                 <button
                     type="button"
                     :disabled="resendLoading || resendSent"
@@ -189,6 +195,7 @@ const registeredEmail = ref('')
 const generalError = ref('')
 const resendLoading = ref(false)
 const resendSent = ref(false)
+const mailWarning = ref('')
 const errors = reactive({
     first_name: '',
     last_name: '',
@@ -226,9 +233,12 @@ async function submit() {
     loading.value = true
 
     try {
-        await axios.post(`/api/register/${tenantSlug}`, { ...form })
+        const res = await axios.post(`/api/register/${tenantSlug}`, { ...form })
         registeredEmail.value = form.email
         success.value = true
+        if (res?.data?.mail_warning) {
+            mailWarning.value = res.data.mail_warning
+        }
     } catch (err) {
         const data = err?.response?.data
         if (data?.errors) {
