@@ -1,0 +1,6 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// opening-hours v1 — PATCH: resources/js/apps/backoffice/App.vue
+// ─────────────────────────────────────────────────────────────────────────────
+// Voeg toe in de navigation array, in de groep 'Instellingen':
+
+{ label: 'Openingsuren', to: '/opening-hours', group: 'Instellingen' },

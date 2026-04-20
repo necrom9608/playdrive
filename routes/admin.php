@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Admin\AuthController;
 use App\Http\Controllers\Api\Admin\TenantController;
 use App\Http\Controllers\Api\Admin\StaffController;
 use App\Http\Controllers\Api\Admin\EmailTemplateController;
+use App\Http\Controllers\Api\Admin\RegionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -54,6 +55,18 @@ Route::prefix('admin')
                 Route::put('/email-templates/{key}', [EmailTemplateController::class, 'update']);
                 Route::post('/email-templates/{key}/reset', [EmailTemplateController::class, 'reset']);
                 Route::post('/email-templates/{key}/preview', [EmailTemplateController::class, 'preview']);
+
+                // Regio's & schoolvakanties
+                Route::get('/regions', [RegionController::class, 'index']);
+                Route::post('/regions', [RegionController::class, 'store']);
+                Route::put('/regions/{region}', [RegionController::class, 'update']);
+                Route::delete('/regions/{region}', [RegionController::class, 'destroy']);
+
+                Route::get('/regions/{region}/seasons', [RegionController::class, 'seasons']);
+                Route::post('/regions/{region}/seasons', [RegionController::class, 'storeSeason']);
+                Route::put('/regions/{region}/seasons/{season}', [RegionController::class, 'updateSeason']);
+                Route::delete('/regions/{region}/seasons/{season}', [RegionController::class, 'destroySeason']);
+                Route::post('/regions/{region}/seasons/copy', [RegionController::class, 'copySeasons']);
             });
 
         // ------------------------------------------------------------------

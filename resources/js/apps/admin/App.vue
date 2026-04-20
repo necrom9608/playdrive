@@ -25,6 +25,7 @@ const navigation = [
     { label: 'Tenants', to: '/tenants', group: 'Beheer' },
     { label: 'Medewerkers', to: '/staff', group: 'Beheer' },
     { label: 'E-mailtemplates', to: '/email-templates', group: 'Instellingen' },
+    { label: "Regio's & vakanties", to: '/regions', group: 'Instellingen' },
 ]
 
 const statusLabel = computed(() => auth.user ? `${auth.user.name} · admin` : null)

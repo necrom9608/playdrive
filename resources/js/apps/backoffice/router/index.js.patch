@@ -1,0 +1,10 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// opening-hours v1 — PATCH: resources/js/apps/backoffice/router/index.js
+// ─────────────────────────────────────────────────────────────────────────────
+// Voeg toe bovenaan bij de imports:
+
+import OpeningHoursPage from '../modules/opening-hours/pages/OpeningHoursPage.vue'
+
+// Voeg toe in de routes array:
+
+{ path: '/opening-hours', name: 'backoffice.opening-hours', component: OpeningHoursPage },

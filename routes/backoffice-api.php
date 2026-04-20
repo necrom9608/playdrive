@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\Backoffice\PhysicalCardController;
 use App\Http\Controllers\Api\Backoffice\StaffAttendanceManagementController;
 use App\Http\Controllers\Api\Backoffice\ImageProxyController;
 use App\Http\Controllers\Api\Backoffice\MailLogController;
+use App\Http\Controllers\Api\Backoffice\OpeningHoursController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api/backoffice')->group(function () {
@@ -100,12 +101,6 @@ Route::prefix('api/backoffice')->group(function () {
         Route::put('/catering-option-products/{cateringOptionProduct}', [CateringOptionProductController::class, 'update']);
         Route::delete('/catering-option-products/{cateringOptionProduct}', [CateringOptionProductController::class, 'destroy']);
 
-        Route::get('/badge-templates', [BadgeTemplateController::class, 'index']);
-        Route::post('/badge-templates', [BadgeTemplateController::class, 'store']);
-        Route::post('/badge-templates/media', [BadgeTemplateController::class, 'uploadMedia']);
-        Route::put('/badge-templates/{badgeTemplate}', [BadgeTemplateController::class, 'update']);
-        Route::delete('/badge-templates/{badgeTemplate}', [BadgeTemplateController::class, 'destroy']);
-
         Route::get('/voucher-templates', [VoucherTemplateController::class, 'index']);
         Route::post('/voucher-templates', [VoucherTemplateController::class, 'store']);
         Route::put('/voucher-templates/{voucherTemplate}', [VoucherTemplateController::class, 'update']);
@@ -121,5 +116,11 @@ Route::prefix('api/backoffice')->group(function () {
 
         Route::get('/mail-logs', [MailLogController::class, 'index']);
         Route::get('/mail-logs/{mailLog}', [MailLogController::class, 'show']);
+
+        // Openingsuren
+        Route::get('/opening-hours', [OpeningHoursController::class, 'index']);
+        Route::post('/opening-hours', [OpeningHoursController::class, 'saveHours']);
+        Route::post('/opening-hours/exceptions', [OpeningHoursController::class, 'storeException']);
+        Route::delete('/opening-hours/exceptions/{exception}', [OpeningHoursController::class, 'destroyException']);
     });
 });
