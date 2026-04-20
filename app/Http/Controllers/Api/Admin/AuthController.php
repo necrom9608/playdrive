@@ -30,9 +30,10 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        $expectedUsername  = (string) env('PLAYDRIVE_ADMIN_USERNAME', 'admin');
-        $expectedPassword  = (string) env('PLAYDRIVE_ADMIN_PASSWORD', 'change-me');
-        $expectedPasswordHash = (string) env('PLAYDRIVE_ADMIN_PASSWORD_HASH', '');
+        $expectedUsername     = (string) env('PLAYDRIVE_ADMIN_USERNAME', 'admin');
+        $expectedPassword     = (string) env('PLAYDRIVE_ADMIN_PASSWORD', 'change-me');
+        // Trim quotes that may have been added around the hash in .env
+        $expectedPasswordHash = trim((string) env('PLAYDRIVE_ADMIN_PASSWORD_HASH', ''), '"\'');
 
         $validPassword = $expectedPasswordHash !== ''
             ? Hash::check($data['password'], $expectedPasswordHash)
