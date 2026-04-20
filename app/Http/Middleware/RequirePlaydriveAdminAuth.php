@@ -11,7 +11,11 @@ class RequirePlaydriveAdminAuth
     public function handle(Request $request, Closure $next): Response
     {
         if (! $request->session()->get('playdrive_admin_auth', false)) {
-            return redirect()->route('admin.login');
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json(['message' => 'Niet ingelogd.'], 401);
+            }
+
+            return redirect()->route('admin.app');
         }
 
         return $next($request);

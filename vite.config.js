@@ -10,6 +10,7 @@ export default defineConfig({
                 'resources/css/app.css',
                 'resources/js/apps/frontdesk/app.js',
                 'resources/js/apps/backoffice/app.js',
+                'resources/js/apps/admin/app.js',
                 'resources/js/apps/kiosk/app.js',
                 'resources/js/apps/client/app.js',
                 'resources/js/apps/staff/app.js',

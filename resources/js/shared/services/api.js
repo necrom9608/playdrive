@@ -77,6 +77,7 @@ export async function apiFetch(url, options = {}) {
             window.dispatchEvent(new CustomEvent('frontdesk-auth-required'))
             window.dispatchEvent(new CustomEvent('backoffice-auth-required'))
             window.dispatchEvent(new CustomEvent('staff-auth-required'))
+            window.dispatchEvent(new CustomEvent('admin-auth-required'))
         }
 
         throw error

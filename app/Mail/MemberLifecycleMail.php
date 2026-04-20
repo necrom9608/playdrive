@@ -2,7 +2,7 @@
 
 namespace App\Mail;
 
-use App\Models\Member;
+use App\Models\TenantMembership;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -14,18 +14,18 @@ class MemberLifecycleMail extends Mailable
     use Queueable, SerializesModels;
 
     public function __construct(
-        public Member $member,
-        public string $type,
-    ) {
-    }
+        public TenantMembership $membership,
+        public string           $type,
+    ) {}
 
     public function envelope(): Envelope
     {
         $subject = match ($this->type) {
-            'confirmation' => 'Bevestiging van je abonnement',
-            'expiring' => 'Je abonnement vervalt binnenkort',
-            'expired' => 'Je abonnement is vervallen',
-            default => 'Update over je abonnement',
+            'confirmation'   => 'Bevestiging van je abonnement',
+            'expiring_14d'   => 'Je abonnement vervalt over 2 weken',
+            'expiring_7d'    => 'Je abonnement vervalt over 1 week',
+            'expired'        => 'Je abonnement is verlopen',
+            default          => 'Update over je abonnement',
         };
 
         return new Envelope(subject: $subject);
@@ -36,8 +36,8 @@ class MemberLifecycleMail extends Mailable
         return new Content(
             view: 'emails.member-lifecycle',
             with: [
-                'member' => $this->member,
-                'type' => $this->type,
+                'membership' => $this->membership,
+                'type'       => $this->type,
             ],
         );
     }

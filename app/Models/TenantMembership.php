@@ -18,7 +18,8 @@ class TenantMembership extends Model
         'is_active',
         'comment',
         'confirmation_mail_sent_at',
-        'expiry_warning_mail_sent_at',
+        'expiry_warning_14d_mail_sent_at',
+        'expiry_warning_7d_mail_sent_at',
         'expired_mail_sent_at',
     ];
 
@@ -27,12 +28,13 @@ class TenantMembership extends Model
     protected function casts(): array
     {
         return [
-            'membership_starts_at'        => 'date',
-            'membership_ends_at'          => 'date',
-            'is_active'                   => 'boolean',
-            'confirmation_mail_sent_at'   => 'datetime',
-            'expiry_warning_mail_sent_at' => 'datetime',
-            'expired_mail_sent_at'        => 'datetime',
+            'membership_starts_at'            => 'date',
+            'membership_ends_at'              => 'date',
+            'is_active'                       => 'boolean',
+            'confirmation_mail_sent_at'       => 'datetime',
+            'expiry_warning_14d_mail_sent_at' => 'datetime',
+            'expiry_warning_7d_mail_sent_at'  => 'datetime',
+            'expired_mail_sent_at'            => 'datetime',
         ];
     }
 

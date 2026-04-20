@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Api\Frontdesk;
 
 use App\Http\Controllers\Controller;
+use App\Mail\MemberLifecycleMail;
 use App\Models\TenantMembership;
+use App\Services\MailLogger;
 use App\Support\CurrentTenant;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class NewRegistrationController extends Controller
 {
@@ -21,7 +24,7 @@ class NewRegistrationController extends Controller
     {
         $registrations = TenantMembership::query()
             ->where('tenant_id', $currentTenant->id())
-            ->whereNull('legacy_member_id')          // Aangemaakt via QR, niet via frontdesk
+            ->whereNull('legacy_member_id')
             ->where(function ($q) {
                 $q->where('is_active', false)
                   ->orWhereNull('membership_starts_at');
@@ -31,26 +34,23 @@ class NewRegistrationController extends Controller
             ->orderByDesc('id')
             ->get()
             ->map(fn (TenantMembership $tm) => [
-                'membership_id' => $tm->id,
-                'account_id'    => $tm->account_id,
-                'first_name'    => $tm->account?->first_name,
-                'last_name'     => $tm->account?->last_name,
-                'full_name'     => trim(($tm->account?->first_name ?? '') . ' ' . ($tm->account?->last_name ?? '')),
-                'email'         => $tm->account?->email,
-                'registered_at' => $tm->account?->created_at?->toIso8601String(),
+                'membership_id'    => $tm->id,
+                'account_id'       => $tm->account_id,
+                'first_name'       => $tm->account?->first_name,
+                'last_name'        => $tm->account?->last_name,
+                'full_name'        => trim(($tm->account?->first_name ?? '') . ' ' . ($tm->account?->last_name ?? '')),
+                'email'            => $tm->account?->email,
+                'registered_at'    => $tm->account?->created_at?->toIso8601String(),
                 'registered_label' => $tm->account?->created_at?->diffForHumans(),
-                'is_new'        => $tm->account?->created_at && $tm->account->created_at->diffInHours(now()) < 24,
+                'is_new'           => $tm->account?->created_at && $tm->account->created_at->diffInHours(now()) < 24,
             ])
             ->values();
 
-        return response()->json([
-            'data' => $registrations,
-        ]);
+        return response()->json(['data' => $registrations]);
     }
 
     /**
-     * Activeer een abonnement voor een bestaand account.
-     * Zet de TenantMembership op actief + maakt een Member record aan (backward compat).
+     * Activeer een abonnement en stuur een bevestigingsmail.
      */
     public function activate(Request $request, CurrentTenant $currentTenant): JsonResponse
     {
@@ -77,15 +77,41 @@ class NewRegistrationController extends Controller
 
         DB::transaction(function () use ($membership, $data, $startDate, $endsDate) {
             $membership->update([
-                'is_active'            => true,
-                'membership_type'      => $data['membership_type'] ?? 'adult',
-                'membership_starts_at' => $startDate->toDateString(),
-                'membership_ends_at'   => $endsDate->toDateString(),
+                'is_active'                 => true,
+                'membership_type'           => $data['membership_type'] ?? 'adult',
+                'membership_starts_at'      => $startDate->toDateString(),
+                'membership_ends_at'        => $endsDate->toDateString(),
+                'confirmation_mail_sent_at' => now(),
             ]);
         });
 
-        return response()->json([
-            'message' => 'Abonnement geactiveerd.',
-        ]);
+        // Bevestigingsmail sturen als er een geldig e-mailadres is
+        $account = $membership->account;
+
+        if ($account && $this->hasValidEmail($account->email)) {
+            $mailable = new MemberLifecycleMail($membership, 'confirmation');
+
+            Mail::to($account->email, $account->full_name)->send($mailable);
+
+            MailLogger::log(
+                toEmail:   $account->email,
+                toName:    $account->full_name,
+                subject:   'Bevestiging van je abonnement',
+                tenantId:  (int) $currentTenant->id(),
+                accountId: $account->id,
+                mailType:  'member_lifecycle_confirmation',
+                htmlBody:  $mailable->render(),
+            );
+        }
+
+        return response()->json(['message' => 'Abonnement geactiveerd.']);
+    }
+
+    private function hasValidEmail(?string $email): bool
+    {
+        if (! $email) return false;
+
+        return ! str_contains($email, '@migrated.local')
+            && ! str_contains($email, '@playdrive.local');
     }
 }
