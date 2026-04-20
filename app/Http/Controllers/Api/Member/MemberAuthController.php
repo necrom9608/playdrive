@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\Member;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use Illuminate\Auth\Events\PasswordReset;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -34,8 +33,15 @@ class MemberAuthController extends Controller
             'password'   => $data['password'],
         ]);
 
-        // Stuur verificatiemail
-        event(new Registered($account));
+        // Verificatiemail via eigen systeem (ondersteunt Resend + aanpasbare templates)
+        try {
+            $this->sendVerificationMail($account);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Verificatiemail (member register) mislukt', [
+                'account_id' => $account->id,
+                'error'      => $e->getMessage(),
+            ]);
+        }
 
         $token = $account->createToken(
             $request->input('device_name', 'mobile')
@@ -45,6 +51,28 @@ class MemberAuthController extends Controller
             'token'   => $token,
             'account' => $this->accountData($account),
         ], 201);
+    }
+
+    private function sendVerificationMail(Account $account): void
+    {
+        \App\Models\AccountEmailVerification::query()
+            ->where('account_id', $account->id)
+            ->delete();
+
+        $token = \Illuminate\Support\Str::random(64);
+
+        \App\Models\AccountEmailVerification::query()->create([
+            'account_id'  => $account->id,
+            'token'       => $token,
+            'tenant_slug' => null,
+            'expires_at'  => now()->addHours(24),
+        ]);
+
+        $verifyUrl = config('app.url') . '/api/register/verify/' . $token;
+
+        \Illuminate\Support\Facades\Mail::to($account->email)->send(
+            new \App\Mail\AccountVerificationMail($account, $verifyUrl, null)
+        );
     }
 
     public function login(Request $request): JsonResponse
