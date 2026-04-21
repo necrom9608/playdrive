@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $subject }}</title>
+    <title>{{ $mailSubject }}</title>
     <style>
         body { margin: 0; padding: 0; background: #f1f5f9; font-family: ui-sans-serif, system-ui, Arial, sans-serif; color: #0f172a; }
         .wrapper { padding: 40px 16px; }
