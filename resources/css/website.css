@@ -128,9 +128,9 @@
     animation: orb-drift-2 8s ease-in-out infinite alternate;
 }
 
-/* Card shine sweep */
+/* Card shine sweep — uitgeschakeld, enkel nog zichtbaar in splashscreen */
 .website-card-shine::before {
-    content: '';
+    
     position: absolute;
     inset: 0;
     border-radius: inherit;
@@ -142,7 +142,8 @@
         transparent 68%
     );
     transform: translateX(-160%);
-    animation: card-shine 4s ease-in-out infinite;
+    animation: none;
+    display: none;
     pointer-events: none;
 }
 
