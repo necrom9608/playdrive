@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import LandingPage from '../pages/LandingPage.vue'
+import BookingFormPage from '../pages/BookingFormPage.vue'
 
 const routes = [
     {
@@ -7,10 +8,12 @@ const routes = [
         name: 'landing',
         component: LandingPage,
     },
-    // Toekomstige routes:
-    // { path: '/venues', name: 'venues', component: () => import('../pages/VenuesPage.vue') },
-    // { path: '/venues/:slug', name: 'venue', component: () => import('../pages/VenuePage.vue') },
-    // { path: '/login', name: 'login', component: () => import('../pages/LoginPage.vue') },
+    {
+        path: '/reserveren/:tenant',
+        name: 'booking-form',
+        component: BookingFormPage,
+        props: true,
+    },
 
     // Fallback — alles naar landing
     { path: '/:pathMatch(.*)*', redirect: '/' },

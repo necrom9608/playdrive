@@ -1,0 +1,98 @@
+/* =====================================================
+   Booking form componenten — toevoegen aan website.css
+   ===================================================== */
+
+/* Tab-knop (event types, stay options) */
+.booking-tab {
+    padding: 0.55rem 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(75, 98, 148, 0.30);
+    background: rgba(15, 23, 42, 0.50);
+    color: var(--text-soft);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+.booking-tab:hover {
+    background: rgba(59, 130, 246, 0.10);
+    border-color: rgba(59, 130, 246, 0.35);
+    color: var(--text-main);
+}
+.booking-tab-active {
+    background: rgba(59, 130, 246, 0.18) !important;
+    border-color: rgba(59, 130, 246, 0.55) !important;
+    color: #93c5fd !important;
+}
+
+/* Keuzekaart (doelgroep) */
+.booking-choice-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 0.75rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(75, 98, 148, 0.28);
+    background: rgba(15, 23, 42, 0.50);
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    text-align: center;
+}
+.booking-choice-card:hover {
+    background: rgba(59, 130, 246, 0.10);
+    border-color: rgba(59, 130, 246, 0.35);
+}
+.booking-choice-card-active {
+    background: rgba(59, 130, 246, 0.15) !important;
+    border-color: rgba(59, 130, 246, 0.55) !important;
+    color: var(--text-main) !important;
+}
+
+/* Keuzerij (catering, stats) */
+.booking-choice-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 0.875rem;
+    border: 1px solid rgba(75, 98, 148, 0.25);
+    background: rgba(15, 23, 42, 0.45);
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    text-align: left;
+}
+.booking-choice-row:hover {
+    background: rgba(59, 130, 246, 0.08);
+    border-color: rgba(59, 130, 246, 0.30);
+}
+.booking-choice-row-active {
+    background: rgba(59, 130, 246, 0.12) !important;
+    border-color: rgba(59, 130, 246, 0.50) !important;
+    color: var(--text-main) !important;
+}
+
+/* Info box (auto-catering melding) */
+.booking-info-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    border-radius: 0.875rem;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.22);
+}
+
+/* Waarschuwingsbox (buiten openingsuren) */
+.booking-warning-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    border-radius: 0.875rem;
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.25);
+}

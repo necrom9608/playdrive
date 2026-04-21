@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './website-booking.css';
 
 @source '../js/apps/website/**/*.vue';
 @source '../js/apps/website/**/*.js';

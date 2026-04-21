@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\Backoffice\StaffAttendanceManagementController;
 use App\Http\Controllers\Api\Backoffice\ImageProxyController;
 use App\Http\Controllers\Api\Backoffice\MailLogController;
 use App\Http\Controllers\Api\Backoffice\OpeningHoursController;
+use App\Http\Controllers\Api\Backoffice\BookingFormConfigController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api/backoffice')->group(function () {
@@ -120,6 +121,8 @@ Route::prefix('api/backoffice')->group(function () {
         // Openingsuren
         Route::get('/opening-hours', [OpeningHoursController::class, 'index']);
         Route::post('/opening-hours', [OpeningHoursController::class, 'saveHours']);
+        Route::get('/booking-form-config', [BookingFormConfigController::class, 'index']);
+        Route::post('/booking-form-config', [BookingFormConfigController::class, 'save']);
         Route::post('/opening-hours/exceptions', [OpeningHoursController::class, 'storeException']);
         Route::delete('/opening-hours/exceptions/{exception}', [OpeningHoursController::class, 'destroyException']);
     });

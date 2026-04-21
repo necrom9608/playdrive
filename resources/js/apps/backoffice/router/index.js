@@ -15,6 +15,7 @@ import VoucherTemplatesPage from '../modules/voucher-templates/pages/VoucherTemp
 import CardsPage from '../modules/cards/pages/CardsPage.vue'
 import MailLogsPage from '../modules/maillogs/pages/MailLogsPage.vue'
 import OpeningHoursPage from '../modules/opening-hours/pages/OpeningHoursPage.vue'
+import BookingFormConfigPage from '../modules/booking-form/pages/BookingFormConfigPage.vue'
 
 const routes = [
     { path: '/', name: 'backoffice.dashboard', component: DashboardPage },
@@ -53,6 +54,7 @@ const routes = [
     { path: '/devices', name: 'backoffice.devices', component: DevicesPage },
     { path: '/mail-logs', name: 'backoffice.mail-logs', component: MailLogsPage },
     { path: '/opening-hours', name: 'backoffice.opening-hours', component: OpeningHoursPage },
+    { path: '/booking-form', name: 'backoffice.booking-form', component: BookingFormConfigPage },
 ]
 
 export default createRouter({

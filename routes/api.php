@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Public\AccountRegistrationController;
+use App\Http\Controllers\Api\Public\BookingFormSetupController;
 use App\Http\Controllers\Api\PublicApi\PublicSubmissionController;
 use App\Http\Controllers\Api\ResendWebhookController;
 use Illuminate\Support\Facades\Route;
@@ -9,9 +10,17 @@ use Illuminate\Support\Facades\Route;
 // Interne PlayDrive app-endpoints met sessies draaien via web-routes
 // in routes/frontdesk-api.php en routes/backoffice-api.php.
 
+// Routes met API key — voor externe integraties
 Route::prefix('public')->middleware('public.api')->group(function () {
     Route::post('/reservations', [PublicSubmissionController::class, 'storeReservation']);
     Route::post('/gift-vouchers', [PublicSubmissionController::class, 'storeGiftVoucher']);
+});
+
+// Booking form routes — geen API key, publiek toegankelijk via eigen website
+// Enkel rate limiting als bescherming
+Route::prefix('public')->middleware('throttle:60,1')->group(function () {
+    Route::get('/booking-form/setup', BookingFormSetupController::class);
+    Route::post('/booking-form/submit', [PublicSubmissionController::class, 'storeReservation']);
 });
 
 // Publieke registratie — geen API key vereist, enkel rate limiting
