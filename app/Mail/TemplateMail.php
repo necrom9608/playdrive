@@ -18,15 +18,15 @@ class TemplateMail extends Mailable
     use Queueable, SerializesModels;
 
     public function __construct(
-        public readonly string $subject,
-        public readonly string $bodyHtml,
-        public readonly string $tenantName = 'PlayDrive',
+        public string $mailSubject,
+        public string $bodyHtml,
+        public string $tenantName = 'PlayDrive',
     ) {
     }
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: $this->subject);
+        return new Envelope(subject: $this->mailSubject);
     }
 
     public function content(): Content

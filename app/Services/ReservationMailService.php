@@ -68,9 +68,9 @@ class ReservationMailService
             $customerRendered = EmailTemplateResolver::render($customerTemplate, $sharedVars);
 
             $customerMail = new TemplateMail(
-                subject:    $customerRendered['subject'],
-                bodyHtml:   $customerRendered['body'],
-                tenantName: $tenant->display_name,
+                mailSubject: $customerRendered['subject'],
+                bodyHtml:    $customerRendered['body'],
+                tenantName:  $tenant->display_name,
             );
 
             Mail::to($registration->email, $registration->name)
@@ -109,9 +109,9 @@ class ReservationMailService
             $tenantRendered = EmailTemplateResolver::render($tenantTemplate, $tenantVars);
 
             $tenantMail = new TemplateMail(
-                subject:    $tenantRendered['subject'],
-                bodyHtml:   $tenantRendered['body'],
-                tenantName: $tenant->display_name,
+                mailSubject: $tenantRendered['subject'],
+                bodyHtml:    $tenantRendered['body'],
+                tenantName:  $tenant->display_name,
             );
 
             Mail::to($tenant->email, $tenant->display_name)
