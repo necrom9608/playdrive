@@ -182,3 +182,116 @@
 }
 
 .animate-fade-up { animation: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* =====================================================
+   Embed modus — formulier geïntegreerd in externe website
+   ===================================================== */
+
+.embed-mode {
+    background: transparent;
+    min-height: unset;
+}
+
+.embed-inner {
+    padding: 16px 0 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* In embed modus: kaarten krijgen een lichte, neutrale stijl */
+.embed-mode .website-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.embed-mode .website-card-shine::before {
+    display: none;
+}
+
+/* Tekst kleuren aanpassen naar donker voor lichte achtergrond */
+.embed-mode {
+    --text-main:  #0f172a;
+    --text-soft:  #475569;
+    --card-bg-top:    #ffffff;
+    --card-bg-bottom: #f8fafc;
+    --card-border:    #e2e8f0;
+}
+
+/* Inputs aanpassen */
+.embed-mode .website-input {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+
+.embed-mode .website-input:focus {
+    border-color: #3b82f6;
+    background: #ffffff;
+}
+
+/* Tabs en keuzekaarten */
+.embed-mode .booking-tab {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+
+.embed-mode .booking-tab:hover {
+    background: #e0f2fe;
+    border-color: #3b82f6;
+    color: #1e40af;
+}
+
+.embed-mode .booking-tab-active {
+    background: #dbeafe !important;
+    border-color: #3b82f6 !important;
+    color: #1d4ed8 !important;
+}
+
+.embed-mode .booking-choice-card {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #475569;
+}
+
+.embed-mode .booking-choice-card:hover {
+    background: #eff6ff;
+    border-color: #93c5fd;
+}
+
+.embed-mode .booking-choice-card-active {
+    background: #dbeafe !important;
+    border-color: #3b82f6 !important;
+    color: #1d4ed8 !important;
+}
+
+.embed-mode .booking-choice-row {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #475569;
+}
+
+.embed-mode .booking-choice-row:hover {
+    background: #eff6ff;
+    border-color: #93c5fd;
+}
+
+.embed-mode .booking-choice-row-active {
+    background: #dbeafe !important;
+    border-color: #3b82f6 !important;
+    color: #1d4ed8 !important;
+}
+
+.embed-mode .booking-info-box {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+}
+
+.embed-mode .booking-warning-box {
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+
+/* Progress bar kleur blijft blauw — goed voor beide modi */

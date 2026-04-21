@@ -1,9 +1,11 @@
 <template>
-    <div class="website-bg min-h-screen relative overflow-hidden">
-        <div class="glow-orb-blue absolute w-96 h-96 -left-20 -top-16" />
-        <div class="glow-orb-purple absolute w-80 h-80 -right-16 -bottom-10" />
+    <div :class="isEmbed ? 'embed-mode' : 'website-bg min-h-screen relative overflow-hidden'">
+        <template v-if="!isEmbed">
+            <div class="glow-orb-blue absolute w-96 h-96 -left-20 -top-16" />
+            <div class="glow-orb-purple absolute w-80 h-80 -right-16 -bottom-10" />
+        </template>
 
-        <div class="relative min-h-screen flex flex-col items-center justify-center px-4 py-12">
+        <div :class="isEmbed ? 'embed-inner' : 'relative min-h-screen flex flex-col items-center justify-center px-4 py-12'">
 
             <!-- Laden -->
             <div v-if="loading" class="text-center">
@@ -34,6 +36,7 @@
                     Bedankt {{ form.name }}. We hebben je aanvraag goed ontvangen en nemen
                     zo snel mogelijk contact met je op via {{ form.email }}.
                 </p>
+                <PoweredBy v-if="isEmbed" class="mt-8" />
             </div>
 
             <!-- Formulier -->
@@ -377,6 +380,7 @@
                     </div>
 
                 </div>
+                <PoweredBy v-if="isEmbed" />
             </div>
 
         </div>
@@ -384,7 +388,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import CalendarPicker from '../components/CalendarPicker.vue'
 import CounterInput from '../components/CounterInput.vue'
 import { fetchBookingFormSetup, submitReservation } from '../services/bookingFormApi'
@@ -395,6 +399,40 @@ import { fetchBookingFormSetup, submitReservation } from '../services/bookingFor
 const props = defineProps({
     tenant: { type: String, default: () => document.querySelector('[data-tenant]')?.dataset.tenant ?? '' },
 })
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Embed modus
+// ──────────────────────────────────────────────────────────────────────────────
+const isEmbed = computed(() => new URLSearchParams(window.location.search).has('embed'))
+
+// Stuur hoogte naar parent iframe
+function postResize() {
+    if (!isEmbed.value) return
+    nextTick(() => {
+        const h = document.documentElement.scrollHeight
+        window.parent.postMessage({ type: 'playdrive:resize', height: h }, '*')
+    })
+}
+
+// Stuur scroll-naar-top bij stapwisseling
+function postScrollTop() {
+    if (!isEmbed.value) return
+    window.parent.postMessage({ type: 'playdrive:scroll-top' }, '*')
+}
+
+// PoweredBy inline component
+const PoweredBy = {
+    template: `
+        <div style="padding:12px 32px 20px;text-align:center;border-top:1px solid rgba(75,98,148,0.15);margin-top:4px;">
+            <a href="https://playdrive.be" target="_blank" rel="noopener"
+               style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;opacity:0.55;transition:opacity 0.15s;"
+               onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='0.55'">
+                <img src="/images/logos/icon.png" alt="PlayDrive" style="width:16px;height:16px;border-radius:3px;" />
+                <span style="font-size:11px;color:var(--text-soft);font-family:inherit;letter-spacing:0.03em;">Powered by PlayDrive</span>
+            </a>
+        </div>
+    `,
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // State
@@ -658,13 +696,23 @@ function validateStep(step) {
 function nextStep() {
     if (!validateStep(currentStep.value)) return
     currentStep.value++
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    if (isEmbed.value) {
+        postScrollTop()
+        postResize()
+    } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
 }
 
 function prevStep() {
     stepError.value = ''
     currentStep.value--
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    if (isEmbed.value) {
+        postScrollTop()
+        postResize()
+    } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -707,7 +755,12 @@ async function submit() {
         })
 
         submitted.value = true
-        window.scrollTo({ top: 0, behavior: 'smooth' })
+        if (isEmbed.value) {
+            postScrollTop()
+            postResize()
+        } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+        }
     } catch (err) {
         if (err.data?.errors) {
             stepError.value = Object.values(err.data.errors).flat().join(' ')
@@ -723,6 +776,9 @@ async function submit() {
 // Laden
 // ──────────────────────────────────────────────────────────────────────────────
 
+// Resize sturen wanneer inhoud verandert in embed modus
+watch([loading, currentStep, submitted], () => postResize())
+
 onMounted(async () => {
     try {
         setup.value = await fetchBookingFormSetup(props.tenant)
@@ -730,6 +786,7 @@ onMounted(async () => {
         loadError.value = err.message ?? 'Kon het formulier niet laden.'
     } finally {
         loading.value = false
+        postResize()
     }
 })
 </script>
