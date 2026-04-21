@@ -8,7 +8,8 @@ use Illuminate\Support\Facades\Schema;
  * opening-hours v1
  * Aanmaken van de opening_exceptions tabel.
  * Bevat specifieke datums waarop de tenant afwijkt van het normale schema.
- * Kan zowel extra open dagen als extra gesloten dagen bevatten.
+ *
+ * Geen foreign key constraints — compatibel met MyISAM en InnoDB.
  */
 return new class extends Migration
 {
@@ -16,12 +17,12 @@ return new class extends Migration
     {
         Schema::create('opening_exceptions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('tenant_id')->constrained()->onDelete('cascade');
+            $table->unsignedBigInteger('tenant_id')->index();
             $table->date('date');
             $table->boolean('is_open')->default(false);
             $table->time('open_from')->nullable();
             $table->time('open_until')->nullable();
-            $table->string('label', 100)->nullable();   // bijv. "Feestdag", "Extra dag"
+            $table->string('label', 100)->nullable();
             $table->timestamps();
 
             $table->unique(['tenant_id', 'date']);

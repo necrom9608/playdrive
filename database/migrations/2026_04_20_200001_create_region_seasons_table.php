@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Schema;
  * Aanmaken van de region_seasons tabel.
  * Bevat de vakantieperiodes per regio, centraal beheerd door het platform.
  * Tenants erven deze periodes via hun region_code.
+ *
+ * Geen foreign key constraints — compatibel met MyISAM en InnoDB.
  */
 return new class extends Migration
 {
@@ -16,18 +18,13 @@ return new class extends Migration
     {
         Schema::create('region_seasons', function (Blueprint $table) {
             $table->id();
-            $table->string('region_code', 10)->index();  // bijv. BE-VL
-            $table->string('season_key', 50);            // bijv. school_vac, summer
-            $table->string('season_name', 100);          // bijv. Krokusvakantie
+            $table->string('region_code', 10)->index();
+            $table->string('season_key', 50);
+            $table->string('season_name', 100);
             $table->date('date_from');
             $table->date('date_until');
             $table->unsignedTinyInteger('priority')->default(20);
             $table->timestamps();
-
-            $table->foreign('region_code')
-                ->references('code')
-                ->on('regions')
-                ->onDelete('cascade');
         });
     }
 

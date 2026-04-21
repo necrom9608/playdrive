@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Schema;
  * opening-hours v1
  * Voegt region_code toe aan de tenants tabel.
  * Via deze koppeling weet het systeem welke schoolvakanties van toepassing zijn.
+ *
+ * Geen foreign key constraints — compatibel met MyISAM en InnoDB.
  */
 return new class extends Migration
 {
@@ -15,18 +17,12 @@ return new class extends Migration
     {
         Schema::table('tenants', function (Blueprint $table) {
             $table->string('region_code', 10)->nullable()->after('country');
-
-            $table->foreign('region_code')
-                ->references('code')
-                ->on('regions')
-                ->onDelete('set null');
         });
     }
 
     public function down(): void
     {
         Schema::table('tenants', function (Blueprint $table) {
-            $table->dropForeign(['region_code']);
             $table->dropColumn('region_code');
         });
     }
