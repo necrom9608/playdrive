@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\EmailTemplateResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -63,6 +64,14 @@ class EmailTemplateController extends Controller
                 'variables'   => ['tenant_name', 'receipt_date', 'total'],
                 'body'        => '(Kassabon wordt automatisch gegenereerd vanuit de order-data.)',
             ],
+            array_merge(
+                ['key' => 'reservation-confirmation-customer', 'label' => 'Reservatie bevestiging (klant)', 'description' => 'Platformstandaard voor de bevestigingsmail die naar de klant gaat na een reservatie. Tenants kunnen dit verder aanpassen in hun eigen backoffice.'],
+                EmailTemplateResolver::platformDefaults()['reservation-confirmation-customer']
+            ),
+            array_merge(
+                ['key' => 'reservation-notification-tenant', 'label' => 'Reservatie notificatie (intern)', 'description' => 'Platformstandaard voor de notificatiemail die naar de uitbater gaat bij elke nieuwe reservatie. Tenants kunnen dit verder aanpassen in hun eigen backoffice.'],
+                EmailTemplateResolver::platformDefaults()['reservation-notification-tenant']
+            ),
         ];
     }
 

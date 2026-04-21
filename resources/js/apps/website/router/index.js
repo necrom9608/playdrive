@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import LandingPage from '../pages/LandingPage.vue'
 import BookingFormPage from '../pages/BookingFormPage.vue'
+import ReservationDetailPage from '../pages/ReservationDetailPage.vue'
 
 const routes = [
     {
@@ -12,6 +13,12 @@ const routes = [
         path: '/reserveren/:tenant',
         name: 'booking-form',
         component: BookingFormPage,
+        props: true,
+    },
+    {
+        path: '/reservatie/:token',
+        name: 'reservation-detail',
+        component: ReservationDetailPage,
         props: true,
     },
 

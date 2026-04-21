@@ -36,6 +36,7 @@ const navigation = [
     { label: 'Verblijfsopties', to: '/stay-options', group: 'Instellingen' },
     { label: 'Openingsuren', to: '/opening-hours', group: 'Instellingen' },
     { label: 'Reservatieformulier', to: '/booking-form', group: 'Instellingen' },
+    { label: 'E-mailtemplates', to: '/email-templates', group: 'Instellingen' },
 ]
 
 const statusLabel = computed(() => auth.user ? `${auth.user.name} · admin` : null)

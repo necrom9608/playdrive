@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-
+use App\Models\Tenant;
 class Registration extends Model
 {
     use HasFactory;
@@ -115,6 +115,11 @@ class Registration extends Model
      * De persoon (globaal account) gekoppeld aan deze registratie.
      * Vervangt geleidelijk de member() relatie.
      */
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);

@@ -2,23 +2,24 @@
 
 use App\Http\Controllers\Api\Backoffice\AuthController;
 use App\Http\Controllers\Api\Backoffice\BadgeTemplateController;
+use App\Http\Controllers\Api\Backoffice\BookingFormConfigController;
 use App\Http\Controllers\Api\Backoffice\CateringOptionController;
 use App\Http\Controllers\Api\Backoffice\CateringOptionProductController;
-use App\Http\Controllers\Api\Backoffice\OptionController;
-use App\Http\Controllers\Api\Backoffice\PricingEngineController;
-use App\Http\Controllers\Api\Backoffice\ProductCategoryController;
-use App\Http\Controllers\Api\Backoffice\ProductController;
-use App\Http\Controllers\Api\Backoffice\StaffController;
 use App\Http\Controllers\Api\Backoffice\DeviceManagementController;
-use App\Http\Controllers\Api\Backoffice\AnalyticsController;
-use App\Http\Controllers\Api\Backoffice\DayTotalsController;
-use App\Http\Controllers\Api\Backoffice\VoucherTemplateController;
-use App\Http\Controllers\Api\Backoffice\PhysicalCardController;
-use App\Http\Controllers\Api\Backoffice\StaffAttendanceManagementController;
+use App\Http\Controllers\Api\Backoffice\EmailTemplateController as BackofficeEmailTemplateController;
 use App\Http\Controllers\Api\Backoffice\ImageProxyController;
 use App\Http\Controllers\Api\Backoffice\MailLogController;
 use App\Http\Controllers\Api\Backoffice\OpeningHoursController;
-use App\Http\Controllers\Api\Backoffice\BookingFormConfigController;
+use App\Http\Controllers\Api\Backoffice\OptionController;
+use App\Http\Controllers\Api\Backoffice\PhysicalCardController;
+use App\Http\Controllers\Api\Backoffice\PricingEngineController;
+use App\Http\Controllers\Api\Backoffice\ProductCategoryController;
+use App\Http\Controllers\Api\Backoffice\ProductController;
+use App\Http\Controllers\Api\Backoffice\StaffAttendanceManagementController;
+use App\Http\Controllers\Api\Backoffice\StaffController;
+use App\Http\Controllers\Api\Backoffice\AnalyticsController;
+use App\Http\Controllers\Api\Backoffice\DayTotalsController;
+use App\Http\Controllers\Api\Backoffice\VoucherTemplateController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api/backoffice')->group(function () {
@@ -117,6 +118,12 @@ Route::prefix('api/backoffice')->group(function () {
 
         Route::get('/mail-logs', [MailLogController::class, 'index']);
         Route::get('/mail-logs/{mailLog}', [MailLogController::class, 'show']);
+
+        // E-mailtemplates
+        Route::get('/email-templates', [BackofficeEmailTemplateController::class, 'index']);
+        Route::put('/email-templates/{key}', [BackofficeEmailTemplateController::class, 'update']);
+        Route::post('/email-templates/{key}/reset', [BackofficeEmailTemplateController::class, 'reset']);
+        Route::post('/email-templates/{key}/preview', [BackofficeEmailTemplateController::class, 'preview']);
 
         // Openingsuren
         Route::get('/opening-hours', [OpeningHoursController::class, 'index']);

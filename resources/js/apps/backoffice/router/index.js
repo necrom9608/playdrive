@@ -16,6 +16,7 @@ import CardsPage from '../modules/cards/pages/CardsPage.vue'
 import MailLogsPage from '../modules/maillogs/pages/MailLogsPage.vue'
 import OpeningHoursPage from '../modules/opening-hours/pages/OpeningHoursPage.vue'
 import BookingFormConfigPage from '../modules/booking-form/pages/BookingFormConfigPage.vue'
+import EmailTemplatesPage from '../modules/email-templates/pages/EmailTemplatesPage.vue'
 
 const routes = [
     { path: '/', name: 'backoffice.dashboard', component: DashboardPage },
@@ -27,24 +28,15 @@ const routes = [
     { path: '/cards', name: 'backoffice.cards', component: CardsPage },
     {
         path: '/products',
-        redirect: {
-            name: 'backoffice.product-management',
-            query: { tab: 'products' },
-        },
+        redirect: { name: 'backoffice.product-management', query: { tab: 'products' } },
     },
     {
         path: '/product-categories',
-        redirect: {
-            name: 'backoffice.product-management',
-            query: { tab: 'categories' },
-        },
+        redirect: { name: 'backoffice.product-management', query: { tab: 'categories' } },
     },
     {
         path: '/pricing-engine',
-        redirect: {
-            name: 'backoffice.product-management',
-            query: { tab: 'pricing-rules' },
-        },
+        redirect: { name: 'backoffice.product-management', query: { tab: 'pricing-rules' } },
     },
     { path: '/catering-options', name: 'backoffice.catering-options', component: CateringOptionsPage },
     { path: '/event-types', name: 'backoffice.event-types', component: EventTypesPage },
@@ -55,6 +47,7 @@ const routes = [
     { path: '/mail-logs', name: 'backoffice.mail-logs', component: MailLogsPage },
     { path: '/opening-hours', name: 'backoffice.opening-hours', component: OpeningHoursPage },
     { path: '/booking-form', name: 'backoffice.booking-form', component: BookingFormConfigPage },
+    { path: '/email-templates', name: 'backoffice.email-templates', component: EmailTemplatesPage },
 ]
 
 export default createRouter({

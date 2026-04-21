@@ -10,6 +10,7 @@ use App\Models\Registration;
 use App\Models\StayOption;
 use App\Models\Tenant;
 use App\Models\TenantDomain;
+use App\Services\ReservationMailService;
 use App\Support\CurrentTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -60,6 +61,9 @@ class PublicSubmissionController extends Controller
             'stayOption:id,name,code,duration_minutes',
             'cateringOption:id,name,code,emoji',
         ]);
+
+        // Bevestigings- en notificatiemail versturen
+        ReservationMailService::sendAfterSubmission($registration, $tenant);
 
         return response()->json([
             'message' => 'Reservatie succesvol aangemaakt.',

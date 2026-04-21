@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Public\AccountRegistrationController;
 use App\Http\Controllers\Api\Public\BookingFormSetupController;
+use App\Http\Controllers\Api\Public\PublicReservationController;
 use App\Http\Controllers\Api\PublicApi\PublicSubmissionController;
 use App\Http\Controllers\Api\ResendWebhookController;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +22,7 @@ Route::prefix('public')->middleware('public.api')->group(function () {
 Route::prefix('public')->middleware('throttle:60,1')->group(function () {
     Route::get('/booking-form/setup', BookingFormSetupController::class);
     Route::post('/booking-form/submit', [PublicSubmissionController::class, 'storeReservation']);
+    Route::get('/reservatie/{token}', [PublicReservationController::class, 'show']);
 });
 
 // Publieke registratie — geen API key vereist, enkel rate limiting
