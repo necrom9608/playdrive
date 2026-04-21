@@ -4,6 +4,15 @@
       {{ store.flash }}
     </div>
 
+    <!-- Inbox — enkel voor admins -->
+    <StaffInboxCard
+      v-if="auth.user?.is_admin"
+      :items="store.inbox"
+      :loading="store.inboxLoading"
+      :confirming="store.inboxConfirming"
+      @confirm="store.confirmReservation($event)"
+    />
+
     <StaffDateCard
       :selected-date="store.selectedDate"
       :selected-date-label="store.data.selected_date_label"
@@ -32,13 +41,22 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useStaffDashboardStore } from '../stores/dashboardStore'
+import { useStaffAuthStore } from '../stores/authStore'
 import StaffDateCard from '../components/dashboard/StaffDateCard.vue'
 import StaffReservationsCard from '../components/dashboard/StaffReservationsCard.vue'
 import StaffCateringCard from '../components/dashboard/StaffCateringCard.vue'
 import StaffRevenueCard from '../components/dashboard/StaffRevenueCard.vue'
 import StaffTasksCard from '../components/dashboard/StaffTasksCard.vue'
 import StaffSessionsCard from '../components/dashboard/StaffSessionsCard.vue'
+import StaffInboxCard from '../components/dashboard/StaffInboxCard.vue'
 
 const store = useStaffDashboardStore()
-onMounted(() => store.fetchDashboard())
+const auth  = useStaffAuthStore()
+
+onMounted(() => {
+  store.fetchDashboard()
+  if (auth.user?.is_admin) {
+    store.fetchInbox()
+  }
+})
 </script>

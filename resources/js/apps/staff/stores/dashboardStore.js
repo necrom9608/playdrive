@@ -10,6 +10,9 @@ export const useStaffDashboardStore = defineStore('staffDashboard', {
     loading: false,
     saving: false,
     selectedDate: getTodayDateString(),
+    inbox: [],
+    inboxLoading: false,
+    inboxConfirming: null,
     data: {
       selected_date: getTodayDateString(),
       selected_date_label: '',
@@ -59,6 +62,26 @@ export const useStaffDashboardStore = defineStore('staffDashboard', {
       current.setDate(current.getDate() + days)
       this.selectedDate = current.toISOString().slice(0, 10)
       await this.fetchDashboard()
+    },
+    async fetchInbox() {
+      this.inboxLoading = true
+      try {
+        const res = await apiFetch('/api/staff/reservation-inbox')
+        this.inbox = res.data ?? []
+      } catch {
+        this.inbox = []
+      } finally {
+        this.inboxLoading = false
+      }
+    },
+    async confirmReservation(id) {
+      this.inboxConfirming = id
+      try {
+        await apiFetch(`/api/staff/reservation-inbox/${id}/confirm`, { method: 'POST' })
+        this.inbox = this.inbox.filter(r => r.id !== id)
+      } finally {
+        this.inboxConfirming = null
+      }
     },
   },
 })

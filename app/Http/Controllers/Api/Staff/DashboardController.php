@@ -54,6 +54,7 @@ class DashboardController extends Controller
 
         $registrationStatuses = collect([
             Registration::STATUS_NEW,
+            Registration::STATUS_PENDING,
             Registration::STATUS_CONFIRMED,
             Registration::STATUS_CHECKED_IN,
             Registration::STATUS_CHECKED_OUT,

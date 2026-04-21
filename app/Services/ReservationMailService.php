@@ -227,4 +227,66 @@ class ReservationMailService
         );
     }
 
+    /**
+     * Mail voor buiten-uren aanvragen (status = pending):
+     * "aanvraag goed ontvangen, we bekijken het".
+     * Apart van sendAfterSubmission zodat de toon anders kan zijn.
+     */
+    public static function sendPendingAcknowledgement(Registration $registration, Tenant $tenant): void
+    {
+        if (! filled($registration->email)) return;
+
+        $registration->loadMissing([
+            'eventType:id,name,emoji',
+            'stayOption:id,name',
+        ]);
+
+        $expiresAt = $registration->event_date
+            ? $registration->event_date->addDays(30)
+            : now()->addDays(90);
+
+        $tokenRecord = RegistrationAccessToken::query()->create([
+            'registration_id' => $registration->id,
+            'token'           => Str::random(48),
+            'expires_at'      => $expiresAt,
+        ]);
+
+        $accessUrl = url('/reservatie/' . $tokenRecord->token);
+
+        $vars = [
+            'name'               => $registration->name,
+            'event_date'         => $registration->event_date?->format('d/m/Y') ?? '—',
+            'event_time'         => $registration->event_time
+                                        ? substr((string) $registration->event_time, 0, 5)
+                                        : '—',
+            'event_type'         => $registration->eventType?->name ?? '—',
+            'stay_option'        => $registration->stayOption?->name ?? '—',
+            'participants_total' => (string) $registration->total_participants,
+            'tenant_name'        => $tenant->display_name,
+            'tenant_email'       => $tenant->email ?? '',
+            'tenant_phone'       => $tenant->phone ?? '',
+            'access_url'         => $accessUrl,
+        ];
+
+        $template = EmailTemplateResolver::resolve('reservation-pending-customer', $tenant);
+        $rendered = EmailTemplateResolver::render($template, $vars);
+
+        $mail = new TemplateMail(
+            mailSubject: $rendered['subject'],
+            bodyHtml:    $rendered['body'],
+            tenantName:  $tenant->display_name,
+        );
+
+        Mail::to($registration->email, $registration->name)->send($mail);
+
+        MailLogger::log(
+            toEmail:  $registration->email,
+            subject:  $rendered['subject'],
+            toName:   $registration->name,
+            tenantId: $tenant->id,
+            mailType: 'reservation-pending-customer',
+            htmlBody: $rendered['body'],
+        );
+    }
+
 }

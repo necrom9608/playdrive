@@ -65,7 +65,12 @@ class PublicSubmissionController extends Controller
         ]);
 
         // Bevestigings- en notificatiemail versturen
-        ReservationMailService::sendAfterSubmission($registration, $tenant);
+        // Stuur de juiste mail op basis van de status
+        if ($registration->status === Registration::STATUS_PENDING) {
+            ReservationMailService::sendPendingAcknowledgement($registration, $tenant);
+        } else {
+            ReservationMailService::sendAfterSubmission($registration, $tenant);
+        }
 
         return response()->json([
             'message' => 'Reservatie succesvol aangemaakt.',

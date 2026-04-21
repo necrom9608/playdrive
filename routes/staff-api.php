@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Staff\AttendanceController;
 use App\Http\Controllers\Api\Staff\AuthController;
 use App\Http\Controllers\Api\Staff\DashboardController;
 use App\Http\Controllers\Api\Staff\ProfileController;
+use App\Http\Controllers\Api\Staff\StaffReservationInboxController;
 use App\Http\Controllers\Api\Staff\TaskController;
 use Illuminate\Support\Facades\Route;
 
@@ -22,5 +23,9 @@ Route::prefix('api/staff')->group(function () {
         Route::put('/tasks/{task}', [TaskController::class, 'update']);
         Route::get('/profile', [ProfileController::class, 'show']);
         Route::put('/profile', [ProfileController::class, 'update']);
+
+        // Reservatie inbox — enkel admins
+        Route::get('/reservation-inbox',              [StaffReservationInboxController::class, 'index']);
+        Route::post('/reservation-inbox/{id}/confirm', [StaffReservationInboxController::class, 'confirm']);
     });
 });

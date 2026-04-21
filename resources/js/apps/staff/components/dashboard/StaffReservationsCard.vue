@@ -66,7 +66,8 @@ const props = defineProps({
 })
 
 const palette = {
-  new: '#f59e0b',
+  new: '#60a5fa',
+  pending: '#f59e0b',
   confirmed: '#38bdf8',
   checked_in: '#3b82f6',
   checked_out: '#8b5cf6',
