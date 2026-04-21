@@ -100,6 +100,8 @@ class EmailTemplateResolver
         return [
             'reservation-confirmation-customer',
             'reservation-notification-tenant',
+            'reservation-updated-customer',
+            'reservation-cancelled-customer',
         ];
     }
 
@@ -175,6 +177,53 @@ HTML,
 {{outside_hours_block}}
 
 <p style="font-size:12px;color:#94a3b8;">Beheer deze reservatie via de PlayDrive backoffice.</p>
+HTML,
+            ],
+
+            'reservation-updated-customer' => [
+                'subject'   => 'Reservatie gewijzigd – {{tenant_name}}',
+                'variables' => [
+                    'name', 'event_date', 'event_time', 'event_type',
+                    'stay_option', 'participants_total', 'tenant_name',
+                    'tenant_phone', 'tenant_email', 'access_url',
+                ],
+                'body'      => <<<'HTML'
+<p>Hallo {{name}},</p>
+
+<p>Je reservatie werd succesvol aangepast. Hieronder vind je de bijgewerkte gegevens.</p>
+
+<table style="width:100%;border-collapse:collapse;font-size:14px;margin:16px 0;">
+  <tr><td style="padding:6px 0;color:#64748b;width:40%;">Datum</td><td style="padding:6px 0;font-weight:600;">{{event_date}}</td></tr>
+  <tr><td style="padding:6px 0;color:#64748b;">Startuur</td><td style="padding:6px 0;font-weight:600;">{{event_time}}</td></tr>
+  <tr><td style="padding:6px 0;color:#64748b;">Type event</td><td style="padding:6px 0;">{{event_type}}</td></tr>
+  <tr><td style="padding:6px 0;color:#64748b;">Formule</td><td style="padding:6px 0;">{{stay_option}}</td></tr>
+  <tr><td style="padding:6px 0;color:#64748b;">Aantal personen</td><td style="padding:6px 0;">{{participants_total}}</td></tr>
+</table>
+
+<p>Heb je vragen? Contacteer ons via <a href="mailto:{{tenant_email}}">{{tenant_email}}</a> of {{tenant_phone}}.</p>
+
+<p style="margin-top:24px;">
+  <a href="{{access_url}}" style="display:inline-block;background:#3b82f6;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Bekijk je reservatie</a>
+</p>
+
+<p>Met vriendelijke groet,<br>{{tenant_name}}</p>
+HTML,
+            ],
+
+            'reservation-cancelled-customer' => [
+                'subject'   => 'Reservatie geannuleerd – {{tenant_name}}',
+                'variables' => [
+                    'name', 'event_date', 'event_time', 'event_type',
+                    'tenant_name', 'tenant_phone', 'tenant_email',
+                ],
+                'body'      => <<<'HTML'
+<p>Hallo {{name}},</p>
+
+<p>Je reservatie op <strong>{{event_date}} om {{event_time}}</strong> ({{event_type}}) werd geannuleerd.</p>
+
+<p>Heb je vragen of wil je een nieuwe reservatie maken? Neem gerust contact op via <a href="mailto:{{tenant_email}}">{{tenant_email}}</a> of {{tenant_phone}}.</p>
+
+<p>Met vriendelijke groet,<br>{{tenant_name}}</p>
 HTML,
             ],
         ];

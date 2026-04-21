@@ -31,5 +31,7 @@ Route::prefix('member-api/v1')->group(function () {
 
         Route::get('/reservations',                   [MemberReservationController::class, 'index']);
         Route::get('/reservations/{id}',              [MemberReservationController::class, 'show']);
+        Route::patch('/reservations/{id}',            [MemberReservationController::class, 'update']);
+        Route::post('/reservations/{id}/cancel',      [MemberReservationController::class, 'cancel']);
     });
 });

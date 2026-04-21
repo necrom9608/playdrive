@@ -95,6 +95,7 @@ class BookingFormConfigController extends Controller
             'config.show_participant_adults'            => ['required', 'boolean'],
             'config.show_participant_supervisors'       => ['required', 'boolean'],
             'config.outside_hours_warning_enabled'      => ['required', 'boolean'],
+            'config.cancellation_hours_before'          => ['required', 'integer', 'min:0'],
 
             // Event-type configs
             'event_type_configs'                        => ['required', 'array'],
@@ -130,6 +131,7 @@ class BookingFormConfigController extends Controller
                     'show_participant_adults'       => $data['config']['show_participant_adults'],
                     'show_participant_supervisors'  => $data['config']['show_participant_supervisors'],
                     'outside_hours_warning_enabled' => $data['config']['outside_hours_warning_enabled'],
+                    'cancellation_hours_before'     => $data['config']['cancellation_hours_before'],
                 ]
             );
 
@@ -172,6 +174,7 @@ class BookingFormConfigController extends Controller
             'show_participant_adults'       => (bool) ($config->show_participant_adults ?? true),
             'show_participant_supervisors'  => (bool) ($config->show_participant_supervisors ?? false),
             'outside_hours_warning_enabled' => (bool) ($config->outside_hours_warning_enabled ?? true),
+            'cancellation_hours_before'     => (int) ($config->cancellation_hours_before ?? 24),
         ];
     }
 

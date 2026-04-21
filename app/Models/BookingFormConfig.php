@@ -14,6 +14,7 @@ class BookingFormConfig extends Model
         'show_participant_adults',
         'show_participant_supervisors',
         'outside_hours_warning_enabled',
+        'cancellation_hours_before',
     ];
 
     protected $casts = [
@@ -22,6 +23,7 @@ class BookingFormConfig extends Model
         'show_participant_adults'        => 'boolean',
         'show_participant_supervisors'   => 'boolean',
         'outside_hours_warning_enabled'  => 'boolean',
+        'cancellation_hours_before'      => 'integer',
     ];
 
     public function tenant(): BelongsTo

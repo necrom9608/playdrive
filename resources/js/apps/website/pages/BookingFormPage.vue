@@ -751,7 +751,6 @@ async function submit() {
             invoice_postal_code:     form.invoice_postal_code || null,
             invoice_city:            form.invoice_city || null,
             stats:                   form.stats,
-            status:                  'confirmed',
         })
 
         submitted.value = true

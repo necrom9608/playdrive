@@ -12,6 +12,7 @@ class Registration extends Model
     use HasFactory;
 
     public const STATUS_NEW          = 'new';
+    public const STATUS_PENDING      = 'pending';
     public const STATUS_CONFIRMED    = 'confirmed';
     public const STATUS_CHECKED_IN   = 'checked_in';
     public const STATUS_CHECKED_OUT  = 'checked_out';
@@ -84,6 +85,7 @@ class Registration extends Model
     {
         return [
             self::STATUS_NEW         => 'Nieuw',
+            self::STATUS_PENDING     => 'In behandeling',
             self::STATUS_CONFIRMED   => 'Bevestigd',
             self::STATUS_CHECKED_IN  => 'Ingecheckt',
             self::STATUS_CHECKED_OUT => 'Uitgecheckt',
@@ -97,6 +99,7 @@ class Registration extends Model
     {
         return match ($this->status) {
             self::STATUS_NEW         => 'Nieuw',
+            self::STATUS_PENDING     => 'In behandeling',
             self::STATUS_CONFIRMED   => 'Bevestigd',
             self::STATUS_CHECKED_IN  => 'Ingecheckt',
             self::STATUS_CHECKED_OUT => 'Uitgecheckt',

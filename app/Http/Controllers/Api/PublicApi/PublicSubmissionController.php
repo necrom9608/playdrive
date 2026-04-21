@@ -45,7 +45,9 @@ class PublicSubmissionController extends Controller
             'participants_supervisors' => (int) ($data['participants_supervisors'] ?? 0),
             'comment' => $this->nullableValue($data['comment'] ?? null),
             'stats' => $data['stats'] ?? [],
-            'status' => $data['status'] ?? Registration::STATUS_CONFIRMED,
+            'status' => ($data['outside_opening_hours'] ?? false)
+                ? Registration::STATUS_PENDING
+                : Registration::STATUS_NEW,
             'invoice_requested' => (bool) ($data['invoice_requested'] ?? false),
             'invoice_company_name' => $this->nullableValue($data['invoice_company_name'] ?? null),
             'invoice_vat_number' => $this->nullableValue($data['invoice_vat_number'] ?? null),

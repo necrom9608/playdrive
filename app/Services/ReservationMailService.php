@@ -127,4 +127,104 @@ class ReservationMailService
             );
         }
     }
+    /**
+     * Bevestigingsmail na aanpassing van aantallen/commentaar door de klant.
+     */
+    public static function sendAfterUpdate(Registration $registration, Tenant $tenant): void
+    {
+        if (! filled($registration->email)) return;
+
+        $registration->loadMissing([
+            'eventType:id,name,emoji',
+            'stayOption:id,name',
+        ]);
+
+        $accessToken = RegistrationAccessToken::query()
+            ->where('registration_id', $registration->id)
+            ->where('expires_at', '>', now())
+            ->latest()
+            ->first();
+
+        $accessUrl = $accessToken
+            ? url('/reservatie/' . $accessToken->token)
+            : url('/');
+
+        $vars = [
+            'name'               => $registration->name,
+            'event_date'         => $registration->event_date?->format('d/m/Y') ?? '—',
+            'event_time'         => $registration->event_time
+                                        ? substr((string) $registration->event_time, 0, 5)
+                                        : '—',
+            'event_type'         => $registration->eventType?->name ?? '—',
+            'stay_option'        => $registration->stayOption?->name ?? '—',
+            'participants_total' => (string) $registration->total_participants,
+            'tenant_name'        => $tenant->display_name,
+            'tenant_email'       => $tenant->email ?? '',
+            'tenant_phone'       => $tenant->phone ?? '',
+            'access_url'         => $accessUrl,
+        ];
+
+        $template = EmailTemplateResolver::resolve('reservation-updated-customer', $tenant);
+        $rendered = EmailTemplateResolver::render($template, $vars);
+
+        $mail = new TemplateMail(
+            mailSubject: $rendered['subject'],
+            bodyHtml:    $rendered['body'],
+            tenantName:  $tenant->display_name,
+        );
+
+        Mail::to($registration->email, $registration->name)->send($mail);
+
+        MailLogger::log(
+            toEmail:  $registration->email,
+            subject:  $rendered['subject'],
+            toName:   $registration->name,
+            tenantId: $tenant->id,
+            mailType: 'reservation-updated-customer',
+            htmlBody: $rendered['body'],
+        );
+    }
+
+    /**
+     * Bevestigingsmail na annulering door de klant.
+     */
+    public static function sendAfterCancellation(Registration $registration, Tenant $tenant): void
+    {
+        if (! filled($registration->email)) return;
+
+        $registration->loadMissing(['eventType:id,name,emoji']);
+
+        $vars = [
+            'name'         => $registration->name,
+            'event_date'   => $registration->event_date?->format('d/m/Y') ?? '—',
+            'event_time'   => $registration->event_time
+                                  ? substr((string) $registration->event_time, 0, 5)
+                                  : '—',
+            'event_type'   => $registration->eventType?->name ?? '—',
+            'tenant_name'  => $tenant->display_name,
+            'tenant_email' => $tenant->email ?? '',
+            'tenant_phone' => $tenant->phone ?? '',
+        ];
+
+        $template = EmailTemplateResolver::resolve('reservation-cancelled-customer', $tenant);
+        $rendered = EmailTemplateResolver::render($template, $vars);
+
+        $mail = new TemplateMail(
+            mailSubject: $rendered['subject'],
+            bodyHtml:    $rendered['body'],
+            tenantName:  $tenant->display_name,
+        );
+
+        Mail::to($registration->email, $registration->name)->send($mail);
+
+        MailLogger::log(
+            toEmail:  $registration->email,
+            subject:  $rendered['subject'],
+            toName:   $registration->name,
+            tenantId: $tenant->id,
+            mailType: 'reservation-cancelled-customer',
+            htmlBody: $rendered['body'],
+        );
+    }
+
 }

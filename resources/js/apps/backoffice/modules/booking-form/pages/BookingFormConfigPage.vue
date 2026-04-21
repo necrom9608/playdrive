@@ -52,6 +52,25 @@
                     </div>
                     <ToggleSwitch v-model="form.config.outside_hours_warning_enabled" />
                 </label>
+
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <p class="text-sm font-medium text-slate-200">Annuleringstermijn</p>
+                        <p class="text-xs text-slate-400 mt-0.5">
+                            Klanten kunnen enkel annuleren als het event nog minstens dit aantal uur in de toekomst ligt.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <input
+                            v-model.number="form.config.cancellation_hours_before"
+                            type="number"
+                            min="0"
+                            max="720"
+                            class="w-20 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-white text-center focus:outline-none focus:border-blue-500"
+                        />
+                        <span class="text-sm text-slate-400">uur</span>
+                    </div>
+                </div>
             </section>
 
             <!-- Sectie 2: Persoonsgroepen -->

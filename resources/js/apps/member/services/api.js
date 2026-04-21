@@ -63,14 +63,17 @@ export async function memberApi(path, options = {}) {
 }
 
 export const api = {
-    get: (path, opts) => memberApi(path, { method: 'GET', ...opts }),
-    post: (path, body, opts) => memberApi(path, { method: 'POST', body, ...opts }),
-    put: (path, body, opts) => memberApi(path, { method: 'PUT', body, ...opts }),
-    delete: (path, opts) => memberApi(path, { method: 'DELETE', ...opts }),
+    get:    (path, opts)       => memberApi(path, { method: 'GET', ...opts }),
+    post:   (path, body, opts) => memberApi(path, { method: 'POST', body, ...opts }),
+    put:    (path, body, opts) => memberApi(path, { method: 'PUT', body, ...opts }),
+    patch:  (path, body, opts) => memberApi(path, { method: 'PATCH', body, ...opts }),
+    delete: (path, opts)       => memberApi(path, { method: 'DELETE', ...opts }),
 }
 
 // Reservaties
 export const reservationApi = {
-    list: ()       => api.get('/reservations'),
-    get:  (id)     => api.get(`/reservations/${id}`),
+    list:   (params = {}) => api.get('/reservations' + (params.include_cancelled ? '?include_cancelled=1' : '')),
+    get:    (id)          => api.get(`/reservations/${id}`),
+    update: (id, data)    => api.patch(`/reservations/${id}`, data),
+    cancel: (id)          => api.post(`/reservations/${id}/cancel`),
 }
