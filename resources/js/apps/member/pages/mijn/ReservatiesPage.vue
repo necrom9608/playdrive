@@ -39,8 +39,10 @@
                 @click="openDetail(r)"
             >
                 <!-- Datum blok -->
-                <div class="shrink-0 w-12 flex flex-col items-center justify-center rounded-xl py-2 px-1"
-                    :class="isPast(r.event_date) ? 'bg-slate-700/50' : 'bg-blue-500/15 border border-blue-500/20'">
+                <div
+                    class="shrink-0 w-12 flex flex-col items-center justify-center rounded-xl py-2 px-1"
+                    :class="isPast(r.event_date) ? 'bg-slate-700/50' : 'bg-blue-500/15 border border-blue-500/20'"
+                >
                     <span class="text-[10px] font-semibold uppercase tracking-wider"
                         :class="isPast(r.event_date) ? 'text-slate-500' : 'text-blue-400'">
                         {{ monthShort(r.event_date) }}
@@ -84,26 +86,24 @@
 
                     <!-- Greep + sluiten -->
                     <div class="flex items-center justify-between mb-1">
-                        <div class="w-8 h-1 rounded-full bg-slate-600 mx-auto absolute left-1/2 -translate-x-1/2 top-3" />
+                        <div class="w-8 h-1 rounded-full bg-slate-600 absolute left-1/2 -translate-x-1/2 top-3" />
                         <span class="text-sm font-semibold text-white">Reservatiedetail</span>
-                        <button @click="selected = null" class="w-7 h-7 rounded-full bg-slate-700/60 flex items-center justify-center">
+                        <button class="w-7 h-7 rounded-full bg-slate-700/60 flex items-center justify-center" @click="selected = null">
                             <XMarkIcon class="w-4 h-4 text-slate-300" />
                         </button>
                     </div>
 
-                    <!-- Status -->
+                    <!-- Header -->
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0"
                             style="background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.20);">
                             {{ selected.event_emoji ?? '📅' }}
                         </div>
-                        <div>
-                            <p class="text-base font-semibold text-white">{{ selected.event_type ?? 'Reservatie' }}</p>
-                            <p class="text-xs text-slate-400">{{ selected.tenant_name }}</p>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-base font-semibold text-white truncate">{{ selected.event_type ?? 'Reservatie' }}</p>
+                            <p class="text-xs text-slate-400 truncate">{{ selected.tenant_name }}</p>
                         </div>
-                        <div class="ml-auto">
-                            <ReservationStatusBadge :status="selected.status" />
-                        </div>
+                        <ReservationStatusBadge :status="selected.status" />
                     </div>
 
                     <div class="h-px bg-white/5" />
@@ -116,26 +116,26 @@
                     </div>
 
                     <template v-else-if="detail">
-                        <!-- Datum & tijd -->
-                        <div class="space-y-2">
-                            <DetailRow v-if="detail.event_date" label="Datum" :value="formatDate(detail.event_date)" />
+                        <!-- Datum & formule -->
+                        <div class="space-y-2.5">
+                            <DetailRow v-if="detail.event_date" label="Datum"    :value="formatDate(detail.event_date)" />
                             <DetailRow v-if="detail.event_time" label="Startuur" :value="detail.event_time" />
-                            <DetailRow v-if="detail.stay_option" label="Formule" :value="detail.stay_option" />
+                            <DetailRow v-if="detail.stay_option"     label="Formule"  :value="detail.stay_option" />
                             <DetailRow v-if="detail.catering_option" label="Catering" :value="detail.catering_option" />
                         </div>
 
                         <div class="h-px bg-white/5" />
 
                         <!-- Personen -->
-                        <div class="space-y-2">
+                        <div class="space-y-2.5">
                             <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Personen</p>
-                            <DetailRow v-if="detail.participants_children > 0" label="Kinderen" :value="String(detail.participants_children)" />
-                            <DetailRow v-if="detail.participants_adults > 0" label="Volwassenen" :value="String(detail.participants_adults)" />
+                            <DetailRow v-if="detail.participants_children   > 0" label="Kinderen"    :value="String(detail.participants_children)" />
+                            <DetailRow v-if="detail.participants_adults     > 0" label="Volwassenen" :value="String(detail.participants_adults)" />
                             <DetailRow v-if="detail.participants_supervisors > 0" label="Begeleiders" :value="String(detail.participants_supervisors)" />
                             <DetailRow label="Totaal" :value="`${detail.total_count} personen`" />
                         </div>
 
-                        <!-- Buiten uren melding -->
+                        <!-- Buiten uren -->
                         <div v-if="detail.outside_opening_hours"
                             class="flex items-start gap-2 rounded-2xl px-4 py-3"
                             style="background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.22);">
@@ -175,7 +175,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, defineComponent, h } from 'vue'
 import {
     CalendarDaysIcon,
     ChevronRightIcon,
@@ -187,14 +187,50 @@ import {
 import { useAuthStore } from '../../stores/useAuthStore'
 import { reservationApi } from '../../services/api'
 
-const auth = useAuthStore()
+// ── Lokale sub-componenten ────────────────────────────────────────────────────
 
-const loading      = ref(true)
-const error        = ref('')
-const reservations = ref([])
-const selected     = ref(null)
-const detail       = ref(null)
+const DetailRow = defineComponent({
+    props: { label: String, value: String },
+    setup(props) {
+        return () => h('div', { class: 'flex items-baseline justify-between gap-3' }, [
+            h('span', { class: 'text-xs text-slate-500 shrink-0' }, props.label),
+            h('span', { class: 'text-sm text-slate-200 text-right' }, props.value),
+        ])
+    },
+})
+
+const STATUS_CFG = {
+    new:         { label: 'Nieuw',      cls: 'bg-slate-700/60 border-slate-600/50 text-slate-300',      dot: 'bg-slate-400' },
+    confirmed:   { label: 'Bevestigd',  cls: 'bg-emerald-500/15 border-emerald-500/25 text-emerald-300', dot: 'bg-emerald-400' },
+    checked_in:  { label: 'Ingecheckt', cls: 'bg-blue-500/15 border-blue-500/25 text-blue-300',          dot: 'bg-blue-400' },
+    checked_out: { label: 'Afgerond',   cls: 'bg-slate-700/60 border-slate-600/50 text-slate-400',       dot: 'bg-slate-500' },
+    paid:        { label: 'Betaald',    cls: 'bg-emerald-500/15 border-emerald-500/25 text-emerald-300', dot: 'bg-emerald-400' },
+}
+
+const ReservationStatusBadge = defineComponent({
+    props: { status: String },
+    setup(props) {
+        return () => {
+            const cfg = STATUS_CFG[props.status] ?? { label: props.status, cls: 'bg-slate-700/60 border-slate-600/50 text-slate-400', dot: 'bg-slate-500' }
+            return h('span', { class: `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${cfg.cls}` }, [
+                h('span', { class: `w-1.5 h-1.5 rounded-full ${cfg.dot}` }),
+                cfg.label,
+            ])
+        }
+    },
+})
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+const auth          = useAuthStore()
+const loading       = ref(true)
+const error         = ref('')
+const reservations  = ref([])
+const selected      = ref(null)
+const detail        = ref(null)
 const detailLoading = ref(false)
+
+// ── Data laden ────────────────────────────────────────────────────────────────
 
 async function load() {
     loading.value = true
@@ -217,13 +253,13 @@ async function openDetail(r) {
         const res = await reservationApi.get(r.id)
         detail.value = res.data
     } catch {
-        detail.value = r  // fallback op de lijstdata
+        detail.value = r
     } finally {
         detailLoading.value = false
     }
 }
 
-// ── Datum helpers ──────────────────────────────────────────────────────────
+// ── Datum helpers ─────────────────────────────────────────────────────────────
 
 const MONTHS = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec']
 
@@ -236,7 +272,8 @@ function parseDate(dateStr) {
 function isPast(dateStr) {
     const d = parseDate(dateStr)
     if (!d) return false
-    const today = new Date(); today.setHours(0,0,0,0)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
     return d < today
 }
 
@@ -257,44 +294,6 @@ function formatDate(dateStr) {
 }
 
 onMounted(load)
-</script>
-
-<!-- Detail row helper — lokaal gedefinieerd om import overhead te vermijden -->
-<script>
-const DetailRow = {
-    props: { label: String, value: String },
-    template: `
-        <div class="flex items-baseline justify-between gap-3">
-            <span class="text-xs text-slate-500 shrink-0">{{ label }}</span>
-            <span class="text-sm text-slate-200 text-right">{{ value }}</span>
-        </div>
-    `,
-}
-</script>
-
-<!-- ReservationStatusBadge — lokaal omdat registratie-statussen anders zijn dan membership-statussen -->
-<script>
-const ReservationStatusBadge = {
-    props: { status: String },
-    computed: {
-        cfg() {
-            const map = {
-                new:          { label: 'Nieuw',         cls: 'bg-slate-700/60 border-slate-600/50 text-slate-300',     dot: 'bg-slate-400' },
-                confirmed:    { label: 'Bevestigd',     cls: 'bg-emerald-500/15 border-emerald-500/25 text-emerald-300', dot: 'bg-emerald-400' },
-                checked_in:   { label: 'Ingecheckt',    cls: 'bg-blue-500/15 border-blue-500/25 text-blue-300',        dot: 'bg-blue-400' },
-                checked_out:  { label: 'Afgerond',      cls: 'bg-slate-700/60 border-slate-600/50 text-slate-400',     dot: 'bg-slate-500' },
-                paid:         { label: 'Betaald',       cls: 'bg-emerald-500/15 border-emerald-500/25 text-emerald-300', dot: 'bg-emerald-400' },
-            }
-            return map[this.status] ?? { label: this.status, cls: 'bg-slate-700/60 border-slate-600/50 text-slate-400', dot: 'bg-slate-500' }
-        },
-    },
-    template: `
-        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border" :class="cfg.cls">
-            <span class="w-1.5 h-1.5 rounded-full" :class="cfg.dot" />
-            {{ cfg.label }}
-        </span>
-    `,
-}
 </script>
 
 <style scoped>
