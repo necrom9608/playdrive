@@ -61,23 +61,27 @@ class StaffReservationInboxController extends Controller
             ])
             ->findOrFail($id);
 
+        $wasPending = $registration->status === Registration::STATUS_PENDING;
+
         $registration->update([
             'status' => Registration::STATUS_CONFIRMED,
         ]);
 
-        // Bevestigingsmail naar klant
-        try {
-            $tenant = $currentTenant->tenant;
-            ReservationMailService::sendAfterSubmission($registration->fresh([
-                'eventType:id,name,emoji',
-                'stayOption:id,name',
-                'cateringOption:id,name',
-            ]), $tenant);
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Bevestigingsmail (staff confirm) mislukt', [
-                'registration_id' => $registration->id,
-                'error'           => $e->getMessage(),
-            ]);
+        // Enkel voor pending een extra mail sturen — bij new is de bevestiging al verstuurd
+        if ($wasPending) {
+            try {
+                $tenant = $currentTenant->tenant;
+                ReservationMailService::sendAfterSubmission($registration->fresh([
+                    'eventType:id,name,emoji',
+                    'stayOption:id,name',
+                    'cateringOption:id,name',
+                ]), $tenant);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Bevestigingsmail (staff confirm pending) mislukt', [
+                    'registration_id' => $registration->id,
+                    'error'           => $e->getMessage(),
+                ]);
+            }
         }
 
         return response()->json([
