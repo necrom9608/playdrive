@@ -98,6 +98,7 @@ import {
     TicketIcon,
     GiftIcon,
     TrophyIcon,
+    CalendarDaysIcon,
 } from '@heroicons/vue/24/outline'
 import { useVenueStore } from '../../stores/useVenueStore'
 import StatusBadge from '../../components/StatusBadge.vue'
@@ -115,14 +116,15 @@ const membershipLabel = computed(() => {
 
 const subTabs = [
     { to: '/mijn/lidmaatschap', label: 'Lidmaatschap', icon: IdentificationIcon },
+    { to: '/mijn/reservaties',  label: 'Reservaties',  icon: CalendarDaysIcon },
     { to: '/mijn/tickets',      label: 'Tickets',      icon: TicketIcon },
     { to: '/mijn/bonnen',       label: 'Bonnen',       icon: GiftIcon },
     { to: '/mijn/stats',        label: 'Stats',        icon: TrophyIcon },
 ]
 
 const quickActions = [
-    { label: 'Tickets', to: '/mijn/tickets', icon: TicketIcon, color: 'bg-violet-500/15 border border-violet-500/25 text-violet-400' },
-    { label: 'Bonnen',  to: '/mijn/bonnen',  icon: GiftIcon,   color: 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-400' },
-    { label: 'Stats',   to: '/mijn/stats',   icon: TrophyIcon, color: 'bg-amber-500/15 border border-amber-500/25 text-amber-400' },
+    { label: 'Reservaties', to: '/mijn/reservaties', icon: CalendarDaysIcon, color: 'bg-blue-500/15 border border-blue-500/25 text-blue-400' },
+    { label: 'Tickets',     to: '/mijn/tickets',     icon: TicketIcon,       color: 'bg-violet-500/15 border border-violet-500/25 text-violet-400' },
+    { label: 'Bonnen',      to: '/mijn/bonnen',      icon: GiftIcon,         color: 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-400' },
 ]
 </script>

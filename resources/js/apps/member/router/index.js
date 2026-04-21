@@ -40,6 +40,12 @@ const routes = [
         meta: { layout: 'app', requiresAuth: true },
     },
     {
+        path: '/mijn/reservaties',
+        name: 'reservaties',
+        component: () => import('../pages/mijn/ReservatiesPage.vue'),
+        meta: { layout: 'app', requiresAuth: true },
+    },
+    {
         path: '/mijn/tickets',
         name: 'tickets',
         component: () => import('../pages/mijn/TicketsPage.vue'),

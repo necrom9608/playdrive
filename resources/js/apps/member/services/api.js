@@ -68,3 +68,9 @@ export const api = {
     put: (path, body, opts) => memberApi(path, { method: 'PUT', body, ...opts }),
     delete: (path, opts) => memberApi(path, { method: 'DELETE', ...opts }),
 }
+
+// Reservaties
+export const reservationApi = {
+    list: ()       => api.get('/reservations'),
+    get:  (id)     => api.get(`/reservations/${id}`),
+}
