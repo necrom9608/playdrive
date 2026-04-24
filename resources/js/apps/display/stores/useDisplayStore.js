@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
 import { getDisplayToken, getOrCreateDisplayUuid, storeDisplayToken } from '../shared/device'
+import { isLocalDisplayMode, localDisplayListen, localDisplayClose } from '../../../../shared/localDisplay'
 
 const POLL_INTERVAL = 3000
 
@@ -13,6 +14,9 @@ export const useDisplayStore = defineStore('display', {
         loading: false,
         error: null,
         pollHandle: null,
+        // Lokale modus (Tauri tweede scherm)
+        localMode: false,
+        _localCleanup: null,
     }),
 
     getters: {
@@ -35,6 +39,22 @@ export const useDisplayStore = defineStore('display', {
             this.loading = true
             this.error = null
 
+            // ── Lokale modus via BroadcastChannel ──
+            if (isLocalDisplayMode()) {
+                this.localMode = true
+                this.initialized = true
+                this.mode = 'standby'
+                this.loading = false
+
+                const cleanup = localDisplayListen((message) => {
+                    this.applyLocalMessage(message)
+                })
+
+                this._localCleanup = cleanup
+                return
+            }
+
+            // ── Normale server-modus (bestaand gedrag) ──
             try {
                 const response = await axios.post('/api/display/bootstrap', {
                     role: 'display',
@@ -57,6 +77,22 @@ export const useDisplayStore = defineStore('display', {
             } finally {
                 this.loading = false
             }
+        },
+
+        /**
+         * Verwerk een bericht van de lokale BroadcastChannel.
+         */
+        applyLocalMessage(message) {
+            this.mode = message.mode ?? 'standby'
+            const payload = message.payload ?? null
+
+            this.payload = payload
+                ? {
+                    ...payload,
+                    reservation: payload?.reservation ?? payload?.registration ?? null,
+                    order: payload?.order ?? null,
+                }
+                : null
         },
 
         applyDeviceState(device) {
@@ -104,6 +140,15 @@ export const useDisplayStore = defineStore('display', {
             } catch (error) {
                 this.error = error?.response?.data?.message ?? 'Display synchroniseren mislukt.'
             }
+        },
+
+        destroy() {
+            this.stopPolling()
+            if (this._localCleanup) {
+                this._localCleanup()
+                this._localCleanup = null
+            }
+            localDisplayClose()
         },
     },
 })

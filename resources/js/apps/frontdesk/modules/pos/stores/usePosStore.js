@@ -9,6 +9,7 @@ import {
     storeDeviceName,
     loadConfiguredDeviceName
 } from '../../../services/deviceService'
+import { isLocalDisplayMode, localDisplaySend } from '../../../../../shared/localDisplay'
 
 const POS_DEVICE_STORAGE_PREFIX = 'playdrive_pos_device'
 
@@ -321,6 +322,13 @@ export const usePosStore = defineStore('pos', {
 
     actions: {
         async initializeDisplayBridge() {
+            // Lokale modus: display draait als tweede Tauri-venster, geen server bootstrap nodig
+            if (isLocalDisplayMode()) {
+                this.displaySyncReady = true
+                this.displaySyncError = null
+                return
+            }
+
             try {
                 const pairingUuid = new URLSearchParams(window.location.search).get('display')
                 const configuredName = (await loadConfiguredDeviceName(POS_DEVICE_STORAGE_PREFIX)) || getStoredPosDeviceName() || 'Frontdesk POS'
@@ -357,7 +365,7 @@ export const usePosStore = defineStore('pos', {
         },
 
         async syncCustomerDisplay() {
-            if (!this.displaySyncReady || !this.posDevice?.display_device_id || !this.posDevice?.device_uuid) {
+            if (!this.displaySyncReady) {
                 return
             }
 
@@ -377,22 +385,37 @@ export const usePosStore = defineStore('pos', {
                     : [],
             } : null
 
+            const syncPayload = {
+                mode,
+                reservation_id: reservation?.id ?? null,
+                registration_id: reservation?.id ?? null,
+                payload: reservation ? {
+                    reservation,
+                    registration: reservation,
+                    order: displayOrder,
+                    reservation_id: reservation?.id ?? null,
+                    registration_id: reservation?.id ?? null,
+                } : {
+                    order: displayOrder,
+                },
+            }
+
+            // Lokale modus: rechtstreeks via BroadcastChannel, geen server roundtrip
+            if (isLocalDisplayMode()) {
+                localDisplaySend(syncPayload)
+                this.displaySyncError = null
+                return
+            }
+
+            if (!this.posDevice?.display_device_id || !this.posDevice?.device_uuid) {
+                return
+            }
+
             try {
                 await axios.post('/api/frontdesk/display/sync', {
                     device_uuid: this.posDevice.device_uuid,
                     device_token: getStoredPosDeviceToken(),
-                    mode,
-                    reservation_id: reservation?.id ?? null,
-                    registration_id: reservation?.id ?? null,
-                    payload: reservation ? {
-                        reservation,
-                        registration: reservation,
-                        order: displayOrder,
-                        reservation_id: reservation?.id ?? null,
-                        registration_id: reservation?.id ?? null,
-                    } : {
-                        order: displayOrder,
-                    },
+                    ...syncPayload,
                 })
 
                 this.displaySyncError = null
@@ -402,7 +425,18 @@ export const usePosStore = defineStore('pos', {
         },
 
         async showMemberRegistrationOnDisplay(payload = {}) {
-            if (!this.displaySyncReady || !this.posDevice?.display_device_id || !this.posDevice?.device_uuid) {
+            if (!this.displaySyncReady) {
+                throw new Error('Er is geen gekoppelde display beschikbaar.')
+            }
+
+            // Lokale modus: rechtstreeks via BroadcastChannel
+            if (isLocalDisplayMode()) {
+                localDisplaySend({ mode: 'member_registration', payload })
+                this.displaySyncError = null
+                return true
+            }
+
+            if (!this.posDevice?.display_device_id || !this.posDevice?.device_uuid) {
                 throw new Error('Er is geen gekoppelde display beschikbaar.')
             }
 
@@ -423,7 +457,17 @@ export const usePosStore = defineStore('pos', {
         },
 
         async clearDisplay() {
-            if (!this.displaySyncReady || !this.posDevice?.display_device_id || !this.posDevice?.device_uuid) {
+            if (!this.displaySyncReady) {
+                return
+            }
+
+            // Lokale modus: rechtstreeks via BroadcastChannel
+            if (isLocalDisplayMode()) {
+                localDisplaySend({ mode: 'standby', payload: {} })
+                return
+            }
+
+            if (!this.posDevice?.display_device_id || !this.posDevice?.device_uuid) {
                 return
             }
 

@@ -8,37 +8,19 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * v1.1 - Tenant-validatie enkel nog van toepassing op display en kiosk apps.
- * Frontdesk, backoffice en staff lossen de tenant op via hun eigen auth-middleware.
+ * v1.2 - Subdomein volledig verwijderd.
+ * Display en kiosk laden de tenant nu via de frontdesk-sessie (ResolveTenant).
+ * Deze middleware laat de request door zolang ResolveTenant de tenant heeft ingesteld.
+ * Als er geen sessie is (display nog niet gekoppeld aan frontdesk), wordt de app
+ * gewoon geladen — de Vue-app zelf toont dan de gekoppeld/ontkoppeld-state.
  */
 class RequireValidTenantForApp
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $currentTenant = app(CurrentTenant::class);
-        $first = $request->segment(1);
-        $second = $request->segment(2);
-
-        // Alleen display en kiosk vereisen nog een tenant via de host (subdomein/custom domain).
-        // Frontdesk, backoffice en staff lossen de tenant op via hun auth-middleware.
-        $tenantWebApps = ['kiosk', 'display'];
-        $tenantApiApps = ['display'];
-
-        $requiresTenant = in_array($first, $tenantWebApps, true)
-            || ($first === 'api' && in_array($second, $tenantApiApps, true));
-
-        if ($requiresTenant && ! $currentTenant->exists()) {
-            if ($request->expectsJson() || $request->is('api/*')) {
-                return response()->json([
-                    'message' => 'Geen geldige tenant gevonden voor deze host.',
-                    'host' => $request->getHost(),
-                ], 404);
-            }
-
-            return response()
-                ->view('errors.invalid-tenant', ['host' => $request->getHost()], 404);
-        }
-
+        // Geen tenant-check meer op basis van host/subdomein.
+        // Display en kiosk worden geladen zoals frontdesk — tenant via sessie.
+        // Als er geen tenant is, laadt de Vue-app gewoon op en handelt het zelf af.
         return $next($request);
     }
 }

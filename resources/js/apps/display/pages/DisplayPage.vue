@@ -142,6 +142,7 @@ import DisplayStandby from '../components/DisplayStandby.vue'
 import DisplayMemberRegistration from '../components/DisplayMemberRegistration.vue'
 import { getDisplayName, getDisplayToken, getOrCreateDisplayUuid, storeDisplayName, storeDisplayToken } from '../shared/device'
 import { getEcho, leaveChannel } from '../shared/realtime'
+import { isLocalDisplayMode, localDisplayListen, localDisplayClose } from '../../../shared/localDisplay'
 
 const tenantName = window.PlayDrive?.tenantName || 'PlayDrive'
 const tenantLogoUrl = window.PlayDrive?.tenantLogoUrl || ''
@@ -731,7 +732,40 @@ async function bootstrap() {
     }
 }
 
+let localCleanup = null
+
 onMounted(() => {
+    // Lokale modus (Tauri tweede scherm): geen server bootstrap, luister naar BroadcastChannel
+    if (isLocalDisplayMode()) {
+        console.log('[display] local mode active — skipping server bootstrap')
+
+        // Forceer een naam zodat de config-prompt niet komt
+        if (!displayName.value) {
+            displayName.value = 'Local Display'
+        }
+
+        // Markeer als gekoppeld; standby tonen tot frontdesk iets stuurt
+        isPaired.value = true
+        loading.value = false
+        mode.value = 'standby'
+        showConfig.value = false
+
+        // Luister naar updates van het frontdesk-venster
+        localCleanup = localDisplayListen((message) => {
+            console.log('[display] local message', message)
+
+            const nextPayload = message.payload ?? {}
+            mode.value = message.mode ?? 'standby'
+            payload.value = {
+                ...nextPayload,
+                reservation: nextPayload?.reservation ?? nextPayload?.registration ?? null,
+                order: nextPayload?.order ?? null,
+            }
+        })
+
+        return
+    }
+
     if (hasDisplayName.value) {
         bootstrap()
         return
@@ -754,5 +788,11 @@ onBeforeUnmount(() => {
     if (subscribedChannelName) {
         leaveChannel(subscribedChannelName)
     }
+
+    if (localCleanup) {
+        localCleanup()
+        localCleanup = null
+    }
+    localDisplayClose()
 })
 </script>

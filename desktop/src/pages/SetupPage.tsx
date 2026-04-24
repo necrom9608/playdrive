@@ -1,17 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
     buildBaseUrl,
-    buildLaunchUrl,
     createDefaultConfig,
     saveDesktopConfig,
+    getMonitorCount,
     type DesktopConfig,
     type DesktopEnvironment,
 } from '../lib/config'
-import {
-    DESKTOP_PROFILES,
-    getProfileDefinition,
-    type DesktopProfileKey,
-} from '../lib/profiles'
 
 type SetupPageProps = {
     initialConfig?: DesktopConfig | null
@@ -21,92 +16,98 @@ type SetupPageProps = {
     onReset?: () => Promise<void>
 }
 
+function MonitorSelect({
+    value,
+    onChange,
+    monitorCount,
+    disabled,
+}: {
+    value: number
+    onChange: (v: number) => void
+    monitorCount: number
+    disabled?: boolean
+}) {
+    if (monitorCount <= 1) {
+        return (
+            <select value={value} onChange={(e) => onChange(Number(e.target.value))} disabled={disabled}>
+                <option value={0}>Scherm 1</option>
+            </select>
+        )
+    }
+
+    return (
+        <select value={value} onChange={(e) => onChange(Number(e.target.value))} disabled={disabled}>
+            {Array.from({ length: monitorCount }, (_, i) => (
+                <option key={i} value={i}>
+                    Scherm {i + 1}
+                </option>
+            ))}
+        </select>
+    )
+}
+
 export default function SetupPage({
-                                      initialConfig,
-                                      saving = false,
-                                      error,
-                                      onLaunch,
-                                      onReset,
-                                  }: SetupPageProps) {
+    initialConfig,
+    saving = false,
+    error,
+    onLaunch,
+    onReset,
+}: SetupPageProps) {
     const defaults = useMemo(() => initialConfig ?? createDefaultConfig(), [initialConfig])
 
-    const [tenantSlug, setTenantSlug] = useState(defaults.tenantSlug)
     const [environment, setEnvironment] = useState<DesktopEnvironment>(defaults.environment)
-    const [profile, setProfile] = useState<DesktopProfileKey>(defaults.profile)
     const [deviceName, setDeviceName] = useState(defaults.deviceName)
-    const [fullscreen, setFullscreen] = useState(defaults.fullscreen)
+
+    // Frontdesk
+    const [frontdeskScreen, setFrontdeskScreen] = useState(defaults.frontdeskScreen)
+    const [frontdeskFullscreen, setFrontdeskFullscreen] = useState(defaults.fullscreen)
+
+    // Display
+    const [displayEnabled, setDisplayEnabled] = useState(defaults.displayEnabled)
+    const [displayScreen, setDisplayScreen] = useState(defaults.displayScreen)
+    const [displayFullscreen, setDisplayFullscreen] = useState(defaults.displayFullscreen)
+
+    const [monitorCount, setMonitorCount] = useState(2)
     const [localError, setLocalError] = useState<string | null>(null)
 
-    const selectedProfile = getProfileDefinition(profile)
-
-    const suggestDeviceName = (profileKey: DesktopProfileKey) => {
-        const definition = getProfileDefinition(profileKey)
-
-        if (!definition) {
-            return ''
-        }
-
-        const current = deviceName.trim().toLowerCase()
-        const knownDefaults = ['frontdesk 1', 'kiosk 1', 'staff 1', 'client 1', 'display 1']
-
-        if (!current || knownDefaults.includes(current)) {
-            return `${definition.label} 1`
-        }
-
-        return deviceName
-    }
-
-    const handleProfileChange = (nextProfile: DesktopProfileKey) => {
-        setProfile(nextProfile)
-
-        const definition = getProfileDefinition(nextProfile)
-
-        if (definition) {
-            setFullscreen(definition.fullscreenByDefault)
-            setDeviceName(suggestDeviceName(nextProfile))
-        }
-    }
-
-    const trimmedTenant = tenantSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
-
-    const resolvedDeviceType = selectedProfile?.defaultDeviceType ?? defaults.deviceType
+    useEffect(() => {
+        getMonitorCount()
+            .then((count) => setMonitorCount(Math.max(count, 1)))
+            .catch(() => setMonitorCount(2))
+    }, [])
 
     const configPreview: DesktopConfig = {
-        tenantSlug: trimmedTenant,
         environment,
-        profile,
+        profile: 'frontdesk',
         deviceName: deviceName.trim(),
-        deviceType: resolvedDeviceType,
-        fullscreen,
+        deviceType: 'pos',
+        fullscreen: frontdeskFullscreen,
+        displayEnabled,
+        displayScreen,
+        displayFullscreen,
+        frontdeskScreen,
     }
 
-    const baseUrl = trimmedTenant ? buildBaseUrl(configPreview) : ''
-    const launchUrl = trimmedTenant ? buildLaunchUrl(configPreview) : ''
 
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault()
         setLocalError(null)
 
-        const finalTenant = tenantSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
         const trimmedDeviceName = deviceName.trim()
-
-        if (!finalTenant) {
-            setLocalError('Geef een tenantnaam in.')
-            return
-        }
 
         if (!trimmedDeviceName) {
             setLocalError('Geef een toestelnaam in.')
             return
         }
 
+        if (displayEnabled && displayScreen === frontdeskScreen && monitorCount > 1) {
+            setLocalError('Frontdesk en display kunnen niet op hetzelfde scherm staan.')
+            return
+        }
+
         const config: DesktopConfig = {
-            tenantSlug: finalTenant,
-            environment,
-            profile,
+            ...configPreview,
             deviceName: trimmedDeviceName,
-            deviceType: resolvedDeviceType,
-            fullscreen,
         }
 
         const saved = await saveDesktopConfig(config)
@@ -137,21 +138,14 @@ export default function SetupPage({
                 </div>
 
                 <form className="panel form-panel" onSubmit={handleSubmit}>
-                    <div className="field-grid">
-                        <label className="field">
-                            <span>Tenant</span>
-                            <input
-                                value={tenantSlug}
-                                onChange={(event) => setTenantSlug(event.target.value)}
-                                placeholder="game-inn"
-                            />
-                        </label>
 
+                    {/* ── Omgeving + Toestelnaam ── */}
+                    <div className="field-grid">
                         <label className="field">
                             <span>Omgeving</span>
                             <select
                                 value={environment}
-                                onChange={(event) => setEnvironment(event.target.value as DesktopEnvironment)}
+                                onChange={(e) => setEnvironment(e.target.value as DesktopEnvironment)}
                             >
                                 <option value="test">Test</option>
                                 <option value="live">Live</option>
@@ -159,50 +153,82 @@ export default function SetupPage({
                         </label>
 
                         <label className="field">
-                            <span>Profiel</span>
-                            <select
-                                value={profile}
-                                onChange={(event) => handleProfileChange(event.target.value as DesktopProfileKey)}
-                            >
-                                {DESKTOP_PROFILES.map((item) => (
-                                    <option key={item.key} value={item.key}>
-                                        {item.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-
-                        <label className="field">
                             <span>Toestelnaam</span>
                             <input
                                 value={deviceName}
-                                onChange={(event) => setDeviceName(event.target.value)}
+                                onChange={(e) => setDeviceName(e.target.value)}
                                 placeholder="Frontdesk 1"
                             />
                         </label>
                     </div>
 
-                    <label className="toggle-row">
-                        <input
-                            type="checkbox"
-                            checked={fullscreen}
-                            onChange={(event) => setFullscreen(event.target.checked)}
-                        />
-                        <span>Open in fullscreen</span>
-                    </label>
-
-                    {selectedProfile ? (
-                        <div className="profile-preview">
-                            <strong>{selectedProfile.label}</strong>
-                            <p>{selectedProfile.description}</p>
-                            <code>{selectedProfile.route}</code>
+                    {/* ── Frontdesk sectie ── */}
+                    <div className="section-block">
+                        <div className="section-header">
+                            <span className="section-title">Frontdesk</span>
                         </div>
-                    ) : null}
+                        <div className="section-row">
+                            <label className="field field-grow">
+                                <span>Scherm</span>
+                                <MonitorSelect
+                                    value={frontdeskScreen}
+                                    onChange={setFrontdeskScreen}
+                                    monitorCount={monitorCount}
+                                />
+                            </label>
+                            <label className="toggle-inline">
+                                <input
+                                    type="checkbox"
+                                    checked={frontdeskFullscreen}
+                                    onChange={(e) => setFrontdeskFullscreen(e.target.checked)}
+                                />
+                                <span>Fullscreen</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    {/* ── Display sectie ── */}
+                    <div className={`section-block${displayEnabled ? '' : ' section-muted'}`}>
+                        <div className="section-header">
+                            <label className="toggle-inline">
+                                <input
+                                    type="checkbox"
+                                    checked={displayEnabled}
+                                    onChange={(e) => setDisplayEnabled(e.target.checked)}
+                                />
+                                <span className="section-title">Display</span>
+                            </label>
+                        </div>
+                        {displayEnabled && (
+                            <div className="section-row">
+                                <label className="field field-grow">
+                                    <span>Scherm</span>
+                                    <MonitorSelect
+                                        value={displayScreen}
+                                        onChange={setDisplayScreen}
+                                        monitorCount={monitorCount}
+                                    />
+                                </label>
+                                <label className="toggle-inline">
+                                    <input
+                                        type="checkbox"
+                                        checked={displayFullscreen}
+                                        onChange={(e) => setDisplayFullscreen(e.target.checked)}
+                                    />
+                                    <span>Fullscreen</span>
+                                </label>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ── Server preview ── */}
+                    <div className="url-preview">
+                        <code>{environment === 'live' ? 'https://playdrive.be' : 'http://playdrive.test'}</code>
+                    </div>
 
                     {(localError || error) ? (
                         <div className="error-box">{localError ?? error}</div>
                     ) : null}
-
 
                     <div className="button-row" style={{ justifyContent: 'flex-end' }}>
                         {onReset ? (
@@ -215,13 +241,10 @@ export default function SetupPage({
                                 Reset config
                             </button>
                         ) : null}
-
                         <button type="submit" disabled={saving}>
                             {saving ? 'Opslaan…' : 'Opslaan en starten'}
                         </button>
                     </div>
-
-
                 </form>
             </div>
         </div>

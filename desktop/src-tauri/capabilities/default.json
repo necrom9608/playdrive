@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default capability for Playdrive Desktop",
-  "windows": ["main", "profile"],
+  "windows": ["main", "profile", "display"],
   "permissions": [
     "core:default"
   ]

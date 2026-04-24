@@ -4,61 +4,44 @@ import type { DesktopProfileKey } from './profiles'
 export type DesktopEnvironment = 'live' | 'test'
 
 export type DesktopConfig = {
-  tenantSlug: string
   environment: DesktopEnvironment
-  profile: DesktopProfileKey
   deviceName: string
   deviceType: string
   fullscreen: boolean
+  // Display second screen
+  displayEnabled: boolean
+  displayScreen: number
+  displayFullscreen: boolean
+  // Frontdesk screen index
+  frontdeskScreen: number
 }
 
 type LegacyDesktopConfig = {
+  // Legacy fields — kept for migration, ignored going forward
   serverUrl?: string
   tenantSlug?: string
-  environment?: DesktopEnvironment
   profile?: DesktopProfileKey
+  // Current fields
+  environment?: DesktopEnvironment
   deviceName?: string
   deviceType?: string
   fullscreen?: boolean
-}
-
-function normalizeTenantFromUrl(serverUrl?: string): { tenantSlug: string; environment: DesktopEnvironment } {
-  if (!serverUrl) {
-    return { tenantSlug: '', environment: 'test' }
-  }
-
-  try {
-    const url = new URL(serverUrl)
-    const host = url.hostname.toLowerCase()
-
-    if (host.endsWith('.playdrive.be')) {
-      return {
-        tenantSlug: host.replace(/\.playdrive\.be$/, ''),
-        environment: 'live',
-      }
-    }
-
-    if (host.endsWith('.playdrive.test')) {
-      return {
-        tenantSlug: host.replace(/\.playdrive\.test$/, ''),
-        environment: 'test',
-      }
-    }
-  } catch {
-    // ignore parse failures
-  }
-
-  return { tenantSlug: '', environment: 'test' }
+  displayEnabled?: boolean
+  displayScreen?: number
+  displayFullscreen?: boolean
+  frontdeskScreen?: number
 }
 
 export function createDefaultConfig(): DesktopConfig {
   return {
-    tenantSlug: '',
     environment: 'test',
-    profile: 'frontdesk',
     deviceName: 'Frontdesk 1',
     deviceType: 'pos',
     fullscreen: false,
+    displayEnabled: false,
+    displayScreen: 1,
+    displayFullscreen: true,
+    frontdeskScreen: 0,
   }
 }
 
@@ -67,44 +50,35 @@ export function normalizeDesktopConfig(input?: LegacyDesktopConfig | null): Desk
     return null
   }
 
-  const fallback = normalizeTenantFromUrl(input.serverUrl)
   const defaults = createDefaultConfig()
 
   return {
-    tenantSlug: input.tenantSlug?.trim() || fallback.tenantSlug || defaults.tenantSlug,
-    environment: input.environment || fallback.environment || defaults.environment,
-    profile: input.profile || defaults.profile,
+    environment: input.environment || defaults.environment,
     deviceName: input.deviceName?.trim() || defaults.deviceName,
     deviceType: input.deviceType?.trim() || defaults.deviceType,
     fullscreen: Boolean(input.fullscreen),
+    displayEnabled: Boolean(input.displayEnabled),
+    displayScreen: input.displayScreen ?? defaults.displayScreen,
+    displayFullscreen: input.displayFullscreen !== undefined
+      ? Boolean(input.displayFullscreen)
+      : defaults.displayFullscreen,
+    frontdeskScreen: input.frontdeskScreen ?? defaults.frontdeskScreen,
   }
 }
 
 export function buildBaseUrl(config: DesktopConfig): string {
-  const tenant = config.tenantSlug.trim().toLowerCase()
-
-  if (!tenant) {
-    return ''
-  }
-
   if (config.environment === 'live') {
-    return `https://${tenant}.playdrive.be`
+    return 'https://playdrive.be'
   }
-
-  return `http://${tenant}.playdrive.test`
+  return 'http://playdrive.test'
 }
 
 export function buildLaunchUrl(config: DesktopConfig): string {
-  const baseUrl = buildBaseUrl(config).replace(/\/+$/, '')
-  const routeMap: Record<DesktopProfileKey, string> = {
-    frontdesk: '/frontdesk',
-    kiosk: '/kiosk',
-    staff: '/staff',
-    client: '/client',
-    display: '/display',
-  }
+  return `${buildBaseUrl(config)}/frontdesk`
+}
 
-  return `${baseUrl}${routeMap[config.profile] ?? ''}`
+export function buildDisplayUrl(config: DesktopConfig): string {
+  return `${buildBaseUrl(config)}/display`
 }
 
 export async function loadDesktopConfig(): Promise<DesktopConfig | null> {
@@ -123,4 +97,8 @@ export async function resetDesktopConfig(): Promise<boolean> {
 
 export async function openConfiguredProfile(config: DesktopConfig): Promise<void> {
   await invoke('open_configured_profile', { config })
+}
+
+export async function getMonitorCount(): Promise<number> {
+  return invoke<number>('get_monitor_count')
 }

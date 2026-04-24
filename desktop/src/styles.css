@@ -93,6 +93,11 @@ p {
   gap: 8px;
 }
 
+.field-grow {
+  flex: 1;
+  min-width: 0;
+}
+
 .field span,
 .toggle-row span,
 .summary-grid dt {
@@ -118,6 +123,68 @@ select:focus {
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.18);
 }
 
+/* ── Section blocks (Frontdesk / Display) ── */
+.section-block {
+  margin-top: 20px;
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: opacity 0.15s;
+}
+
+.section-block.section-muted {
+  opacity: 0.55;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #93a9cc;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.section-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+/* ── Inline toggle (checkbox + label side by side) ── */
+.toggle-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  padding-bottom: 14px; /* align with input baseline */
+  cursor: pointer;
+}
+
+.toggle-inline input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  padding: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.toggle-inline span {
+  font-size: 13px;
+  font-weight: 700;
+  color: #93a9cc;
+}
+
+/* legacy toggle-row kept for compat */
 .toggle-row {
   display: flex;
   align-items: center;
@@ -128,6 +195,21 @@ select:focus {
 .toggle-row input {
   width: 18px;
   height: 18px;
+}
+
+/* ── URL preview ── */
+.url-preview {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.10);
+}
+
+.url-preview code {
+  color: #7eb8f7;
+  font-size: 12px;
+  word-break: break-all;
 }
 
 .profile-preview,
@@ -162,6 +244,9 @@ select:focus {
   background: rgba(127, 29, 29, 0.22);
   border: 1px solid rgba(248, 113, 113, 0.34);
   color: #fecaca;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
 }
 
 .button-row {
@@ -249,5 +334,14 @@ button:disabled {
 
   .panel {
     width: min(100%, 720px);
+  }
+
+  .section-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toggle-inline {
+    padding-bottom: 0;
   }
 }

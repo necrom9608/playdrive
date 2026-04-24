@@ -4,6 +4,7 @@ mod commands {
 }
 
 use commands::config::{
+    get_monitor_count,
     load_desktop_config,
     load_desktop_config_from_disk,
     normalize_desktop_config,
@@ -30,14 +31,14 @@ pub fn run() {
                     let _ = main_window.show();
                     let _ = main_window.set_focus();
                 }
-
                 return Ok(());
             }
 
             if let Ok(Some(config)) = load_desktop_config_from_disk(&app_handle) {
                 let normalized = normalize_desktop_config(config);
 
-                if !normalized.tenant_slug.trim().is_empty() && !normalized.profile.trim().is_empty() {
+                // Auto-launch als toestelnaam ingesteld is — geen tenant of profiel meer nodig.
+                if !normalized.device_name.trim().is_empty() {
                     if open_playdrive_window(&app_handle, &normalized).is_ok() {
                         return Ok(());
                     }
@@ -56,6 +57,7 @@ pub fn run() {
             save_desktop_config,
             reset_desktop_config,
             open_configured_profile,
+            get_monitor_count,
             scan_rfid_once,
             cancel_rfid_scan,
         ])
