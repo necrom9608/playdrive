@@ -35,8 +35,8 @@ export default function LaunchPage({
               <dd>{buildBaseUrl(config)}</dd>
           </div>
           <div>
-            <dt>Profiel</dt>
-            <dd>{config.profile}</dd>
+            <dt>Frontdesk scherm</dt>
+            <dd>Scherm {config.frontdeskScreen + 1}</dd>
           </div>
           <div>
             <dt>Device type</dt>

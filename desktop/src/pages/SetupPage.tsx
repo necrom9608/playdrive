@@ -78,7 +78,6 @@ export default function SetupPage({
 
     const configPreview: DesktopConfig = {
         environment,
-        profile: 'frontdesk',
         deviceName: deviceName.trim(),
         deviceType: 'pos',
         fullscreen: frontdeskFullscreen,
