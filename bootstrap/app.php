@@ -4,6 +4,7 @@ use App\Http\Middleware\RequireBackofficeAuth;
 use App\Http\Middleware\RequirePlaydriveCentralHost;
 use App\Http\Middleware\RequireFrontdeskAuth;
 use App\Http\Middleware\RequirePlaydriveAdminAuth;
+use App\Http\Middleware\RequirePortalAuth;
 use App\Http\Middleware\RequireStaffAuth;
 use App\Http\Middleware\RequireValidTenantForApp;
 use App\Http\Middleware\ResolveTenant;
@@ -49,6 +50,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'frontdesk.auth'      => RequireFrontdeskAuth::class,
             'backoffice.auth'     => RequireBackofficeAuth::class,
             'staff.auth'          => RequireStaffAuth::class,
+            'portal.auth'         => RequirePortalAuth::class,
             'playdrive.admin.auth' => RequirePlaydriveAdminAuth::class,
             'playdrive.admin.host' => RequirePlaydriveCentralHost::class,
             'public.api'          => ValidatePublicApiKey::class,
@@ -57,4 +59,3 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
-

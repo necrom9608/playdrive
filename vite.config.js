@@ -21,6 +21,8 @@ export default defineConfig({
                 // Website
                 'resources/css/website.css',
                 'resources/js/apps/website/app.js',
+                // Portal
+                'resources/js/apps/portal/app.js',
             ],
             refresh: true,
         }),

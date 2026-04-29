@@ -26,6 +26,7 @@ class User extends Authenticatable
         'city',
         'is_active',
         'is_admin',
+        'role',
         'sort_order',
     ];
 
