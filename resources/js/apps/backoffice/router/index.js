@@ -10,6 +10,7 @@ import EventTypesPage from '../modules/options/pages/EventTypesPage.vue'
 import StayOptionsPage from '../modules/options/pages/StayOptionsPage.vue'
 import StaffPage from '../modules/staff/pages/StaffPage.vue'
 import StaffAttendancePage from '../modules/staff-attendance/pages/StaffAttendancePage.vue'
+import RostersPage from '../modules/rosters/pages/RostersPage.vue'
 import DevicesPage from '../modules/devices/pages/DevicesPage.vue'
 import VoucherTemplatesPage from '../modules/voucher-templates/pages/VoucherTemplatesPage.vue'
 import CardsPage from '../modules/cards/pages/CardsPage.vue'
@@ -43,6 +44,7 @@ const routes = [
     { path: '/stay-options', name: 'backoffice.stay-options', component: StayOptionsPage },
     { path: '/staff', name: 'backoffice.staff', component: StaffPage },
     { path: '/staff-attendance', name: 'backoffice.staff-attendance', component: StaffAttendancePage },
+    { path: '/rosters', name: 'backoffice.rosters', component: RostersPage },
     { path: '/devices', name: 'backoffice.devices', component: DevicesPage },
     { path: '/mail-logs', name: 'backoffice.mail-logs', component: MailLogsPage },
     { path: '/opening-hours', name: 'backoffice.opening-hours', component: OpeningHoursPage },

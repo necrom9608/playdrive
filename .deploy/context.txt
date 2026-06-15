@@ -1,0 +1,424 @@
+# PROJECT CONTEXT - playdrive
+# Plak dit als eerste bericht in een nieuwe Claude chat
+# ============================================================
+
+## Project
+Naam:          playdrive
+Patch versie:  V017
+Volgende zip:  V018
+App versie:    LOCAL (semver in .env)
+
+## Stack
+Projectpad:    C:\wamp64\www\playdrive
+Build:         npm run build
+
+## Deploy workflow
+- Aangepaste bestanden worden aangeleverd als zip: playdrive-update-V###.zip
+- Zip bevat ENKEL gewijzigde/nieuwe bestanden met volledige relatieve paden
+- update-info.md verplicht in zip met omschrijving + migrations + handmatige stappen
+- Auto-deploy via file watcher zodra zip in C:\deploy\playdrive\incoming\ verschijnt
+- Commit en push gebeurt handmatig via PhpStorm
+- Op andere machine: pull eerst, dan watcher starten
+
+## Zip naamconventie
+{project}-update-V{###}.zip
+Nummer is zero-padded 3 cijfers, loopt op per project.
+
+## Instructies voor Claude
+- Lever ALTIJD enkel gewijzigde bestanden aan in een zip
+- Volg de naamconventie hierboven
+- Voeg ALTIJD update-info.md toe met:
+  ## Wijzigingen
+  - bullet 1
+  - bullet 2
+  ## Migrations
+  ## Seeders
+  ## Handmatige stappen
+- Behoud de volledige relatieve padstructuur in de zip
+- Volgende zip: V018
+
+## Recente updates
+## V015 - 2026-06-15 10:48 _(deployed op DAVID-PC)_
+
+# PlayDrive V015 — Deploy-automation + context-structuur (port van Taxinet)
+
+Brengt PlayDrive op exact dezelfde update-werkwijze als Taxinet: een
+zelfonderhoudend deploy-systeem dat patch-zips detecteert, deployt, en de
+versie, changelog en context-prompt automatisch bijwerkt.
+
+Dit is een **infrastructuur-entry zonder applicatie-gedrag-verandering** —
+er wordt geen feature-code aangeraakt. Vanaf hier krijgt elke PlayDrive-patch
+een oplopend versienummer en een changelog-entry, aangeleverd als
+`playdrive-update-V###.zip` met enkel de gewijzigde bestanden.
+
+## Wat dit toevoegt
+
+### `.deploy/` (metadata, gecommit in git)
+- `version` — de waarheid voor de huidige patch-versie (nu `V015`).
+- `changelog.md` — dit bestand; elke deploy voegt onderaan een entry toe.
+- `context.txt` — plak-klare prompt voor een nieuwe Claude-sessie; wordt na
+  elke deploy automatisch geregenereerd uit de laatste changelog-entries.
+- `overview.md` — vast projectoverzicht dat in `context.txt` geïnjecteerd
+  wordt, zodat de projectbeschrijving elke regeneratie overleeft.
+- `README.md` — uitleg bij de map.
+
+### `scripts/deploy/` (de automation, gecommit in git)
+- `watcher.ps1` — file-watcher; draait via `npm run deploy:watch`. Kijkt naar
+  `deploy/incoming/` én je Downloads-folder en triggert de deploy.
+- `deploy.ps1` — de 9-staps deployer (git pull, uitpakken, backup, kopiëren,
+  migrations/seeders, build, changelog/context/versie bijwerken, git commit).
+  Rollt terug bij fouten.
+- `git-helpers.ps1` — git-, `.env`- en `.deploy/`-helpers.
+- `README.md` — handleiding.
+
+### Aangepaste projectbestanden
+- `package.json` — `deploy:watch` en `deploy:run` npm-scripts toegevoegd.
+- `.gitignore` — de lokale `deploy/` werk-map (zips, backups, logs)
+  uitgesloten; de scripts zelf staan in `scripts/deploy/` en zijn wél gecommit.
+- `.env.example` — `APP_VERSION=0.1.0` gedocumenteerd (toont in context.txt).
+
+## Verschil met de Taxinet-port (bewuste toevoeging)
+
+De context-generator leest nu een optionele `.deploy/overview.md` en injecteert
+die als projectoverzicht. Zonder dat bestand is het gedrag identiek aan
+Taxinet. Dit voorkomt dat het PlayDrive-overzicht bij de eerste auto-deploy
+overschreven zou worden.
+
+## Afbakening
+
+- De teller start op **V015** (verdergaand op PlayDrive's bestaande,
+  niet-genummerde werk: booking-form, member-app, reservatieflow,
+  backoffice-configurator). Volgende zip wordt V016.
+
+## Wijzigingen
+- `.deploy/version` (nieuw)
+- `.deploy/changelog.md` (nieuw)
+- `.deploy/context.txt` (nieuw)
+- `.deploy/overview.md` (nieuw)
+- `.deploy/README.md` (nieuw)
+- `scripts/deploy/watcher.ps1` (nieuw)
+- `scripts/deploy/deploy.ps1` (nieuw)
+- `scripts/deploy/git-helpers.ps1` (nieuw)
+- `scripts/deploy/README.md` (nieuw)
+- `package.json` (deploy-scripts toegevoegd)
+- `.gitignore` (`/deploy/` uitgesloten)
+- `.env.example` (`APP_VERSION` gedocumenteerd)
+
+## Migrations
+Geen.
+
+## Seeders
+Geen.
+
+## Handmatige stappen
+1. Pak de zip uit in de projectroot.
+2. (Optioneel) zet `APP_VERSION=0.1.0` in je `.env` zodat de app-versie in
+   `context.txt` verschijnt i.p.v. "onbekend".
+3. Start de watcher: in PhpStorm de npm-tab → `deploy:watch`, of in terminal
+   `npm run deploy:watch`. Vanaf nu deployt elke `playdrive-update-V###.zip`
+   in Downloads of `deploy/incoming/` zichzelf.
+
+---
+
+
+## V015 - 2026-06-15 13:01 _(deployed op DAVID-PC)_
+
+# PlayDrive V015 — Deploy-automation + context-structuur (port van Taxinet)
+
+Brengt PlayDrive op exact dezelfde update-werkwijze als Taxinet: een
+zelfonderhoudend deploy-systeem dat patch-zips detecteert, deployt, en de
+versie, changelog en context-prompt automatisch bijwerkt.
+
+Dit is een **infrastructuur-entry zonder applicatie-gedrag-verandering** —
+er wordt geen feature-code aangeraakt. Vanaf hier krijgt elke PlayDrive-patch
+een oplopend versienummer en een changelog-entry, aangeleverd als
+`playdrive-update-V###.zip` met enkel de gewijzigde bestanden.
+
+## Wat dit toevoegt
+
+### `.deploy/` (metadata, gecommit in git)
+- `version` — de waarheid voor de huidige patch-versie (nu `V015`).
+- `changelog.md` — dit bestand; elke deploy voegt onderaan een entry toe.
+- `context.txt` — plak-klare prompt voor een nieuwe Claude-sessie; wordt na
+  elke deploy automatisch geregenereerd uit de laatste changelog-entries.
+- `overview.md` — vast projectoverzicht dat in `context.txt` geïnjecteerd
+  wordt, zodat de projectbeschrijving elke regeneratie overleeft.
+- `README.md` — uitleg bij de map.
+
+### `scripts/deploy/` (de automation, gecommit in git)
+- `watcher.ps1` — file-watcher; draait via `npm run deploy:watch`. Kijkt naar
+  `deploy/incoming/` én je Downloads-folder en triggert de deploy.
+- `deploy.ps1` — de 9-staps deployer (git pull, uitpakken, backup, kopiëren,
+  migrations/seeders, build, changelog/context/versie bijwerken, git commit).
+  Rollt terug bij fouten.
+- `git-helpers.ps1` — git-, `.env`- en `.deploy/`-helpers.
+- `README.md` — handleiding.
+
+### Aangepaste projectbestanden
+- `package.json` — `deploy:watch` en `deploy:run` npm-scripts toegevoegd.
+- `.gitignore` — de lokale `deploy/` werk-map (zips, backups, logs)
+  uitgesloten; de scripts zelf staan in `scripts/deploy/` en zijn wél gecommit.
+- `.env.example` — `APP_VERSION=0.1.0` gedocumenteerd (toont in context.txt).
+
+## Verschil met de Taxinet-port (bewuste toevoeging)
+
+De context-generator leest nu een optionele `.deploy/overview.md` en injecteert
+die als projectoverzicht. Zonder dat bestand is het gedrag identiek aan
+Taxinet. Dit voorkomt dat het PlayDrive-overzicht bij de eerste auto-deploy
+overschreven zou worden.
+
+## Afbakening
+
+- De teller start op **V015** (verdergaand op PlayDrive's bestaande,
+  niet-genummerde werk: booking-form, member-app, reservatieflow,
+  backoffice-configurator). Volgende zip wordt V016.
+
+## Wijzigingen
+- `.deploy/version` (nieuw)
+- `.deploy/changelog.md` (nieuw)
+- `.deploy/context.txt` (nieuw)
+- `.deploy/overview.md` (nieuw)
+- `.deploy/README.md` (nieuw)
+- `scripts/deploy/watcher.ps1` (nieuw)
+- `scripts/deploy/deploy.ps1` (nieuw)
+- `scripts/deploy/git-helpers.ps1` (nieuw)
+- `scripts/deploy/README.md` (nieuw)
+- `package.json` (deploy-scripts toegevoegd)
+- `.gitignore` (`/deploy/` uitgesloten)
+- `.env.example` (`APP_VERSION` gedocumenteerd)
+
+## Migrations
+Geen.
+
+## Seeders
+Geen.
+
+## Handmatige stappen
+1. Pak de zip uit in de projectroot.
+2. (Optioneel) zet `APP_VERSION=0.1.0` in je `.env` zodat de app-versie in
+   `context.txt` verschijnt i.p.v. "onbekend".
+3. Start de watcher: in PhpStorm de npm-tab → `deploy:watch`, of in terminal
+   `npm run deploy:watch`. Vanaf nu deployt elke `playdrive-update-V###.zip`
+   in Downloads of `deploy/incoming/` zichzelf.
+
+
+
+---
+
+
+## V016 - 2026-06-15 13:18 _(deployed op DAVID-PC)_
+
+# PlayDrive V016 — Uurroosters (algemeen weekrooster + wekelijkse shiften)
+
+Nieuw personeels-uurrooster in de backoffice, in dezelfde geest als het
+Taxinet-systeem maar PlayDrive-native (medewerkers = `users`, geen
+chauffeurs/voertuigen) en gemodelleerd naar het bestaande openingsuren-patroon
+(weekdag-template + concrete afwijkingen).
+
+## Concept
+
+1. **Algemeen uurrooster** — per medewerker stel je een terugkerend weekrooster
+   in: tijdblokken per weekdag (meerdere blokken per dag mogelijk, bv.
+   09:00-12:00 én 13:00-17:00). Dit is de bron van waarheid.
+
+2. **Weekplanning** — voor een concrete week genereer je de shiften uit dat
+   rooster en pas je ze daarna vrij aan: tijden wijzigen, shift verwijderen,
+   extra shift toevoegen. Aanpassingen blijven behouden: de generator raakt
+   enkel dagen aan die nog géén shift hebben. Een uit-template-shift die je
+   wijzigt wordt gemarkeerd (`is_edited`) en wordt door regeneratie met rust
+   gelaten. "Reset week" zet een week terug gelijk aan het algemene rooster.
+
+De weekplanning toont per medewerker een rij met de 7 dagen, het weektotaal aan
+uren, en een kleurcode: blauw = uit rooster, oranje = aangepast, paars =
+handmatig toegevoegd.
+
+## Datamodel
+
+- `roster_templates` — (tenant_id, user_id, weekday 1-7, block_index) uniek;
+  `starts_at`/`ends_at` als TIME, optioneel `label`.
+- `roster_shifts` — (tenant_id, user_id, date) met `starts_at`/`ends_at` (TIME),
+  `status`, `source` (template|manual), `is_edited`, `note`.
+
+Tijden lokaal als TIME (zoals `opening_hours`) — geen UTC-conversie nodig.
+Geen foreign keys (MyISAM/InnoDB-compatibel).
+
+## Afbakening (bewust niet in deze eerste versie)
+
+Taxinet heeft hier bovenop nog: drag-and-drop planningsbord, audit-log,
+shift-voorstellen, conflict-/waarschuwingsdialogen en voertuig-/rit-koppeling.
+Die zijn hier weggelaten om een werkbare basis snel te leveren. Ook een
+horizon-vooruit-generatie (Taxinet genereert 12 weken vooruit) is bewust
+vervangen door genereren-per-week-op-aanvraag — eenvoudiger en voorspelbaarder.
+Max-uren-bewaking ontbreekt (het weektotaal wordt wel getoond). Allemaal
+kandidaten voor een vervolg-zip.
+
+## Wijzigingen
+
+### Nieuw — backend
+- `database/migrations/2026_06_15_120000_create_roster_tables.php`
+- `app/Models/RosterTemplate.php`
+- `app/Models/RosterShift.php`
+- `app/Services/RosterService.php` — template opslaan, week genereren
+  (met respect voor handmatige aanpassingen), week resetten.
+- `app/Http/Controllers/Api/Backoffice/RosterController.php`
+
+### Nieuw — frontend (backoffice-module `rosters`)
+- `resources/js/apps/backoffice/modules/rosters/services/rosterApi.js`
+- `resources/js/apps/backoffice/modules/rosters/components/ShiftFormModal.vue`
+- `resources/js/apps/backoffice/modules/rosters/pages/RostersPage.vue`
+
+### Aangepast
+- `routes/backoffice-api.php` — RosterController + 8 routes onder
+  `backoffice.auth` (`/rosters`, `/rosters/template`, `/rosters/week`,
+  `/rosters/week/generate`, `/rosters/week/reset`, `/rosters/shifts`,
+  `/rosters/shifts/{shift}` put+delete).
+- `resources/js/apps/backoffice/router/index.js` — route `/rosters`.
+- `resources/js/apps/backoffice/App.vue` — navigatie-item "Uurroosters"
+  (groep Beheer).
+
+## Migrations
+
+```
+php artisan migrate
+```
+
+Maakt `roster_templates` en `roster_shifts` aan.
+
+## Seeders
+
+Geen.
+
+## Handmatige stappen
+
+1. Migratie draaien (zie boven).
+2. Frontend herbouwen:
+   ```
+   npm run build
+   ```
+3. Backoffice → "Uurroosters". Stel eerst per medewerker het algemene rooster
+   in, ga dan naar "Weekplanning" en klik "Genereer uit rooster".
+
+
+---
+
+
+## V017 - 2026-06-15 15:53 _(deployed op DAVID-PC)_
+
+# PlayDrive V017 — Uurroosters herwerkt naar slot-model (rollen, seizoenen, weekbord)
+
+Herwerking van het uurrooster van "blok-per-persoon" (V016) naar een
+slot-gebaseerd model: de zaak bepaalt per dag welke shift-slots er zijn, en die
+vul je met mensen in. Periode-afhankelijk via de bestaande seizoenen, zodat een
+vakantierooster zichzelf activeert.
+
+## Concept
+
+1. **Rollen** — beheerde lijst per tenant (bar, onthaal, VR-zone…), met kleur en
+   actief/inactief i.p.v. verwijderen (historische shiften behouden hun rol).
+
+2. **Algemeen rooster = shift-slots per seizoen × weekdag.** Elk slot draagt:
+   tijd van–tot, één rol, optioneel een gewenst aantal personen, en een staand
+   commentaar. Standaard-invullers (0…N) kunnen per slot gezet worden. Het
+   vakantieseizoen is gewoon een eigen set slots.
+
+3. **Weekplanning** rolt de slots uit naar de concrete week. Per dag wordt het
+   actieve seizoen bepaald uit `RegionSeason` (zelfde priority-conventie als de
+   openingsuren; een week mag over een seizoensgrens lopen). Je vult de blokken
+   met mensen in (toewijzing = persoon-in-blok, de rol volgt uit het blok). Bij
+   een gewenst aantal toont het bord "x van y", anders gewoon het aantal
+   ingevulde personen. Eenmalige dagnotitie bovenop het staande commentaar.
+
+Genereren raakt enkel dagen aan die nog géén shift hebben → weekaanpassingen
+blijven behouden. "Reset week" wist de week en rolt opnieuw uit. Bij genereren
+worden de slotvelden op de shift gesnapshot, zodat een al geplande week niet
+verschuift als je het sjabloon later wijzigt. Standaard-invullers worden bij
+genereren automatisch toegewezen.
+
+## Datamodel (5 tabellen)
+
+- `roster_roles` — rollen (naam, kleur, sort, actief).
+- `roster_slots` — algemeen rooster: season_key × weekdag, role_id?, tijd,
+  desired_count?, comment?.
+- `roster_slot_defaults` — standaard-invullers per slot.
+- `roster_shifts` — uitgerolde blokken per dag (gesnapshotte slotvelden +
+  date, season_key, note, source, status).
+- `roster_assignments` — persoon-in-blok (source template|manual).
+
+Tijden lokaal als TIME. Geen foreign keys (MyISAM/InnoDB-compatibel).
+
+## Belangrijk: schone herwerking van V016
+
+De V016-tabellen `roster_templates` en `roster_shifts` (oud schema) worden door
+de migratie **gedropt** en vervangen. Dit gaat ervan uit dat V016 nog niet in
+productie met echte data draaide. Draaide het wel met data die je wil bewaren,
+deploy deze zip dan NIET zomaar — laat het me weten, dan lever ik een
+ompluis-migratie i.p.v. een drop.
+
+De volgende PHP/JS-bestanden worden overschreven (zelfde paden): `RosterShift`
+(model), `RosterService`, `RosterController`, `rosterApi.js`, `RostersPage.vue`,
+plus `routes/backoffice-api.php`, `router/index.js`, `App.vue`.
+
+## Wijzigingen
+
+### Nieuw — backend
+- `database/migrations/2026_06_15_130000_rework_roster_to_slots.php`
+- `app/Models/RosterRole.php`
+- `app/Models/RosterSlot.php`
+- `app/Models/RosterSlotDefault.php`
+- `app/Models/RosterAssignment.php`
+- `app/Http/Controllers/Api/Backoffice/RosterRoleController.php`
+
+### Herwerkt — backend
+- `app/Models/RosterShift.php` (nieuw schema)
+- `app/Services/RosterService.php` (seizoen-resolutie + slot-generatie)
+- `app/Http/Controllers/Api/Backoffice/RosterController.php` (slots, week,
+  shiften, toewijzingen)
+
+### Nieuw — frontend
+- `resources/js/apps/backoffice/modules/rosters/components/RoleFormModal.vue`
+- `resources/js/apps/backoffice/modules/rosters/components/SlotFormModal.vue`
+- `resources/js/apps/backoffice/modules/rosters/components/ShiftEditModal.vue`
+
+### Herwerkt — frontend
+- `resources/js/apps/backoffice/modules/rosters/services/rosterApi.js`
+- `resources/js/apps/backoffice/modules/rosters/pages/RostersPage.vue` (3 tabs:
+  Rollen, Algemeen rooster, Weekplanning)
+
+### Aangepast
+- `routes/backoffice-api.php` — RosterRoleController + herwerkte RosterController-routes.
+- `resources/js/apps/backoffice/router/index.js` — route `/rosters`.
+- `resources/js/apps/backoffice/App.vue` — nav-item "Uurroosters" (Beheer).
+
+## Migrations
+
+```
+php artisan migrate
+```
+
+Dropt de V016-tabellen en maakt de 5 nieuwe tabellen aan.
+
+## Seeders
+
+Geen.
+
+## Handmatige stappen
+
+1. Migratie draaien (zie boven) en frontend herbouwen (`npm run build`).
+2. **Restanten van V016 opruimen** — als je V016 al had uitgepakt/gedeployd,
+   verwijder deze twee nu verweesde bestanden (het deploy-systeem verwijdert
+   zelf nooit bestanden):
+   - `app/Models/RosterTemplate.php`
+   - `resources/js/apps/backoffice/modules/rosters/components/ShiftFormModal.vue`
+   Liet je V016 ongedeployd, dan bestaan ze niet en hoef je niets te doen.
+3. Backoffice → "Uurroosters": maak eerst rollen aan, stel per seizoen het
+   algemene rooster (slots) in, ga dan naar "Weekplanning" → "Genereer uit
+   rooster" en vul de blokken met mensen.
+
+## Niet te valideren in mijn omgeving
+
+PHP/Composer draaien hier niet, dus de migratie en de seizoen-resolutie tegen je
+echte `RegionSeason`-data kon ik niet uitvoeren — graag even aftoetsen na deploy.
+De frontend is wél echt gecompileerd (alle SFC's + JS).
+
+
+---

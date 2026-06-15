@@ -32,3 +32,7 @@ desktop/dist/
 desktop/src-tauri/target/
 desktop/.vite/
 desktop/*.log
+
+# Deploy runtime folder (zips, backups, logs - lokaal per machine)
+# De scripts zelf staan in scripts/deploy/ en zijn wel gecommit.
+/deploy/

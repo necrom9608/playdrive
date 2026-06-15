@@ -17,6 +17,8 @@ use App\Http\Controllers\Api\Backoffice\ProductCategoryController;
 use App\Http\Controllers\Api\Backoffice\ProductController;
 use App\Http\Controllers\Api\Backoffice\StaffAttendanceManagementController;
 use App\Http\Controllers\Api\Backoffice\StaffController;
+use App\Http\Controllers\Api\Backoffice\RosterController;
+use App\Http\Controllers\Api\Backoffice\RosterRoleController;
 use App\Http\Controllers\Api\Backoffice\AnalyticsController;
 use App\Http\Controllers\Api\Backoffice\DayTotalsController;
 use App\Http\Controllers\Api\Backoffice\VoucherTemplateController;
@@ -89,6 +91,29 @@ Route::prefix('api/backoffice')->group(function () {
         Route::get('/staff-attendance', [StaffAttendanceManagementController::class, 'index']);
         Route::put('/staff-attendance/{staffAttendance}', [StaffAttendanceManagementController::class, 'update']);
         Route::delete('/staff-attendance/{staffAttendance}', [StaffAttendanceManagementController::class, 'destroy']);
+
+        // Uurroosters (V017): rollen, algemeen slot-rooster, weekplanning
+        Route::get('/roster-roles', [RosterRoleController::class, 'index']);
+        Route::post('/roster-roles', [RosterRoleController::class, 'store']);
+        Route::post('/roster-roles/reorder', [RosterRoleController::class, 'reorder']);
+        Route::put('/roster-roles/{role}', [RosterRoleController::class, 'update']);
+        Route::delete('/roster-roles/{role}', [RosterRoleController::class, 'destroy']);
+
+        Route::get('/rosters', [RosterController::class, 'index']);
+        Route::get('/rosters/slots', [RosterController::class, 'slots']);
+        Route::post('/rosters/slots', [RosterController::class, 'storeSlot']);
+        Route::put('/rosters/slots/{slot}', [RosterController::class, 'updateSlot']);
+        Route::delete('/rosters/slots/{slot}', [RosterController::class, 'destroySlot']);
+
+        Route::get('/rosters/week', [RosterController::class, 'week']);
+        Route::post('/rosters/week/generate', [RosterController::class, 'generateWeek']);
+        Route::post('/rosters/week/reset', [RosterController::class, 'resetWeek']);
+
+        Route::post('/rosters/shifts', [RosterController::class, 'storeShift']);
+        Route::put('/rosters/shifts/{shift}', [RosterController::class, 'updateShift']);
+        Route::delete('/rosters/shifts/{shift}', [RosterController::class, 'destroyShift']);
+        Route::post('/rosters/shifts/{shift}/assignments', [RosterController::class, 'addAssignment']);
+        Route::delete('/rosters/assignments/{assignment}', [RosterController::class, 'removeAssignment']);
 
         Route::get('/catering-options', [CateringOptionController::class, 'index']);
         Route::post('/catering-options', [CateringOptionController::class, 'store']);

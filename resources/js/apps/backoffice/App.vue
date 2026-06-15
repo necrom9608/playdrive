@@ -30,6 +30,7 @@ const navigation = [
     { label: 'Cateringopties', to: '/catering-options', group: 'Verkoop' },
     { label: 'Personeel', to: '/staff', group: 'Beheer' },
     { label: 'Aanwezigheden', to: '/staff-attendance', group: 'Beheer' },
+    { label: 'Uurroosters', to: '/rosters', group: 'Beheer' },
     { label: 'Displays & POS', to: '/devices', group: 'Beheer' },
     { label: 'Mailbeheer', to: '/mail-logs', group: 'Beheer' },
     { label: 'Event types', to: '/event-types', group: 'Instellingen' },

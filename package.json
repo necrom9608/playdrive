@@ -8,7 +8,9 @@
         "build:member": "vite build && npx cap sync",
         "cap:sync": "npx cap sync",
         "cap:android": "npx cap open android",
-        "cap:ios": "npx cap open ios"
+        "cap:ios": "npx cap open ios",
+        "deploy:watch": "powershell -ExecutionPolicy Bypass -NoProfile -File scripts/deploy/watcher.ps1",
+        "deploy:run": "powershell -ExecutionPolicy Bypass -NoProfile -File scripts/deploy/deploy.ps1"
     },
     "devDependencies": {
         "@capacitor/cli": "^8.3.1",
