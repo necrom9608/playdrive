@@ -70,7 +70,7 @@
     </main>
 
     <nav class="fixed inset-x-0 bottom-0 z-30 border-t border-white/8 bg-slate-950/80 px-3 py-2 backdrop-blur-2xl">
-      <div class="mx-auto grid max-w-6xl grid-cols-4 gap-2">
+      <div class="mx-auto grid max-w-6xl grid-cols-5 gap-2">
         <RouterLink
           v-for="item in navItems"
           :key="item.to"
@@ -95,6 +95,7 @@ import {
   ArrowRightOnRectangleIcon,
   CalendarDaysIcon,
   ClipboardDocumentListIcon,
+  ClockIcon,
   Cog6ToothIcon,
   Squares2X2Icon,
 } from '@heroicons/vue/24/outline'
@@ -111,6 +112,7 @@ const route = useRoute()
 const navItems = [
   { to: '/', label: 'Dashboard', icon: Squares2X2Icon, match: '/' },
   { to: '/agenda/day', label: 'Agenda', icon: CalendarDaysIcon, match: '/agenda' },
+  { to: '/roster', label: 'Rooster', icon: ClockIcon, match: '/roster' },
   { to: '/tasks', label: 'Taken', icon: ClipboardDocumentListIcon, match: '/tasks' },
   { to: '/settings', label: 'Settings', icon: Cog6ToothIcon, match: '/settings' },
 ]
@@ -120,6 +122,7 @@ const isAgendaRoute = computed(() => route.path.startsWith('/agenda'))
 const dashboard = computed(() => dashboardStore.data || {})
 
 const currentPageTitle = computed(() => {
+  if (route.path.startsWith('/roster')) return 'Rooster'
   if (route.path.startsWith('/tasks')) return 'Taken'
   if (route.path.startsWith('/settings')) return 'Settings'
   return 'Staff'

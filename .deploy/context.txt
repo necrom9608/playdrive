@@ -4,8 +4,8 @@
 
 ## Project
 Naam:          playdrive
-Patch versie:  V017
-Volgende zip:  V018
+Patch versie:  V018
+Volgende zip:  V019
 App versie:    LOCAL (semver in .env)
 
 ## Stack
@@ -35,7 +35,7 @@ Nummer is zero-padded 3 cijfers, loopt op per project.
   ## Seeders
   ## Handmatige stappen
 - Behoud de volledige relatieve padstructuur in de zip
-- Volgende zip: V018
+- Volgende zip: V019
 
 ## Recente updates
 ## V015 - 2026-06-15 10:48 _(deployed op DAVID-PC)_
@@ -419,6 +419,94 @@ Geen.
 PHP/Composer draaien hier niet, dus de migratie en de seizoen-resolutie tegen je
 echte `RegionSeason`-data kon ik niet uitvoeren — graag even aftoetsen na deploy.
 De frontend is wél echt gecompileerd (alle SFC's + JS).
+
+
+---
+
+
+## V018 - 2026-06-16 14:36 _(deployed op DAVID-PC)_
+
+# PlayDrive V018 — Rooster in de staff-app (eigen shiften zichtbaar)
+
+Personeel kan vanaf nu het uurrooster zien in de staff-app. Read-only: plannen
+blijft in de backoffice (V017), de medewerker ziet enkel de **eigen** shiften
+(blokken waarin hij/zij is toegewezen).
+
+## Wat dit toevoegt
+
+### Nieuwe "Rooster"-tab (5e item in de onderbalk)
+Een weekoverzicht van je eigen shiften. Per shift: tijd + duur, de rol (met
+kleur), staand commentaar + eventuele dagnotitie, en de collega's in hetzelfde
+blok. Vorige/volgende week + "Naar deze week", en een weektotaal (aantal
+shiften + totaal uren). Lege week → nette lege staat. Mobielvriendelijk: enkel
+dagen waarop je werkt worden getoond.
+
+### Dashboard-kaart "Mijn shift"
+Op het dashboard verschijnt onder de datumkiezer een kaart met je shift(en) voor
+de geselecteerde dag (dezelfde dag-navigatie als de rest van het dashboard).
+
+## Datamodel
+
+Geen wijzigingen. Leest de bestaande V017-tabellen `roster_shifts` en
+`roster_assignments` (toewijzing = persoon-in-blok). **Geen migratie nodig.**
+
+## Hoe het werkt
+
+- `GET /api/staff/roster?week_start=YYYY-MM-DD` → eigen shiften van de ingelogde
+  medewerker, gegroepeerd per dag, met weektotaal. `week_start` wordt
+  server-side genormaliseerd naar de maandag van die week (via `RosterService`).
+- De ingelogde medewerker komt uit de bestaande `staff.auth`-sessie
+  (`staff_user`); enkel shiften waarin die user is toegewezen worden getoond.
+- Het dashboard-endpoint kreeg er een `my_shifts`-blok bij voor de
+  geselecteerde dag.
+- Overnacht-shiften (eind < start) worden correct doorgeteld bij de duur.
+
+## Wijzigingen
+
+### Nieuw — backend
+- `app/Http/Controllers/Api/Staff/RosterController.php`
+
+### Nieuw — frontend
+- `resources/js/apps/staff/stores/rosterStore.js`
+- `resources/js/apps/staff/pages/RosterPage.vue`
+- `resources/js/apps/staff/components/dashboard/StaffRosterCard.vue`
+
+### Aangepast — backend
+- `routes/staff-api.php` — `GET /api/staff/roster` onder `staff.auth`.
+- `app/Http/Controllers/Api/Staff/DashboardController.php` — `my_shifts`-blok
+  + roster-helpers (`shiftMinutes`, `shiftDurationLabel`, `hm`).
+
+### Aangepast — frontend
+- `resources/js/apps/staff/router/index.js` — route `/roster`.
+- `resources/js/apps/staff/layouts/StaffLayout.vue` — nav-item "Rooster"
+  (onderbalk nu `grid-cols-5`) + headertitel.
+- `resources/js/apps/staff/pages/DashboardPage.vue` — rendert `StaffRosterCard`.
+
+## Migrations
+
+Geen.
+
+## Seeders
+
+Geen.
+
+## Handmatige stappen
+
+1. Pak de zip uit in de projectroot.
+2. Frontend herbouwen:
+   ```
+   npm run build
+   ```
+3. Staff-app openen → tab **Rooster**. Zorg dat er in de backoffice (V017) een
+   week is uitgerold en dat de ingelogde medewerker in minstens één blok is
+   toegewezen, anders is de week leeg.
+
+## Niet te valideren in mijn omgeving
+
+PHP/Composer en npm draaien hier niet, dus de query tegen je echte
+`roster_*`-data en de frontend-build kon ik niet uitvoeren — graag even
+aftoetsen na deploy. De wijzigingen raken geen DB-schema, dus het risico is
+beperkt tot weergave.
 
 
 ---

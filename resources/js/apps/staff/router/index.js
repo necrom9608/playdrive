@@ -4,6 +4,7 @@ import AgendaPage from '../pages/AgendaPage.vue'
 import AgendaDayPage from '../pages/agenda/AgendaDayPage.vue'
 import AgendaWeekPage from '../pages/agenda/AgendaWeekPage.vue'
 import AgendaMonthPage from '../pages/agenda/AgendaMonthPage.vue'
+import RosterPage from '../pages/RosterPage.vue'
 import TasksPage from '../pages/TasksPage.vue'
 import SettingsPage from '../pages/SettingsPage.vue'
 
@@ -21,6 +22,7 @@ export default createRouter({
         { path: 'month', name: 'staff.agenda.month', component: AgendaMonthPage },
       ],
     },
+    { path: '/roster', name: 'staff.roster', component: RosterPage },
     { path: '/tasks', name: 'staff.tasks', component: TasksPage },
     { path: '/settings', name: 'staff.settings', component: SettingsPage },
   ],

@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\Staff;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Registration;
+use App\Models\RosterAssignment;
+use App\Models\RosterShift;
 use App\Models\StaffCheckin;
 use App\Models\Task;
 use App\Support\CurrentTenant;
@@ -126,6 +128,42 @@ class DashboardController extends Controller
                 ->sum('total_incl_vat');
         }
 
+        // Eigen shiften van de medewerker voor de geselecteerde dag.
+        $myShifts = RosterShift::query()
+            ->with(['role', 'assignments'])
+            ->where('tenant_id', $tenantId)
+            ->whereDate('date', $selectedDate)
+            ->whereHas('assignments', fn ($q) => $q->where('user_id', $user->id))
+            ->orderBy('starts_at')
+            ->orderBy('sort_order')
+            ->get();
+
+        $staffNames = $myShifts->isNotEmpty()
+            ? \App\Models\User::query()->where('tenant_id', $tenantId)->pluck('name', 'id')->all()
+            : [];
+
+        $myShiftItems = $myShifts->map(function (RosterShift $shift) use ($user, $staffNames) {
+            $minutes = $this->shiftMinutes($shift->starts_at, $shift->ends_at);
+
+            return [
+                'id'             => $shift->id,
+                'time_label'     => $this->hm($shift->starts_at) . ' – ' . $this->hm($shift->ends_at),
+                'duration_label' => $this->shiftDurationLabel($minutes),
+                'role'           => $shift->role ? [
+                    'name'  => $shift->role->name,
+                    'color' => $shift->role->color,
+                ] : null,
+                'comment'        => $shift->comment,
+                'note'           => $shift->note,
+                'status'         => $shift->status,
+                'colleagues'     => $shift->assignments
+                    ->filter(fn (RosterAssignment $a) => (int) $a->user_id !== (int) $user->id)
+                    ->map(fn (RosterAssignment $a) => $staffNames[$a->user_id] ?? ('#' . $a->user_id))
+                    ->values()
+                    ->all(),
+            ];
+        })->values();
+
         return response()->json([
             'data' => [
                 'selected_date' => $selectedDate->toDateString(),
@@ -176,6 +214,10 @@ class DashboardController extends Controller
                     'total' => $revenueTotal,
                     'label' => $revenueTotal !== null ? number_format($revenueTotal, 2, ',', '.') : null,
                 ],
+                'my_shifts' => [
+                    'count' => $myShiftItems->count(),
+                    'items' => $myShiftItems,
+                ],
             ],
         ]);
     }
@@ -183,5 +225,44 @@ class DashboardController extends Controller
     protected function formatMinutes(int $minutes): string
     {
         return sprintf('%02d:%02d', intdiv($minutes, 60), $minutes % 60);
+    }
+
+    /** Minuten tussen twee TIME-strings; overnacht (eind < start) telt door. */
+    protected function shiftMinutes(?string $start, ?string $end): int
+    {
+        if (! $start || ! $end) {
+            return 0;
+        }
+
+        [$sh, $sm] = array_pad(array_map('intval', explode(':', $start)), 2, 0);
+        [$eh, $em] = array_pad(array_map('intval', explode(':', $end)), 2, 0);
+
+        $s = $sh * 60 + $sm;
+        $e = $eh * 60 + $em;
+        if ($e < $s) {
+            $e += 24 * 60;
+        }
+
+        return max(0, $e - $s);
+    }
+
+    protected function shiftDurationLabel(int $minutes): string
+    {
+        $h = intdiv($minutes, 60);
+        $m = $minutes % 60;
+
+        if ($h > 0 && $m > 0) {
+            return $h . 'u' . str_pad((string) $m, 2, '0', STR_PAD_LEFT);
+        }
+        if ($h > 0) {
+            return $h . 'u';
+        }
+
+        return $m . 'min';
+    }
+
+    protected function hm(?string $time): ?string
+    {
+        return $time ? substr($time, 0, 5) : null;
     }
 }

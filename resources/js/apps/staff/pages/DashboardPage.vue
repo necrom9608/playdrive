@@ -24,6 +24,8 @@
       @select="store.setDate($event)"
     />
 
+    <StaffRosterCard :items="store.data.my_shifts?.items || []" :loading="store.loading" />
+
     <div class="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
       <StaffReservationsCard :data="store.data.reservations" :loading="store.loading" />
       <StaffCateringCard :data="store.data.catering" :loading="store.loading" />
@@ -49,6 +51,7 @@ import StaffRevenueCard from '../components/dashboard/StaffRevenueCard.vue'
 import StaffTasksCard from '../components/dashboard/StaffTasksCard.vue'
 import StaffSessionsCard from '../components/dashboard/StaffSessionsCard.vue'
 import StaffInboxCard from '../components/dashboard/StaffInboxCard.vue'
+import StaffRosterCard from '../components/dashboard/StaffRosterCard.vue'
 
 const store = useStaffDashboardStore()
 const auth  = useStaffAuthStore()
