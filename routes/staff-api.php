@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Staff\AgendaController;
 use App\Http\Controllers\Api\Staff\AttendanceController;
 use App\Http\Controllers\Api\Staff\AuthController;
 use App\Http\Controllers\Api\Staff\DashboardController;
+use App\Http\Controllers\Api\Staff\LeaveController;
 use App\Http\Controllers\Api\Staff\ProfileController;
 use App\Http\Controllers\Api\Staff\RosterController;
 use App\Http\Controllers\Api\Staff\StaffReservationInboxController;
@@ -21,6 +22,9 @@ Route::prefix('api/staff')->group(function () {
         Route::post('/attendance/toggle', [AttendanceController::class, 'toggle']);
         Route::get('/agenda', AgendaController::class);
         Route::get('/roster', [RosterController::class, 'index']);
+        Route::get('/leave', [LeaveController::class, 'index']);
+        Route::post('/leave', [LeaveController::class, 'store']);
+        Route::delete('/leave/{leave}', [LeaveController::class, 'destroy']);
         Route::get('/tasks', [TaskController::class, 'index']);
         Route::put('/tasks/{task}', [TaskController::class, 'update']);
         Route::get('/profile', [ProfileController::class, 'show']);

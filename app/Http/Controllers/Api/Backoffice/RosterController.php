@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Backoffice;
 
 use App\Http\Controllers\Controller;
 use App\Models\RosterAssignment;
+use App\Models\LeaveRequest;
 use App\Models\RosterRole;
 use App\Models\RosterShift;
 use App\Models\RosterSlot;
@@ -314,12 +315,32 @@ class RosterController extends Controller
             $days[] = ['date' => $d, 'season_key' => $seasonOf[$d] ?? 'regular'];
         }
 
+        // Goedgekeurd/aangevraagd verlof dat met deze week overlapt → voor de
+        // visuele conflictmarkering op het planningsbord.
+        $weekStartStr = $weekStart->toDateString();
+        $weekEndStr   = $weekStart->addDays(6)->toDateString();
+        $leaves = LeaveRequest::query()
+            ->where('tenant_id', $tenant->id)
+            ->whereIn('status', [LeaveRequest::STATUS_APPROVED, LeaveRequest::STATUS_PENDING])
+            ->whereDate('start_date', '<=', $weekEndStr)
+            ->whereDate('end_date', '>=', $weekStartStr)
+            ->get()
+            ->map(fn (LeaveRequest $l) => [
+                'user_id'    => $l->user_id,
+                'start_date' => $l->start_date?->toDateString(),
+                'end_date'   => $l->end_date?->toDateString(),
+                'status'     => $l->status,
+            ])
+            ->values()
+            ->all();
+
         return [
             'week_start' => $weekStart->toDateString(),
             'days'       => $days,
             'roles'      => $this->mapRoles($tenant->id),
             'staff'      => $this->mapStaff($tenant->id),
             'shifts'     => $shifts->map(fn (RosterShift $s) => $this->mapShift($s, $staffNames))->values(),
+            'leaves'     => $leaves,
         ];
     }
 

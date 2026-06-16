@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\Backoffice\ProductController;
 use App\Http\Controllers\Api\Backoffice\StaffAttendanceManagementController;
 use App\Http\Controllers\Api\Backoffice\StaffController;
 use App\Http\Controllers\Api\Backoffice\RosterController;
+use App\Http\Controllers\Api\Backoffice\RosterLeaveController;
 use App\Http\Controllers\Api\Backoffice\RosterRoleController;
 use App\Http\Controllers\Api\Backoffice\AnalyticsController;
 use App\Http\Controllers\Api\Backoffice\DayTotalsController;
@@ -114,6 +115,10 @@ Route::prefix('api/backoffice')->group(function () {
         Route::delete('/rosters/shifts/{shift}', [RosterController::class, 'destroyShift']);
         Route::post('/rosters/shifts/{shift}/assignments', [RosterController::class, 'addAssignment']);
         Route::delete('/rosters/assignments/{assignment}', [RosterController::class, 'removeAssignment']);
+
+        Route::get('/roster-leave', [RosterLeaveController::class, 'index']);
+        Route::post('/roster-leave/{leave}/approve', [RosterLeaveController::class, 'approve']);
+        Route::post('/roster-leave/{leave}/reject', [RosterLeaveController::class, 'reject']);
 
         Route::get('/catering-options', [CateringOptionController::class, 'index']);
         Route::post('/catering-options', [CateringOptionController::class, 'store']);

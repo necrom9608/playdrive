@@ -468,3 +468,104 @@ beperkt tot weergave.
 
 
 ---
+
+## V019 - 2026-06-16 15:15 _(deployed op DAVID-PC)_
+
+# PlayDrive V019 — Verlofaanvragen + namen in algemeen rooster
+
+Twee dingen: medewerkers kunnen verlof aanvragen in de staff-app, de backoffice
+keurt goed/af en krijgt een **visuele conflictmelding** wanneer het verlof
+samenvalt met ingeplande shiften. Daarnaast tonen we in het algemene rooster nu
+de **namen** van de vaste invullers i.p.v. enkel het aantal.
+
+## 1. Verlof
+
+### Staff-app (tab Rooster → "Verlof")
+De Rooster-tab kreeg bovenaan een schakelaar **Mijn shiften / Verlof**. Onder
+Verlof: een aanvraagformulier (van–tot + optionele reden) en een lijst van je
+eigen aanvragen met status (In afwachting / Goedgekeurd / Afgewezen /
+Ingetrokken). Een lopende of goedgekeurde aanvraag kan je intrekken. Bij een
+aanvraag die samenvalt met je eigen ingeplande shiften zie je een subtiele hint.
+
+### Backoffice (Uurroosters → tab "Verlof")
+Nieuwe tab met alle aanvragen, openstaande eerst, met een teller-badge op de tab
+zolang er aanvragen wachten. Per aanvraag: persoon, periode, reden en
+Goedkeuren/Afwijzen. **Conflictmelding:** valt de periode samen met shiften
+waarin die persoon al is ingepland, dan toont de aanvraag een rode waarschuwing
+met de exacte botsende shiften (datum · tijd · rol), en goedkeuren vraagt een
+extra bevestiging.
+
+### Weekplanning-bord
+Een toegewezen persoon met (aangevraagd of goedgekeurd) verlof in die periode
+wordt op het bord **rood doorstreept** weergegeven, zodat je het conflict ook in
+context ziet tijdens het plannen.
+
+## 2. Namen in het algemeen rooster
+
+In de tab "Algemeen rooster" toont elk slot nu "Vast: An, Bram" i.p.v.
+"2 vast" — de werkelijke namen van de standaard-invullers.
+
+## Datamodel
+
+Nieuwe tabel `leave_requests` (tenant_id, user_id, start_date, end_date, reason,
+status, reviewed_by, reviewed_at, review_note). Geen foreign keys
+(MyISAM/InnoDB-compatibel). De roster-tabellen blijven ongewijzigd.
+
+## Wijzigingen
+
+### Nieuw — backend
+- `database/migrations/2026_06_16_120000_create_leave_requests_table.php`
+- `app/Models/LeaveRequest.php`
+- `app/Http/Controllers/Api/Staff/LeaveController.php`
+- `app/Http/Controllers/Api/Backoffice/RosterLeaveController.php`
+
+### Nieuw — frontend
+- `resources/js/apps/staff/stores/leaveStore.js`
+
+### Aangepast — backend
+- `routes/staff-api.php` — `GET/POST /api/staff/leave`, `DELETE /api/staff/leave/{leave}`.
+- `routes/backoffice-api.php` — `GET /roster-leave`, `POST /roster-leave/{leave}/approve|reject`.
+- `app/Http/Controllers/Api/Backoffice/RosterController.php` — week-payload
+  bevat nu `leaves` (overlappend verlof) voor de bordmarkering.
+
+### Aangepast — frontend
+- `resources/js/apps/staff/pages/RosterPage.vue` — Shiften/Verlof-schakelaar +
+  verlofformulier en -lijst.
+- `resources/js/apps/backoffice/modules/rosters/services/rosterApi.js` — verlof-
+  endpoints.
+- `resources/js/apps/backoffice/modules/rosters/pages/RostersPage.vue` —
+  Verlof-tab met conflictmelding, namen in algemeen rooster, verlofmarkering op
+  het weekbord.
+
+## Migrations
+
+```
+php artisan migrate
+```
+
+Maakt `leave_requests` aan.
+
+## Seeders
+
+Geen.
+
+## Handmatige stappen
+
+1. Pak de zip uit in de projectroot.
+2. Migratie draaien (zie boven) en frontend herbouwen:
+   ```
+   php artisan migrate
+   npm run build
+   ```
+3. Staff-app → Rooster → Verlof: dien een aanvraag in. Backoffice →
+   Uurroosters → Verlof: keur goed/af. Plan eventueel een shift op die persoon
+   in dezelfde periode om de conflictmelding te zien.
+
+## Niet te valideren in mijn omgeving
+
+PHP/Composer en npm draaien hier niet, dus de migratie, de conflictdetectie
+tegen je echte roster-data en de frontend-build kon ik niet uitvoeren — graag
+even aftoetsen na deploy.
+
+
+---

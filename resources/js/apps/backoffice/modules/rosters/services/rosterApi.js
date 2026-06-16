@@ -70,3 +70,15 @@ export function addAssignment(shiftId, userId) {
 export function removeAssignment(assignmentId) {
     return apiFetch(`${BASE}/rosters/assignments/${assignmentId}`, { method: 'DELETE' })
 }
+
+// ── Verlof ──────────────────────────────────────────────────────────────────
+export function fetchLeaveRequests(status = '') {
+    const qs = status ? `?${new URLSearchParams({ status }).toString()}` : ''
+    return apiFetch(`${BASE}/roster-leave${qs}`)
+}
+export function approveLeave(id, payload = {}) {
+    return apiFetch(`${BASE}/roster-leave/${id}/approve`, { method: 'POST', body: JSON.stringify(payload) })
+}
+export function rejectLeave(id, payload = {}) {
+    return apiFetch(`${BASE}/roster-leave/${id}/reject`, { method: 'POST', body: JSON.stringify(payload) })
+}

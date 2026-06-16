@@ -21,6 +21,10 @@
                 @click="activeTab = tab.key"
             >
                 {{ tab.label }}
+                <span
+                    v-if="tab.key === 'leave' && leavePendingCount > 0"
+                    class="ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-amber-500/90 px-1.5 text-[11px] font-bold text-slate-950"
+                >{{ leavePendingCount }}</span>
             </button>
         </div>
 
@@ -90,7 +94,7 @@
                             <span class="ml-auto text-xs text-slate-400">{{ roleName(slot.role_id) }}</span>
                         </div>
                         <div v-if="slot.comment || slot.default_user_ids.length" class="mt-1 text-[11px] text-slate-500">
-                            <span v-if="slot.default_user_ids.length">{{ slot.default_user_ids.length }} vast</span>
+                            <span v-if="slot.default_user_ids.length" class="text-slate-300">Vast: {{ defaultUserNames(slot.default_user_ids) }}</span>
                             <span v-if="slot.comment && slot.default_user_ids.length"> · </span>
                             <span v-if="slot.comment">{{ slot.comment }}</span>
                         </div>
@@ -144,7 +148,15 @@
                             </div>
                             <div v-if="shift.role_id" class="text-[11px] text-slate-300">{{ roleName(shift.role_id) }}</div>
                             <div v-if="shift.assignments.length" class="mt-1 flex flex-wrap gap-1">
-                                <span v-for="a in shift.assignments" :key="a.id" class="rounded bg-slate-950/60 px-1.5 py-0.5 text-[10px] text-slate-200">{{ a.name }}</span>
+                                <span
+                                    v-for="a in shift.assignments"
+                                    :key="a.id"
+                                    class="rounded px-1.5 py-0.5 text-[10px]"
+                                    :class="userHasLeave(a.user_id, day.date)
+                                        ? 'bg-rose-500/25 text-rose-200 ring-1 ring-rose-400/50 line-through'
+                                        : 'bg-slate-950/60 text-slate-200'"
+                                    :title="userHasLeave(a.user_id, day.date) ? 'Verlof aangevraagd of goedgekeurd in deze periode' : ''"
+                                >{{ a.name }}</span>
                             </div>
                             <div v-if="shift.note" class="mt-1 truncate text-[10px] italic text-amber-300/80">{{ shift.note }}</div>
                         </button>
@@ -154,7 +166,75 @@
                 </section>
             </div>
 
-            <p class="text-xs text-slate-500">Klik een blok om personen toe te wijzen of het aan te passen. Een gewenst aantal toont “x van y”.</p>
+            <p class="text-xs text-slate-500">Klik een blok om personen toe te wijzen of het aan te passen. Een gewenst aantal toont “x van y”. <span class="text-rose-300">Een rood doorstreepte naam</span> betekent dat die persoon verlof heeft aangevraagd of gekregen in die periode.</p>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  TAB: Verlof                                                  -->
+        <!-- ============================================================ -->
+        <div v-if="activeTab === 'leave'" class="space-y-4">
+            <div v-if="leaveLoading" class="py-8 text-center text-sm text-slate-400">Laden...</div>
+
+            <div v-else-if="leaveRequests.length === 0" class="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-sm text-slate-400">
+                Nog geen verlofaanvragen.
+            </div>
+
+            <div v-else class="space-y-3">
+                <article
+                    v-for="req in leaveRequests"
+                    :key="req.id"
+                    class="rounded-2xl border bg-slate-900/70 p-4"
+                    :class="req.status === 'pending' && req.conflict_count > 0 ? 'border-rose-500/40' : 'border-slate-800'"
+                >
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="font-semibold text-white">{{ req.staff_name }}</span>
+                                <span
+                                    class="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                    :class="{
+                                        'bg-amber-500/15 text-amber-300': req.status === 'pending',
+                                        'bg-emerald-500/15 text-emerald-300': req.status === 'approved',
+                                        'bg-rose-500/15 text-rose-300': req.status === 'rejected',
+                                        'bg-slate-700/40 text-slate-400': req.status === 'cancelled',
+                                    }"
+                                >{{ req.status_label }}</span>
+                            </div>
+                            <div class="mt-1 text-sm text-slate-300">{{ req.period_label }} <span class="text-slate-500">· {{ req.days }} dag(en)</span></div>
+                            <div v-if="req.reason" class="mt-1 text-sm text-slate-400">“{{ req.reason }}”</div>
+                            <div v-if="req.reviewed_at_label" class="mt-1 text-[11px] text-slate-500">Beoordeeld op {{ req.reviewed_at_label }}</div>
+                        </div>
+
+                        <div v-if="req.status === 'pending'" class="flex shrink-0 gap-2">
+                            <button
+                                type="button"
+                                :disabled="leaveBusyId === req.id"
+                                class="rounded-xl bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+                                @click="reviewLeave(req, 'approve')"
+                            >Goedkeuren</button>
+                            <button
+                                type="button"
+                                :disabled="leaveBusyId === req.id"
+                                class="rounded-xl border border-slate-700 px-3.5 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-800 disabled:opacity-50"
+                                @click="reviewLeave(req, 'reject')"
+                            >Afwijzen</button>
+                        </div>
+                    </div>
+
+                    <!-- Visuele conflictmelding: valt samen met ingeplande shiften -->
+                    <div v-if="req.conflict_count > 0" class="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3.5 py-3">
+                        <div class="flex items-center gap-2 text-sm font-semibold text-rose-200">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+                            Valt samen met {{ req.conflict_count }} ingeplande shift(en)
+                        </div>
+                        <ul class="mt-2 space-y-1">
+                            <li v-for="c in req.conflicts" :key="c.id" class="text-[13px] text-rose-100/90">
+                                {{ c.date_label }} · {{ c.time_label }}<span v-if="c.role_name"> · {{ c.role_name }}</span>
+                            </li>
+                        </ul>
+                    </div>
+                </article>
+            </div>
         </div>
 
         <!-- Modals -->
@@ -185,6 +265,7 @@ import {
     addAssignment, createRole, createShift, createSlot,
     deleteRole, deleteShift, deleteSlot, fetchRosterBase, fetchSlots, fetchWeek,
     generateWeek, removeAssignment, resetWeek, updateRole, updateShift, updateSlot,
+    fetchLeaveRequests, approveLeave, rejectLeave,
 } from '../services/rosterApi'
 
 // ─── Constanten ─────────────────────────────────────────────────────────────
@@ -201,6 +282,7 @@ const tabs = [
     { key: 'roles',    label: 'Rollen' },
     { key: 'template', label: 'Algemeen rooster' },
     { key: 'week',     label: 'Weekplanning' },
+    { key: 'leave',    label: 'Verlof' },
 ]
 const SEASON_LABELS = { regular: 'Normale weken', school_vac: 'Schoolvakanties', summer: 'Zomervakantie' }
 
@@ -234,6 +316,7 @@ const activeWeekday  = ref(null)
 const weekStart   = ref(mondayOf(new Date()))
 const weekDays    = ref([])
 const weekShifts  = ref([])
+const weekLeaves  = ref([])
 const weekLoading = ref(false)
 const weekBusy    = ref(false)
 const shiftModalOpen = ref(false)
@@ -242,6 +325,12 @@ const shiftError     = ref('')
 const assignmentBusy = ref(false)
 const activeShift    = ref(null)
 const activeShiftDate= ref(null)
+
+// Verlof
+const leaveRequests   = ref([])
+const leaveLoading    = ref(false)
+const leaveBusyId     = ref(null)
+const leavePendingCount = ref(0)
 
 // ─── Datum-helpers ──────────────────────────────────────────────────────────
 function toISO(d) {
@@ -293,6 +382,11 @@ function seasonRange(key) {
 const rolesById = computed(() => Object.fromEntries(roles.value.map(r => [r.id, r])))
 function roleColor(id) { return rolesById.value[id]?.color || '#64748b' }
 function roleName(id) { return rolesById.value[id]?.name || 'Geen rol' }
+
+// ─── Medewerker-helpers ─────────────────────────────────────────────────────
+const staffById = computed(() => Object.fromEntries(staff.value.map(s => [s.id, s])))
+function staffName(id) { return staffById.value[id]?.name || ('#' + id) }
+function defaultUserNames(ids) { return (ids || []).map(staffName).join(', ') }
 
 // ─── Rollen ─────────────────────────────────────────────────────────────────
 function openNewRole() { activeRole.value = null; roleError.value = ''; roleModalOpen.value = true }
@@ -400,8 +494,15 @@ function applyWeek(res) {
     weekStart.value = res.week_start
     weekDays.value  = res.days || []
     weekShifts.value = res.shifts || []
+    weekLeaves.value = res.leaves || []
     if (res.roles) roles.value = res.roles
     if (res.staff) staff.value = res.staff
+}
+
+// Heeft deze persoon (aangevraagd/goedgekeurd) verlof op deze dag?
+function userHasLeave(userId, date) {
+    return weekLeaves.value.some(l =>
+        l.user_id === userId && date >= l.start_date && date <= l.end_date)
 }
 
 async function loadWeek() {
@@ -511,6 +612,41 @@ async function handleRemoveAssignment(assignmentId) {
     }
 }
 
+// ─── Verlof ─────────────────────────────────────────────────────────────────
+async function loadLeave() {
+    leaveLoading.value = true; error.value = ''
+    try {
+        const res = await fetchLeaveRequests()
+        leaveRequests.value = res.data || []
+        leavePendingCount.value = res.pending_count || 0
+    } catch (err) {
+        error.value = err?.data?.message || 'Kon verlofaanvragen niet laden.'
+    } finally {
+        leaveLoading.value = false
+    }
+}
+
+async function reviewLeave(req, action) {
+    if (action === 'approve' && req.conflict_count > 0) {
+        if (!confirm(`Let op: deze periode valt samen met ${req.conflict_count} ingeplande shift(en) van ${req.staff_name}. Toch goedkeuren?`)) return
+    }
+    leaveBusyId.value = req.id; error.value = ''; success.value = ''
+    try {
+        const fn = action === 'approve' ? approveLeave : rejectLeave
+        const res = await fn(req.id)
+        leaveRequests.value = leaveRequests.value.map(r => (r.id === res.data.id ? res.data : r))
+        leavePendingCount.value = leaveRequests.value.filter(r => r.status === 'pending').length
+        success.value = action === 'approve' ? 'Verlof goedgekeurd.' : 'Verlof afgewezen.'
+        setTimeout(() => (success.value = ''), 3000)
+        // Het planningsbord toont verlofmarkeringen → herlaad indien geladen.
+        if (weekDays.value.length) loadWeek()
+    } catch (err) {
+        error.value = err?.data?.message || 'Bijwerken mislukt.'
+    } finally {
+        leaveBusyId.value = null
+    }
+}
+
 // ─── Init ───────────────────────────────────────────────────────────────────
 async function loadBase() {
     loading.value = true; error.value = ''
@@ -529,7 +665,12 @@ async function loadBase() {
 watch(activeTab, (tab) => {
     if (tab === 'template' && slots.value.length === 0) loadSlots()
     if (tab === 'week' && weekDays.value.length === 0) loadWeek()
+    if (tab === 'leave') loadLeave()
 })
 
-onMounted(loadBase)
+onMounted(async () => {
+    await loadBase()
+    // Laad het verlof-aantal zodat de tab-badge meteen klopt.
+    loadLeave()
+})
 </script>

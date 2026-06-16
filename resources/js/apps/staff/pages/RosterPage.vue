@@ -1,5 +1,23 @@
 <template>
   <div class="space-y-4 sm:space-y-5">
+    <!-- Subnavigatie: eigen shiften / verlof -->
+    <div class="flex gap-1 rounded-2xl border border-white/10 bg-white/[0.04] p-1">
+      <button
+        type="button"
+        class="flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition"
+        :class="view === 'shifts' ? 'bg-cyan-500/20 text-cyan-100' : 'text-slate-400 hover:text-slate-200'"
+        @click="view = 'shifts'"
+      >Mijn shiften</button>
+      <button
+        type="button"
+        class="flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition"
+        :class="view === 'leave' ? 'bg-cyan-500/20 text-cyan-100' : 'text-slate-400 hover:text-slate-200'"
+        @click="view = 'leave'"
+      >Verlof</button>
+    </div>
+
+    <!-- ===================== MIJN SHIFTEN ===================== -->
+    <div v-if="view === 'shifts'" class="space-y-4 sm:space-y-5">
     <!-- Weeknavigatie + weektotaal -->
     <section class="rounded-[28px] border border-white/8 bg-slate-950/55 p-5 shadow-[0_18px_45px_rgba(2,6,23,0.28)] backdrop-blur-xl sm:p-6">
       <div class="flex items-center justify-between gap-3">
@@ -122,11 +140,111 @@
         <p class="mt-1 text-xs text-slate-500">Zodra de planning klaar is, verschijnen je shiften hier.</p>
       </div>
     </template>
+    </div>
+
+    <!-- ===================== VERLOF ===================== -->
+    <div v-else class="space-y-4 sm:space-y-5">
+      <!-- Aanvraagformulier -->
+      <section class="rounded-[28px] border border-white/8 bg-slate-950/55 p-5 shadow-[0_18px_45px_rgba(2,6,23,0.28)] backdrop-blur-xl sm:p-6">
+        <h2 class="text-sm font-semibold text-white">Verlof aanvragen</h2>
+        <div class="mt-4 grid grid-cols-2 gap-3">
+          <label class="block">
+            <span class="text-xs font-medium text-slate-400">Van</span>
+            <input
+              v-model="form.start_date"
+              type="date"
+              class="mt-1 w-full rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-500"
+            />
+          </label>
+          <label class="block">
+            <span class="text-xs font-medium text-slate-400">Tot en met</span>
+            <input
+              v-model="form.end_date"
+              type="date"
+              :min="form.start_date || undefined"
+              class="mt-1 w-full rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-500"
+            />
+          </label>
+        </div>
+        <label class="mt-3 block">
+          <span class="text-xs font-medium text-slate-400">Reden (optioneel)</span>
+          <textarea
+            v-model="form.reason"
+            rows="2"
+            class="mt-1 w-full rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-500"
+            placeholder="bv. familiaal, vakantie…"
+          ></textarea>
+        </label>
+
+        <p v-if="leave.error" class="mt-3 rounded-xl border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">{{ leave.error }}</p>
+        <p v-if="formMessage" class="mt-3 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">{{ formMessage }}</p>
+
+        <button
+          type="button"
+          :disabled="!canSubmit || leave.saving"
+          class="mt-4 w-full rounded-2xl border border-cyan-400/30 bg-cyan-500/90 px-4 py-3 text-sm font-semibold text-white transition hover:bg-cyan-400 disabled:opacity-50"
+          @click="submit"
+        >
+          {{ leave.saving ? 'Versturen…' : 'Verlof aanvragen' }}
+        </button>
+      </section>
+
+      <!-- Eigen aanvragen -->
+      <section class="rounded-[28px] border border-white/8 bg-slate-950/55 p-5 shadow-[0_18px_45px_rgba(2,6,23,0.28)] backdrop-blur-xl sm:p-6">
+        <h2 class="text-sm font-semibold text-white">Mijn aanvragen</h2>
+
+        <div v-if="leave.loading && !leave.requests.length" class="mt-4 text-sm text-slate-400">Laden…</div>
+
+        <div v-else-if="!leave.requests.length" class="mt-4 rounded-[24px] border border-dashed border-white/10 bg-white/[0.03] px-4 py-8 text-center text-sm text-slate-400">
+          Nog geen verlofaanvragen.
+        </div>
+
+        <div v-else class="mt-4 space-y-3">
+          <article
+            v-for="req in leave.requests"
+            :key="req.id"
+            class="rounded-[24px] border border-white/8 bg-white/[0.04] px-4 py-3.5"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="font-semibold text-white">{{ req.period_label }}</div>
+                <div class="mt-0.5 text-xs text-slate-400">{{ req.days }} dag(en)</div>
+                <div v-if="req.reason" class="mt-1 text-sm text-slate-300">“{{ req.reason }}”</div>
+              </div>
+              <span
+                class="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                :class="{
+                  'border border-amber-400/25 bg-amber-500/10 text-amber-200': req.status === 'pending',
+                  'border border-emerald-400/25 bg-emerald-500/10 text-emerald-200': req.status === 'approved',
+                  'border border-rose-400/25 bg-rose-500/10 text-rose-200': req.status === 'rejected',
+                  'border border-white/10 bg-white/[0.05] text-slate-400': req.status === 'cancelled',
+                }"
+              >{{ req.status_label }}</span>
+            </div>
+
+            <p v-if="req.status === 'pending' && req.conflict_count > 0" class="mt-2 text-xs text-amber-300/90">
+              Let op: valt samen met {{ req.conflict_count }} ingeplande shift(en).
+            </p>
+            <p v-if="req.review_note" class="mt-2 text-sm text-slate-400">Opmerking: {{ req.review_note }}</p>
+
+            <button
+              v-if="req.can_cancel"
+              type="button"
+              :disabled="leave.cancellingId === req.id"
+              class="mt-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-50"
+              @click="leave.cancelLeave(req.id)"
+            >
+              Intrekken
+            </button>
+          </article>
+        </div>
+      </section>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import {
   CalendarDaysIcon,
   ChevronLeftIcon,
@@ -135,8 +253,35 @@ import {
   UsersIcon,
 } from '@heroicons/vue/24/outline'
 import { useStaffRosterStore } from '../stores/rosterStore'
+import { useStaffLeaveStore } from '../stores/leaveStore'
 
 const store = useStaffRosterStore()
+const leave = useStaffLeaveStore()
+
+const view = ref('shifts')
+const form = ref({ start_date: '', end_date: '', reason: '' })
+const formMessage = ref('')
+let leaveLoaded = false
+
+const canSubmit = computed(() =>
+  !!form.value.start_date && !!form.value.end_date && form.value.end_date >= form.value.start_date)
+
+async function submit() {
+  formMessage.value = ''
+  const ok = await leave.submitLeave({ ...form.value })
+  if (ok) {
+    formMessage.value = 'Aanvraag verstuurd.'
+    form.value = { start_date: '', end_date: '', reason: '' }
+    setTimeout(() => (formMessage.value = ''), 3000)
+  }
+}
+
+watch(view, (v) => {
+  if (v === 'leave' && !leaveLoaded) {
+    leaveLoaded = true
+    leave.fetchLeave()
+  }
+})
 
 onMounted(() => {
   store.fetchRoster()
