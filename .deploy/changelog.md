@@ -569,3 +569,58 @@ even aftoetsen na deploy.
 
 
 ---
+
+## V020 - 2026-06-16 15:23 _(deployed op DAVID-PC)_
+
+# PlayDrive V020 — Uren-overzicht per medewerker (algemeen + weekplanning)
+
+Twee nieuwe overzichtjes in de backoffice-roostermodule die tonen hoeveel uren
+elke medewerker moet werken:
+
+- **Algemeen rooster** — onder het slot-rooster verschijnt "Uren per medewerker
+  · per week volgens dit rooster": de som van de slot-uren waar elke persoon als
+  vaste invuller staat, opgeteld over de hele week voor het gekozen seizoen.
+- **Weekplanning** — onder het weekbord verschijnt "Uren per medewerker ·
+  ingepland deze week": de som van de uren van alle shiften waarin de persoon in
+  die concrete week is toegewezen.
+
+Beide tonen ook een weektotaal en sorteren aflopend op uren. Volledig berekend
+uit de data die de bestaande endpoints al teruggeven — **geen backend- of
+DB-wijziging**.
+
+## Wijzigingen
+
+### Aangepast — frontend
+- `resources/js/apps/backoffice/modules/rosters/pages/RostersPage.vue` —
+  uren-helpers (`durationMinutes`, `hoursLabel`) + `templateHours` /
+  `weekHours`-computeds, en een overzichtssectie in beide tabs.
+
+## Migrations
+
+Geen.
+
+## Seeders
+
+Geen.
+
+## Handmatige stappen
+
+1. Pak de zip uit in de projectroot.
+2. Frontend herbouwen:
+   ```
+   npm run build
+   ```
+3. Backoffice → Uurroosters → "Algemeen rooster" en "Weekplanning": het
+   uren-overzicht staat onderaan elke tab.
+
+## Opmerking
+
+Dit bouwt voort op V019 (verlof). Zorg dat V019 gedeployed is voor je V020
+toepast, anders ontbreekt de rest van de gewijzigde `RostersPage.vue`.
+
+Overnacht-shiften (eindtijd vóór begintijd) worden correct doorgeteld. De uren
+in de weekplanning tellen iedereen die is toegewezen, ook wie verlof heeft —
+de verlofmarkering blijft apart zichtbaar op het bord.
+
+
+---

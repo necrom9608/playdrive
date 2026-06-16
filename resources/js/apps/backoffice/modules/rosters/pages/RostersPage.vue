@@ -101,6 +101,21 @@
                     </button>
                 </section>
             </div>
+
+            <!-- Overzicht: uren per medewerker (per week, volgens vaste invullers) -->
+            <section v-if="!slotsLoading" class="rounded-3xl border border-slate-800 bg-slate-900/80 p-5">
+                <div class="mb-3 flex items-center justify-between">
+                    <h2 class="text-base font-semibold text-white">Uren per medewerker <span class="text-sm font-normal text-slate-500">· per week volgens dit rooster</span></h2>
+                    <span class="text-xs text-slate-400">Totaal {{ hoursLabel(templateHoursTotal) }}</span>
+                </div>
+                <div v-if="templateHours.length" class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    <div v-for="row in templateHours" :key="row.id" class="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+                        <span class="truncate text-sm text-slate-200">{{ row.name }}</span>
+                        <span class="text-sm font-semibold text-white">{{ hoursLabel(row.minutes) }}</span>
+                    </div>
+                </div>
+                <p v-else class="text-xs text-slate-500">Nog geen vaste invullers ingesteld in dit seizoen — voeg standaard-invullers toe aan de slots.</p>
+            </section>
         </div>
 
         <!-- ============================================================ -->
@@ -165,6 +180,21 @@
                     </div>
                 </section>
             </div>
+
+            <!-- Overzicht: ingeplande uren per medewerker (deze week) -->
+            <section v-if="!weekLoading" class="rounded-3xl border border-slate-800 bg-slate-900/80 p-5">
+                <div class="mb-3 flex items-center justify-between">
+                    <h2 class="text-base font-semibold text-white">Uren per medewerker <span class="text-sm font-normal text-slate-500">· ingepland deze week</span></h2>
+                    <span class="text-xs text-slate-400">Totaal {{ hoursLabel(weekHoursTotal) }}</span>
+                </div>
+                <div v-if="weekHours.length" class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                    <div v-for="row in weekHours" :key="row.id" class="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+                        <span class="truncate text-sm text-slate-200">{{ row.name }}</span>
+                        <span class="text-sm font-semibold text-white">{{ hoursLabel(row.minutes) }}</span>
+                    </div>
+                </div>
+                <p v-else class="text-xs text-slate-500">Nog niemand ingepland deze week.</p>
+            </section>
 
             <p class="text-xs text-slate-500">Klik een blok om personen toe te wijzen of het aan te passen. Een gewenst aantal toont “x van y”. <span class="text-rose-300">Een rood doorstreepte naam</span> betekent dat die persoon verlof heeft aangevraagd of gekregen in die periode.</p>
         </div>
@@ -504,6 +534,55 @@ function userHasLeave(userId, date) {
     return weekLeaves.value.some(l =>
         l.user_id === userId && date >= l.start_date && date <= l.end_date)
 }
+
+// ─── Uren-overzicht per medewerker ──────────────────────────────────────────
+function parseHM(t) {
+    if (!t) return 0
+    const [h, m] = String(t).split(':')
+    return (parseInt(h, 10) || 0) * 60 + (parseInt(m, 10) || 0)
+}
+function durationMinutes(start, end) {
+    let s = parseHM(start), e = parseHM(end)
+    if (e < s) e += 1440 // overnacht
+    return Math.max(0, e - s)
+}
+function hoursLabel(min) {
+    const h = Math.floor(min / 60), m = min % 60
+    if (h && m) return `${h}u${String(m).padStart(2, '0')}`
+    if (h) return `${h}u`
+    return `${m}m`
+}
+
+// Algemeen rooster: uren per week per medewerker volgens de vaste invullers.
+const templateHours = computed(() => {
+    const map = new Map()
+    for (const slot of slots.value) {
+        const mins = durationMinutes(slot.starts_at, slot.ends_at)
+        for (const uid of (slot.default_user_ids || [])) {
+            map.set(uid, (map.get(uid) || 0) + mins)
+        }
+    }
+    return [...map.entries()]
+        .map(([id, minutes]) => ({ id, name: staffName(id), minutes }))
+        .sort((a, b) => b.minutes - a.minutes)
+})
+const templateHoursTotal = computed(() => templateHours.value.reduce((s, x) => s + x.minutes, 0))
+
+// Weekplanning: ingeplande uren per medewerker voor de getoonde week.
+const weekHours = computed(() => {
+    const map = new Map()
+    for (const shift of weekShifts.value) {
+        const mins = durationMinutes(shift.starts_at, shift.ends_at)
+        for (const a of (shift.assignments || [])) {
+            const cur = map.get(a.user_id)
+            map.set(a.user_id, { name: a.name, minutes: (cur?.minutes || 0) + mins })
+        }
+    }
+    return [...map.entries()]
+        .map(([id, v]) => ({ id, name: v.name, minutes: v.minutes }))
+        .sort((a, b) => b.minutes - a.minutes)
+})
+const weekHoursTotal = computed(() => weekHours.value.reduce((s, x) => s + x.minutes, 0))
 
 async function loadWeek() {
     weekLoading.value = true; error.value = ''

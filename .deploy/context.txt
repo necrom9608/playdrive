@@ -4,8 +4,8 @@
 
 ## Project
 Naam:          playdrive
-Patch versie:  V019
-Volgende zip:  V020
+Patch versie:  V020
+Volgende zip:  V021
 App versie:    LOCAL (semver in .env)
 
 ## Stack
@@ -35,94 +35,9 @@ Nummer is zero-padded 3 cijfers, loopt op per project.
   ## Seeders
   ## Handmatige stappen
 - Behoud de volledige relatieve padstructuur in de zip
-- Volgende zip: V020
+- Volgende zip: V021
 
 ## Recente updates
-## V015 - 2026-06-15 13:01 _(deployed op DAVID-PC)_
-
-# PlayDrive V015 — Deploy-automation + context-structuur (port van Taxinet)
-
-Brengt PlayDrive op exact dezelfde update-werkwijze als Taxinet: een
-zelfonderhoudend deploy-systeem dat patch-zips detecteert, deployt, en de
-versie, changelog en context-prompt automatisch bijwerkt.
-
-Dit is een **infrastructuur-entry zonder applicatie-gedrag-verandering** —
-er wordt geen feature-code aangeraakt. Vanaf hier krijgt elke PlayDrive-patch
-een oplopend versienummer en een changelog-entry, aangeleverd als
-`playdrive-update-V###.zip` met enkel de gewijzigde bestanden.
-
-## Wat dit toevoegt
-
-### `.deploy/` (metadata, gecommit in git)
-- `version` — de waarheid voor de huidige patch-versie (nu `V015`).
-- `changelog.md` — dit bestand; elke deploy voegt onderaan een entry toe.
-- `context.txt` — plak-klare prompt voor een nieuwe Claude-sessie; wordt na
-  elke deploy automatisch geregenereerd uit de laatste changelog-entries.
-- `overview.md` — vast projectoverzicht dat in `context.txt` geïnjecteerd
-  wordt, zodat de projectbeschrijving elke regeneratie overleeft.
-- `README.md` — uitleg bij de map.
-
-### `scripts/deploy/` (de automation, gecommit in git)
-- `watcher.ps1` — file-watcher; draait via `npm run deploy:watch`. Kijkt naar
-  `deploy/incoming/` én je Downloads-folder en triggert de deploy.
-- `deploy.ps1` — de 9-staps deployer (git pull, uitpakken, backup, kopiëren,
-  migrations/seeders, build, changelog/context/versie bijwerken, git commit).
-  Rollt terug bij fouten.
-- `git-helpers.ps1` — git-, `.env`- en `.deploy/`-helpers.
-- `README.md` — handleiding.
-
-### Aangepaste projectbestanden
-- `package.json` — `deploy:watch` en `deploy:run` npm-scripts toegevoegd.
-- `.gitignore` — de lokale `deploy/` werk-map (zips, backups, logs)
-  uitgesloten; de scripts zelf staan in `scripts/deploy/` en zijn wél gecommit.
-- `.env.example` — `APP_VERSION=0.1.0` gedocumenteerd (toont in context.txt).
-
-## Verschil met de Taxinet-port (bewuste toevoeging)
-
-De context-generator leest nu een optionele `.deploy/overview.md` en injecteert
-die als projectoverzicht. Zonder dat bestand is het gedrag identiek aan
-Taxinet. Dit voorkomt dat het PlayDrive-overzicht bij de eerste auto-deploy
-overschreven zou worden.
-
-## Afbakening
-
-- De teller start op **V015** (verdergaand op PlayDrive's bestaande,
-  niet-genummerde werk: booking-form, member-app, reservatieflow,
-  backoffice-configurator). Volgende zip wordt V016.
-
-## Wijzigingen
-- `.deploy/version` (nieuw)
-- `.deploy/changelog.md` (nieuw)
-- `.deploy/context.txt` (nieuw)
-- `.deploy/overview.md` (nieuw)
-- `.deploy/README.md` (nieuw)
-- `scripts/deploy/watcher.ps1` (nieuw)
-- `scripts/deploy/deploy.ps1` (nieuw)
-- `scripts/deploy/git-helpers.ps1` (nieuw)
-- `scripts/deploy/README.md` (nieuw)
-- `package.json` (deploy-scripts toegevoegd)
-- `.gitignore` (`/deploy/` uitgesloten)
-- `.env.example` (`APP_VERSION` gedocumenteerd)
-
-## Migrations
-Geen.
-
-## Seeders
-Geen.
-
-## Handmatige stappen
-1. Pak de zip uit in de projectroot.
-2. (Optioneel) zet `APP_VERSION=0.1.0` in je `.env` zodat de app-versie in
-   `context.txt` verschijnt i.p.v. "onbekend".
-3. Start de watcher: in PhpStorm de npm-tab → `deploy:watch`, of in terminal
-   `npm run deploy:watch`. Vanaf nu deployt elke `playdrive-update-V###.zip`
-   in Downloads of `deploy/incoming/` zichzelf.
-
-
-
----
-
-
 ## V016 - 2026-06-15 13:18 _(deployed op DAVID-PC)_
 
 # PlayDrive V016 — Uurroosters (algemeen weekrooster + wekelijkse shiften)
@@ -526,6 +441,62 @@ Geen.
 PHP/Composer en npm draaien hier niet, dus de migratie, de conflictdetectie
 tegen je echte roster-data en de frontend-build kon ik niet uitvoeren — graag
 even aftoetsen na deploy.
+
+
+---
+
+
+## V020 - 2026-06-16 15:23 _(deployed op DAVID-PC)_
+
+# PlayDrive V020 — Uren-overzicht per medewerker (algemeen + weekplanning)
+
+Twee nieuwe overzichtjes in de backoffice-roostermodule die tonen hoeveel uren
+elke medewerker moet werken:
+
+- **Algemeen rooster** — onder het slot-rooster verschijnt "Uren per medewerker
+  · per week volgens dit rooster": de som van de slot-uren waar elke persoon als
+  vaste invuller staat, opgeteld over de hele week voor het gekozen seizoen.
+- **Weekplanning** — onder het weekbord verschijnt "Uren per medewerker ·
+  ingepland deze week": de som van de uren van alle shiften waarin de persoon in
+  die concrete week is toegewezen.
+
+Beide tonen ook een weektotaal en sorteren aflopend op uren. Volledig berekend
+uit de data die de bestaande endpoints al teruggeven — **geen backend- of
+DB-wijziging**.
+
+## Wijzigingen
+
+### Aangepast — frontend
+- `resources/js/apps/backoffice/modules/rosters/pages/RostersPage.vue` —
+  uren-helpers (`durationMinutes`, `hoursLabel`) + `templateHours` /
+  `weekHours`-computeds, en een overzichtssectie in beide tabs.
+
+## Migrations
+
+Geen.
+
+## Seeders
+
+Geen.
+
+## Handmatige stappen
+
+1. Pak de zip uit in de projectroot.
+2. Frontend herbouwen:
+   ```
+   npm run build
+   ```
+3. Backoffice → Uurroosters → "Algemeen rooster" en "Weekplanning": het
+   uren-overzicht staat onderaan elke tab.
+
+## Opmerking
+
+Dit bouwt voort op V019 (verlof). Zorg dat V019 gedeployed is voor je V020
+toepast, anders ontbreekt de rest van de gewijzigde `RostersPage.vue`.
+
+Overnacht-shiften (eindtijd vóór begintijd) worden correct doorgeteld. De uren
+in de weekplanning tellen iedereen die is toegewezen, ook wie verlof heeft —
+de verlofmarkering blijft apart zichtbaar op het bord.
 
 
 ---
