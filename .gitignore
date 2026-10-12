@@ -33,6 +33,10 @@ desktop/src-tauri/target/
 desktop/.vite/
 desktop/*.log
 
-# Deploy runtime folder (zips, backups, logs - lokaal per machine)
-# De scripts zelf staan in scripts/deploy/ en zijn wel gecommit.
-/deploy/
+# Deploy runtime (zips, backups, logs - lokaal per machine)
+# De scripts in deploy/ (deploy.bat, deploy.ps1, deploy-playdrive.sh) en scripts/deploy/ zijn wel gecommit.
+/deploy/incoming/
+/deploy/deployed/
+/deploy/failed/
+/deploy/backups/
+/deploy/*.log

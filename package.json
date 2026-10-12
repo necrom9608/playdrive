@@ -10,7 +10,8 @@
         "cap:android": "npx cap open android",
         "cap:ios": "npx cap open ios",
         "deploy:watch": "powershell -ExecutionPolicy Bypass -NoProfile -File scripts/deploy/watcher.ps1",
-        "deploy:run": "powershell -ExecutionPolicy Bypass -NoProfile -File scripts/deploy/deploy.ps1"
+        "deploy:run": "powershell -ExecutionPolicy Bypass -NoProfile -File scripts/deploy/deploy.ps1",
+        "deploy:server": "deploy\\deploy.bat"
     },
     "devDependencies": {
         "@capacitor/cli": "^8.3.1",
