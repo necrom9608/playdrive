@@ -28,6 +28,15 @@ class PublicSubmissionController extends Controller
 
         $data = $this->validateReservationPayload($request, $tenant->id);
 
+        // Externe formulieren (WordPress / Fluent Forms) sturen codes i.p.v. id's.
+        // Een expliciet id heeft voorrang; anders wordt de code per tenant opgezocht.
+        $data['event_type_id'] = $data['event_type_id']
+            ?? $this->resolveIdByCode(EventType::class, $tenant->id, $data['event_type_code'] ?? null);
+        $data['stay_option_id'] = $data['stay_option_id']
+            ?? $this->resolveIdByCode(StayOption::class, $tenant->id, $data['stay_option_code'] ?? null);
+        $data['catering_option_id'] = $data['catering_option_id']
+            ?? $this->resolveIdByCode(CateringOption::class, $tenant->id, $data['catering_option_code'] ?? null);
+
         $registration = Registration::query()->create([
             'tenant_id' => $tenant->id,
             'name' => $data['name'],
@@ -120,6 +129,9 @@ class PublicSubmissionController extends Controller
                 'integer',
                 Rule::exists('event_types', 'id')->where(fn ($query) => $query->where('tenant_id', $tenantId)),
             ],
+            'event_type_code' => ['nullable', 'string', 'max:100'],
+            'stay_option_code' => ['nullable', 'string', 'max:100'],
+            'catering_option_code' => ['nullable', 'string', 'max:100'],
             'event_date' => ['nullable', 'date'],
             'event_time' => ['nullable', 'date_format:H:i'],
             'stay_option_id' => [
@@ -270,6 +282,28 @@ class PublicSubmissionController extends Controller
             'expires_at' => optional($voucher->expires_at)->format('Y-m-d'),
             'created_at' => optional($voucher->created_at)->toIso8601String(),
         ];
+    }
+
+    /**
+     * Zoekt het id van een tenant-optie (event type, verblijfsduur, catering) op basis van de code.
+     * Onbekende of lege codes geven null terug (bv. catering "none").
+     *
+     * @param class-string<\Illuminate\Database\Eloquent\Model> $modelClass
+     */
+    protected function resolveIdByCode(string $modelClass, int $tenantId, ?string $code): ?int
+    {
+        $code = trim((string) $code);
+
+        if ($code === '') {
+            return null;
+        }
+
+        $id = $modelClass::query()
+            ->where('tenant_id', $tenantId)
+            ->where('code', $code)
+            ->value('id');
+
+        return $id !== null ? (int) $id : null;
     }
 
     protected function nullableValue(mixed $value): mixed

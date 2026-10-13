@@ -97,7 +97,7 @@ status() {
     echo "   (fetch van GitHub lukt nog niet met de huidige origin)"
   fi
   echo "--- migraties"
-  local pend; pend=$(cd "$APP" && php artisan migrate:status 2>/dev/null | grep -ci pending || true)
+  local pend; pend=$(cd "$APP" && php artisan migrate:status 2>/dev/null | grep -cE 'Pending[[:space:]]*$' || true)
   echo "   nog niet uitgevoerd: ${pend:-?}"
   echo "--- schijf"; df -h "$APP" | sed 's/^/   /'
 }
@@ -120,7 +120,7 @@ smoke() {
     fi
   done
   echo "   versie: $(cat "$APP/.deploy/version" 2>/dev/null || echo '?')  |  build: $( [[ -f "$APP/public/build/manifest.json" ]] && echo ok || echo '!! manifest ontbreekt')"
-  local pend; pend=$(cd "$APP" && php artisan migrate:status 2>/dev/null | grep -ci pending || true)
+  local pend; pend=$(cd "$APP" && php artisan migrate:status 2>/dev/null | grep -cE 'Pending[[:space:]]*$' || true)
   [[ "$pend" == 0 ]] && echo "   migraties: alles uitgevoerd" || echo "   !! migraties nog niet uitgevoerd: $pend"
   # na queue:restart starten de workers pas opnieuw als supervisor ze terug opstart
   sleep 5
@@ -185,7 +185,7 @@ deploy() {
   fi
   newmig=$(G -C "$APP" diff --name-only --diff-filter=A "$cur" "$hash" -- database/migrations | wc -l)
   # ook migraties die vroeger al binnenkwamen maar nooit gedraaid zijn
-  local pendnow; pendnow=$(art migrate:status 2>/dev/null | grep -ci pending || true)
+  local pendnow; pendnow=$(art migrate:status 2>/dev/null | grep -cE 'Pending[[:space:]]*$' || true)
   newmig=$(( newmig + ${pendnow:-0} ))
   lockchg=$(G -C "$APP" diff --quiet "$cur" "$hash" -- composer.lock && echo 0 || echo 1)
   echo "nieuwe migraties: $newmig  |  composer.lock gewijzigd: $([[ $lockchg == 1 ]] && echo ja || echo nee)"
