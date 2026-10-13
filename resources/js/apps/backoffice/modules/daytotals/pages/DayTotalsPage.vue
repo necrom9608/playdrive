@@ -9,12 +9,32 @@
                     </p>
                 </div>
 
-                <a
-                    :href="exportUrl"
-                    class="inline-flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/20"
-                >
-                    Export Excel
-                </a>
+                <div class="flex flex-wrap items-center gap-3">
+                    <a
+                        :href="exportUrl"
+                        class="inline-flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/20"
+                    >
+                        Export Excel
+                    </a>
+
+                    <button
+                        type="button"
+                        :disabled="sending"
+                        class="inline-flex items-center gap-2 rounded-2xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-300 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                        @click="sendToAccounting"
+                    >
+                        {{ sending ? 'Versturen...' : 'Verstuur naar boekhouding' }}
+                    </button>
+                </div>
+            </div>
+
+            <div
+                v-if="sendFeedback"
+                class="mb-4 rounded-2xl border px-4 py-3 text-sm"
+                :class="sendFeedback.type === 'error' ? 'border-rose-500/30 bg-rose-500/10 text-rose-200' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'"
+            >
+                {{ sendFeedback.text }}
+                <router-link v-if="sendFeedback.type === 'error'" to="/accounting" class="ml-1 underline">Instellingen boekhouding</router-link>
             </div>
 
             <div class="grid gap-4 md:grid-cols-6">
@@ -164,6 +184,31 @@
             <div class="rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl">
                 <p class="text-sm text-slate-400">Totaal incl. btw</p>
                 <p class="mt-2 text-2xl font-semibold text-white">{{ formatCurrency(totals.total_incl_vat) }}</p>
+            </div>
+        </div>
+
+        <div
+            v-if="payments.methods.length"
+            class="rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl"
+        >
+            <p class="mb-3 text-sm font-medium text-slate-300">Ontvangen per betaalwijze</p>
+            <div class="flex flex-wrap gap-3">
+                <div
+                    v-for="method in payments.methods"
+                    :key="method.key"
+                    class="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3"
+                >
+                    <p class="text-xs text-slate-400">{{ method.label }}</p>
+                    <p class="text-lg font-semibold text-white">{{ formatCurrency(payments.totals.methods[method.key]) }}</p>
+                </div>
+                <div class="rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3">
+                    <p class="text-xs text-slate-400">Totaal ontvangen</p>
+                    <p class="text-lg font-semibold text-white">{{ formatCurrency(payments.totals.total) }}</p>
+                </div>
+                <div v-if="Number(payments.totals.discount) > 0" class="rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+                    <p class="text-xs text-amber-300">Manuele kortingen</p>
+                    <p class="text-lg font-semibold text-amber-200">{{ formatCurrency(payments.totals.discount) }}</p>
+                </div>
             </div>
         </div>
 
@@ -318,11 +363,19 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { fetchDayTotals, getDayTotalsExportUrl } from '../services/dayTotalsApi'
+import { errorMessage, sendAccountingExport } from '../../accounting/services/accountingApi'
 
 const now = new Date()
 
 const rows = ref([])
 const loading = ref(false)
+const sending = ref(false)
+const sendFeedback = ref(null)
+
+const payments = reactive({
+    methods: [],
+    totals: { methods: {}, total: 0, discount: 0, orders: 0 },
+})
 
 const period = reactive({
     start: null,
@@ -447,9 +500,45 @@ async function loadData() {
             21: { excl: 0, vat: 0, incl: 0 },
         }
 
+        payments.methods = data.payments?.methods ?? []
+        payments.totals = data.payments?.totals ?? { methods: {}, total: 0, discount: 0, orders: 0 }
+
         updateVisibleGroupsFromData()
     } finally {
         loading.value = false
+    }
+}
+
+const periodLabel = computed(() => {
+    if (filters.mode === 'quarter') return `Q${filters.quarter} ${filters.year}`
+    if (filters.mode === 'range') return `${formatDate(filters.start)} – ${formatDate(filters.end)}`
+    const month = monthOptions.find(option => option.value === Number(filters.month))
+    return `${month?.label ?? filters.month} ${filters.year}`
+})
+
+async function sendToAccounting() {
+    sendFeedback.value = null
+
+    if (!window.confirm(`Dagtotalen van ${periodLabel.value} nu naar de boekhouding mailen?\n\nDe instellingen van Boekhouding (ontvangers, facturen, kolommen) worden gebruikt.`)) {
+        return
+    }
+
+    sending.value = true
+
+    try {
+        const response = await sendAccountingExport({
+            mode: filters.mode,
+            year: filters.year,
+            month: filters.month,
+            quarter: filters.quarter,
+            start: filters.start,
+            end: filters.end,
+        })
+        sendFeedback.value = { type: 'success', text: response.message }
+    } catch (error) {
+        sendFeedback.value = { type: 'error', text: errorMessage(error, 'Versturen mislukt.') }
+    } finally {
+        sending.value = false
     }
 }
 

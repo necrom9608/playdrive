@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\Backoffice\RosterLeaveController;
 use App\Http\Controllers\Api\Backoffice\RosterRoleController;
 use App\Http\Controllers\Api\Backoffice\AnalyticsController;
 use App\Http\Controllers\Api\Backoffice\DayTotalsController;
+use App\Http\Controllers\Api\Backoffice\AccountingExportController;
 use App\Http\Controllers\Api\Backoffice\VoucherTemplateController;
 use Illuminate\Support\Facades\Route;
 
@@ -67,6 +68,11 @@ Route::prefix('api/backoffice')->group(function () {
         Route::get('/analytics/reporting', [AnalyticsController::class, 'reporting']);
         Route::get('/day-totals', [DayTotalsController::class, 'index']);
         Route::get('/day-totals/export', [DayTotalsController::class, 'export']);
+
+        // Dagtotalen naar de boekhouding
+        Route::get('/accounting', [AccountingExportController::class, 'show']);
+        Route::put('/accounting/settings', [AccountingExportController::class, 'updateSettings']);
+        Route::post('/accounting/send', [AccountingExportController::class, 'send']);
 
         Route::get('/badge-templates', [BadgeTemplateController::class, 'index']);
         Route::post('/badge-templates', [BadgeTemplateController::class, 'store']);

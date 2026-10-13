@@ -15,3 +15,12 @@ Schedule::command('memberships:send-expiry-mails')
     ->dailyAt('08:00')
     ->withoutOverlapping()
     ->runInBackground();
+
+// Dagtotalen automatisch naar de boekhouding (per tenant ingesteld: maand/kwartaal + verzenddag).
+// Testen zonder te verzenden:
+//   php artisan accounting:send-day-totals --dry-run --date=2027-01-05
+Schedule::command('accounting:send-day-totals')
+    ->dailyAt('07:00')
+    ->timezone('Europe/Brussels')
+    ->withoutOverlapping()
+    ->runInBackground();
