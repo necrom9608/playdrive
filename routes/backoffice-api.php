@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\Backoffice\RosterRoleController;
 use App\Http\Controllers\Api\Backoffice\AnalyticsController;
 use App\Http\Controllers\Api\Backoffice\DayTotalsController;
 use App\Http\Controllers\Api\Backoffice\AccountingExportController;
+use App\Http\Controllers\Api\Backoffice\MailAssistantController;
 use App\Http\Controllers\Api\Backoffice\VoucherTemplateController;
 use Illuminate\Support\Facades\Route;
 
@@ -73,6 +74,22 @@ Route::prefix('api/backoffice')->group(function () {
         Route::get('/accounting', [AccountingExportController::class, 'show']);
         Route::put('/accounting/settings', [AccountingExportController::class, 'updateSettings']);
         Route::post('/accounting/send', [AccountingExportController::class, 'send']);
+
+        // Mailassistent
+        Route::get('/mail-assistant', [MailAssistantController::class, 'index']);
+        Route::post('/mail-assistant/check', [MailAssistantController::class, 'check']);
+        Route::get('/mail-assistant/settings', [MailAssistantController::class, 'settings']);
+        Route::put('/mail-assistant/settings', [MailAssistantController::class, 'updateSettings']);
+        Route::post('/mail-assistant/settings/test', [MailAssistantController::class, 'testConnection']);
+        Route::get('/mail-assistant/faqs', [MailAssistantController::class, 'faqs']);
+        Route::post('/mail-assistant/faqs', [MailAssistantController::class, 'storeFaq']);
+        Route::put('/mail-assistant/faqs/{faq}', [MailAssistantController::class, 'updateFaq']);
+        Route::delete('/mail-assistant/faqs/{faq}', [MailAssistantController::class, 'destroyFaq']);
+        Route::get('/mail-assistant/messages/{message}', [MailAssistantController::class, 'show']);
+        Route::put('/mail-assistant/messages/{message}/draft', [MailAssistantController::class, 'updateDraft']);
+        Route::post('/mail-assistant/messages/{message}/send', [MailAssistantController::class, 'send']);
+        Route::post('/mail-assistant/messages/{message}/regenerate', [MailAssistantController::class, 'regenerate']);
+        Route::post('/mail-assistant/messages/{message}/status', [MailAssistantController::class, 'updateStatus']);
 
         Route::get('/badge-templates', [BadgeTemplateController::class, 'index']);
         Route::post('/badge-templates', [BadgeTemplateController::class, 'store']);

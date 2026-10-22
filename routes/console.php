@@ -24,3 +24,10 @@ Schedule::command('accounting:send-day-totals')
     ->timezone('Europe/Brussels')
     ->withoutOverlapping()
     ->runInBackground();
+
+// Mailassistent: nieuwe klantmails ophalen en concept-antwoorden opstellen (enkel tenants waar hij aan staat).
+//   php artisan mail-assistant:fetch --tenant=1 --no-draft
+Schedule::command('mail-assistant:fetch')
+    ->everyTwoMinutes()
+    ->withoutOverlapping(15)
+    ->runInBackground();

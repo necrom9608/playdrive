@@ -16,6 +16,7 @@ import DevicesPage from '../modules/devices/pages/DevicesPage.vue'
 import VoucherTemplatesPage from '../modules/voucher-templates/pages/VoucherTemplatesPage.vue'
 import CardsPage from '../modules/cards/pages/CardsPage.vue'
 import MailLogsPage from '../modules/maillogs/pages/MailLogsPage.vue'
+import MailAssistantPage from '../modules/mail-assistant/pages/MailAssistantPage.vue'
 import OpeningHoursPage from '../modules/opening-hours/pages/OpeningHoursPage.vue'
 import BookingFormConfigPage from '../modules/booking-form/pages/BookingFormConfigPage.vue'
 import EmailTemplatesPage from '../modules/email-templates/pages/EmailTemplatesPage.vue'
@@ -48,6 +49,7 @@ const routes = [
     { path: '/staff-attendance', name: 'backoffice.staff-attendance', component: StaffAttendancePage },
     { path: '/rosters', name: 'backoffice.rosters', component: RostersPage },
     { path: '/devices', name: 'backoffice.devices', component: DevicesPage },
+    { path: '/mail-assistant', name: 'backoffice.mail-assistant', component: MailAssistantPage },
     { path: '/mail-logs', name: 'backoffice.mail-logs', component: MailLogsPage },
     { path: '/opening-hours', name: 'backoffice.opening-hours', component: OpeningHoursPage },
     { path: '/booking-form', name: 'backoffice.booking-form', component: BookingFormConfigPage },

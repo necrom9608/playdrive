@@ -666,3 +666,64 @@ Geen — Playmix Ops: Commit, push & deploy (de server bouwt zelf).
 
 
 ---
+
+## V022 - 2026-10-22 _(uitgerold via Playmix Ops)_
+
+# PlayDrive V022 — Mailassistent V1 (concepten + review)
+
+Nieuwe backoffice-module **Beheer → Mailassistent**: haalt klantmails op uit de
+mailbox van de zaak (IMAP), laat Claude een concept-antwoord opstellen met de
+gegevens uit Playdrive, en verstuurt pas na goedkeuring (SMTP, in dezelfde
+mailthread, kopie in Verzonden). Er wordt in deze versie nooit automatisch
+verstuurd.
+
+## Wijzigingen
+
+### Backend
+- `database/migrations/2026_10_22_100000_create_mail_assistant_tables.php` —
+  `mail_assistant_settings`, `mail_assistant_messages`, `mail_assistant_faqs`.
+- `app/Models/MailAssistantSetting.php`, `MailAssistantMessage.php`, `MailAssistantFaq.php`
+  (wachtwoorden met `encrypted` cast).
+- `app/Domain/MailAssistant/`
+  - `ImapClient.php` — eigen IMAP-client over een socket (geen ext-imap/package):
+    LOGIN, LIST, SELECT, UID SEARCH/FETCH/STORE, APPEND. Mails worden niet als gelezen gemarkeerd.
+  - `MimeMessage.php` — MIME-parser (multipart, base64/QP, charsets, RFC 2047),
+    herkenning van automatische berichten/nieuwsbrieven, geciteerde tekst wegknippen.
+  - `MailboxFetcher.php` — nieuwe mails ophalen (eerste keer: laatste N dagen), bewaren, concept laten opstellen.
+  - `ContextBuilder.php` — openingsuren per dag (uitzondering > vakantie > regulier, 75 dagen),
+    producten + prijzen, event types/verblijfs-/cateringopties, kennisbank, account + lidmaatschap,
+    vouchers waarvan de code in de mail staat, eerdere mails van dezelfde afzender.
+  - `ReplyDrafter.php` — Claude API (JSON: categorie, zekerheid, antwoord, gebruikte bronnen, waarschuwingen).
+  - `ReplySender.php` — versturen via SMTP met In-Reply-To/References, kopie in Verzonden, origineel \Answered.
+  - `MailCategories.php` — vaste categorieën; klacht, annulering en terugbetaling zijn altijd manueel.
+- `app/Console/Commands/MailAssistantFetchCommand.php` — `mail-assistant:fetch` (`--tenant=`, `--no-draft`).
+- `routes/console.php` — elke 2 minuten `mail-assistant:fetch`.
+- `routes/backoffice-api.php` — `/api/backoffice/mail-assistant/...`.
+- `config/services.php` + `.env.example` — `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` (standaard claude-sonnet-4-5).
+
+### Frontend (backoffice)
+- `modules/mail-assistant/` — pagina met tabs Inbox · Instellingen · Kennisbank.
+  Inbox: lijst per status, origineel, bewerkbaar concept, Versturen (met bevestiging),
+  Opnieuw opstellen, Afgehandeld / Naar medewerker / Negeren, gebruikte gegevens,
+  waarschuwingen, voortgang per categorie (x/5 zonder aanpassing), eerdere mails.
+- `router/index.js`, `App.vue` — menu-item "Mailassistent" onder Beheer.
+
+## Migrations
+
+`php artisan migrate` (gebeurt automatisch bij de deploy).
+
+## Seeders
+
+Geen.
+
+## Handmatige stappen
+
+1. Op de server in `/var/www/playdrive/.env`: `ANTHROPIC_API_KEY=...` toevoegen
+   (lokaal ook in je eigen .env om te testen), daarna `php artisan config:cache`.
+2. De scheduler moet draaien (`schedule:run` elke minuut via cron) — dat is al nodig
+   voor de dagtotalen.
+3. Backoffice → Mailassistent → Instellingen: IMAP/SMTP invullen, opslaan,
+   "Test verbinding", assistent aanzetten.
+
+
+---

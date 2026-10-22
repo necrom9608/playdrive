@@ -40,4 +40,10 @@ return [
         'public_api_key' => env('PLAYDRIVE_PUBLIC_API_KEY'),
     ],
 
+    // Mailassistent (concept-antwoorden op klantmails)
+    'anthropic' => [
+        'key' => env('ANTHROPIC_API_KEY'),
+        'model' => env('ANTHROPIC_MODEL', 'claude-sonnet-4-5'),
+    ],
+
 ];
