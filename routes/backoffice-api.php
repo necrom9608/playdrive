@@ -83,6 +83,9 @@ Route::prefix('api/backoffice')->group(function () {
         Route::post('/mail-assistant/settings/test', [MailAssistantController::class, 'testConnection']);
         Route::get('/mail-assistant/faqs', [MailAssistantController::class, 'faqs']);
         Route::post('/mail-assistant/faqs', [MailAssistantController::class, 'storeFaq']);
+        Route::post('/mail-assistant/faqs/bulk', [MailAssistantController::class, 'storeFaqsBulk']);
+        Route::post('/mail-assistant/faqs/website/pages', [MailAssistantController::class, 'websitePages']);
+        Route::post('/mail-assistant/faqs/website/extract', [MailAssistantController::class, 'websiteExtract']);
         Route::put('/mail-assistant/faqs/{faq}', [MailAssistantController::class, 'updateFaq']);
         Route::delete('/mail-assistant/faqs/{faq}', [MailAssistantController::class, 'destroyFaq']);
         Route::get('/mail-assistant/messages/{message}', [MailAssistantController::class, 'show']);

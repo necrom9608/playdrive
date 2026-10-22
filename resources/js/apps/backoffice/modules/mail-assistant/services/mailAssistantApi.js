@@ -54,7 +54,22 @@ export async function testConnection() {
 
 export async function fetchFaqs() {
     const { data } = await axios.get(`${base}/faqs`)
+    return data
+}
+
+export async function findWebsitePages(url) {
+    const { data } = await axios.post(`${base}/faqs/website/pages`, { url })
     return data.data
+}
+
+export async function extractFromWebsite(urls, knownQuestions = []) {
+    const { data } = await axios.post(`${base}/faqs/website/extract`, { urls, known_questions: knownQuestions }, { timeout: 180000 })
+    return data.data
+}
+
+export async function createFaqsBulk(items) {
+    const { data } = await axios.post(`${base}/faqs/bulk`, { items })
+    return data
 }
 
 export async function createFaq(payload) {

@@ -727,3 +727,50 @@ Geen.
 
 
 ---
+
+## V023 - 2026-10-23 _(uitgerold via Playmix Ops)_
+
+# PlayDrive V023 — Mailassistent: "Test verbinding" bewaart eerst
+
+- `modules/mail-assistant/components/MailSettingsTab.vue` — de knop heet nu
+  "Opslaan & test verbinding" en slaat de instellingen eerst op; voordien testte
+  hij de laatst opgeslagen waarden, waardoor een nieuw ingevulde mailbox als
+  "nog niet ingesteld" werd gemeld.
+
+## Migrations
+
+Geen.
+
+## Handmatige stappen
+
+Geen.
+
+
+---
+
+## V024 - 2026-10-23 _(uitgerold via Playmix Ops)_
+
+# PlayDrive V024 — Mailassistent: kennisbank importeren uit de website
+
+- `app/Domain/MailAssistant/WebsiteImporter.php` — pagina's zoeken via de sitemap
+  (WordPress `wp-sitemap.xml`, `sitemap_index.xml`, `sitemap.xml`, anders links op de homepage),
+  tekst uit `<main>/<article>` zonder menu/header/footer, en Claude laten voorstellen welke
+  vraag/antwoord-paren erin passen. Openingsuren, prijzen en tijdelijke meldingen worden bewust
+  overgeslagen (die komen live uit Playdrive). Enkel publieke http(s)-adressen, max. 3 redirects.
+- `MailAssistantController` — `POST faqs/website/pages`, `POST faqs/website/extract` (max. 6 pagina's
+  per aanroep), `POST faqs/bulk`; `GET faqs` geeft ook de website van de tenant terug.
+- `routes/backoffice-api.php` — de drie nieuwe routes.
+- `MailKnowledgeTab.vue` + `mailAssistantApi.js` — blok "Importeren uit website": adres (standaard
+  de website van de tenant) → pagina's aanvinken → voorstellen per 4 pagina's met voortgang →
+  voorstellen aanpassen/aanvinken → in één keer toevoegen.
+
+## Migrations
+
+Geen.
+
+## Handmatige stappen
+
+Geen.
+
+
+---

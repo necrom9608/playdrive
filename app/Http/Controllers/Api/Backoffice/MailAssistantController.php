@@ -6,6 +6,7 @@ use App\Domain\MailAssistant\MailboxFetcher;
 use App\Domain\MailAssistant\MailCategories;
 use App\Domain\MailAssistant\ReplyDrafter;
 use App\Domain\MailAssistant\ReplySender;
+use App\Domain\MailAssistant\WebsiteImporter;
 use App\Http\Controllers\Controller;
 use App\Models\MailAssistantFaq;
 use App\Models\MailAssistantMessage;
@@ -324,7 +325,10 @@ class MailAssistantController extends Controller
     {
         abort_unless($currentTenant->exists(), 422, 'Geen tenant gevonden.');
 
-        return response()->json(['data' => $this->faqList($currentTenant->id())]);
+        return response()->json([
+            'data' => $this->faqList($currentTenant->id()),
+            'website_url' => $currentTenant->tenant->website_url,
+        ]);
     }
 
     public function storeFaq(Request $request, CurrentTenant $currentTenant): JsonResponse
@@ -354,6 +358,81 @@ class MailAssistantController extends Controller
         $faq->delete();
 
         return response()->json(['message' => 'Verwijderd.', 'data' => $this->faqList($currentTenant->id())]);
+    }
+
+    /** Stap 1 van "Importeren uit website": pagina's zoeken. */
+    public function websitePages(Request $request, CurrentTenant $currentTenant, WebsiteImporter $importer): JsonResponse
+    {
+        abort_unless($currentTenant->exists(), 422, 'Geen tenant gevonden.');
+        $data = $request->validate(['url' => ['required', 'string', 'max:500']]);
+
+        try {
+            $pages = $importer->pages($data['url']);
+        } catch (Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $pages]);
+    }
+
+    /** Stap 2: een paar pagina's lezen en vraag/antwoord-voorstellen maken (niets wordt nog bewaard). */
+    public function websiteExtract(Request $request, CurrentTenant $currentTenant, WebsiteImporter $importer): JsonResponse
+    {
+        abort_unless($currentTenant->exists(), 422, 'Geen tenant gevonden.');
+        @set_time_limit(180);
+
+        $data = $request->validate([
+            'urls' => ['required', 'array', 'min:1', 'max:6'],
+            'urls.*' => ['string', 'max:500'],
+            'known_questions' => ['nullable', 'array', 'max:300'],
+            'known_questions.*' => ['string', 'max:500'],
+        ]);
+
+        $existing = MailAssistantFaq::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->pluck('question')
+            ->all();
+
+        try {
+            $items = $importer->extract(
+                $data['urls'],
+                $currentTenant->tenant->display_name,
+                array_merge($existing, $data['known_questions'] ?? [])
+            );
+        } catch (Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $items]);
+    }
+
+    /** Stap 3: geselecteerde voorstellen in één keer toevoegen. */
+    public function storeFaqsBulk(Request $request, CurrentTenant $currentTenant): JsonResponse
+    {
+        abort_unless($currentTenant->exists(), 422, 'Geen tenant gevonden.');
+
+        $data = $request->validate([
+            'items' => ['required', 'array', 'min:1', 'max:200'],
+            'items.*.question' => ['required', 'string', 'max:500'],
+            'items.*.answer' => ['required', 'string', 'max:4000'],
+        ]);
+
+        $order = (int) MailAssistantFaq::query()->where('tenant_id', $currentTenant->id())->max('sort_order');
+
+        foreach ($data['items'] as $item) {
+            MailAssistantFaq::query()->create([
+                'tenant_id' => $currentTenant->id(),
+                'question' => $item['question'],
+                'answer' => $item['answer'],
+                'is_active' => true,
+                'sort_order' => ++$order,
+            ]);
+        }
+
+        return response()->json([
+            'message' => count($data['items']) . ' vraag/antwoord(en) toegevoegd.',
+            'data' => $this->faqList($currentTenant->id()),
+        ], 201);
     }
 
     // ------------------------------------------------------------------
@@ -515,6 +594,7 @@ class MailAssistantController extends Controller
             'last_error' => $s->last_error,
             'last_error_at' => $s->last_error_at?->toIso8601String(),
             'api_configured' => filled(config('services.anthropic.key')),
+            'website_url' => \App\Models\Tenant::find($tenantId)?->website_url,
             'categories' => $this->categoryOverview($tenantId, (int) ($s->auto_suggest_after ?: 5)),
         ];
     }

@@ -102,9 +102,8 @@
                         :disabled="testing"
                         @click="test"
                     >
-                        {{ testing ? 'Testen…' : 'Test verbinding' }}
+                        {{ testing ? 'Testen…' : 'Opslaan & test verbinding' }}
                     </button>
-                    <span class="text-xs text-slate-400">test de opgeslagen instellingen</span>
                 </div>
                 <div v-if="testResult" class="space-y-1.5 text-sm">
                     <p :class="testResult.imap.ok ? 'text-emerald-300' : 'text-rose-300'">IMAP: {{ testResult.imap.message }}</p>
@@ -348,6 +347,14 @@ async function save() {
 async function test() {
     testing.value = true
     testResult.value = null
+
+    // Eerst opslaan: de test gebruikt wat op de server staat
+    await save()
+    if (error.value) {
+        testing.value = false
+        return
+    }
+
     try {
         testResult.value = await testConnection()
     } catch (e) {
