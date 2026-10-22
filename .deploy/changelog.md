@@ -624,3 +624,45 @@ de verlofmarkering blijft apart zichtbaar op het bord.
 
 
 ---
+
+## V021 - 2026-10-22 _(uitgerold via Playmix Ops)_
+
+# PlayDrive V021 — Backoffice in frontdesk-stijl
+
+Eerste versie die via Playmix Ops ("Commit, push & deploy") uitgerold wordt.
+(De wijzigingen van 12–13 oktober — deploy naar Hetzner, publieke inzendingen,
+dagtotalen naar de boekhouding — zijn nog als V020 gecommit.)
+
+## Wijzigingen
+
+- `resources/js/apps/backoffice/components/BackofficeLoginCard.vue` — inlogscherm
+  identiek aan de frontdesk (achtergrond, kaart, velden, knop, animaties),
+  met "Backoffice · tenant"; respecteert prefers-reduced-motion.
+- `resources/js/shared/layouts/AppShell.vue` — header met verloop + logo +
+  label, zoekveld voor modules (Enter opent de eerste match), zijbalk met
+  iconen en frontdesk-knopstijl (inklapbaar op kleine schermen), statusbalk
+  onderaan zoals de frontdesk (klok, versie, tenant, gebruiker, Uitloggen).
+  Nieuwe optionele props: `logoUrl`, `tenantLabel`, `searchable`; per
+  menu-item optioneel `icon` en `badge`. Admin en portal krijgen dezelfde
+  look zonder aanpassing.
+- `resources/js/apps/backoffice/App.vue` — heroicons per menu-item, logo,
+  tenantnaam, zoekveld aan.
+- `vite.config.js` — `VITE_APP_VERSION` valt terug op `PATCH_VERSION` uit .env,
+  zodat de statusbalk (frontdesk + backoffice) de echte versie toont
+  i.p.v. "v?". Het deployscript zet PATCH_VERSION vóór de build gelijk met
+  `.deploy/version`.
+
+## Migrations
+
+Geen.
+
+## Seeders
+
+Geen.
+
+## Handmatige stappen
+
+Geen — Playmix Ops: Commit, push & deploy (de server bouwt zelf).
+
+
+---
