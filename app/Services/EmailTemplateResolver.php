@@ -101,190 +101,140 @@ class EmailTemplateResolver
             'reservation-confirmation-customer',
             'reservation-notification-tenant',
             'reservation-pending-customer',
-            'reservation-pending-customer' => [
-                'subject'   => 'Aanvraag ontvangen – {{tenant_name}}',
-                'variables' => [
-                    'name', 'event_date', 'event_time', 'event_type',
-                    'stay_option', 'participants_total', 'tenant_name',
-                    'tenant_phone', 'tenant_email', 'access_url',
-                ],
-                'body'      => <<<'HTML'
-<p>Hallo {{name}},</p>
-
-<p>We hebben je aanvraag voor een reservatie buiten onze normale openingsuren goed ontvangen. We bekijken dit zo snel mogelijk en nemen contact met je op ter bevestiging.</p>
-
-<table style="width:100%;border-collapse:collapse;font-size:14px;margin:16px 0;">
-  <tr><td style="padding:6px 0;color:#64748b;width:40%;">Datum</td><td style="padding:6px 0;font-weight:600;">{{event_date}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Startuur</td><td style="padding:6px 0;font-weight:600;">{{event_time}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Type event</td><td style="padding:6px 0;">{{event_type}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Formule</td><td style="padding:6px 0;">{{stay_option}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Aantal personen</td><td style="padding:6px 0;">{{participants_total}}</td></tr>
-</table>
-
-<p>Heb je vragen? Contacteer ons via <a href="mailto:{{tenant_email}}">{{tenant_email}}</a> of {{tenant_phone}}.</p>
-
-<p style="margin-top:24px;">
-  <a href="{{access_url}}" style="display:inline-block;background:#f59e0b;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Bekijk je aanvraag</a>
-</p>
-
-<p>Met vriendelijke groet,<br>{{tenant_name}}</p>
-HTML,
-            ],
-
             'reservation-updated-customer',
             'reservation-cancelled-customer',
         ];
     }
 
+    /** Placeholders die in elke reservatiemail beschikbaar zijn (voor de editor). */
+    public const VARIABLES = [
+        'first_name', 'name', 'email', 'phone',
+        'event_date', 'event_date_long', 'event_time', 'event_time_end', 'event_period',
+        'event_type', 'stay_option', 'catering_option',
+        'participants_summary', 'participants_total', 'participants_children', 'participants_adults', 'participants_supervisors',
+        'comment', 'access_url', 'calendar_url', 'maps_url',
+        'tenant_name', 'tenant_email', 'tenant_phone', 'tenant_address', 'tenant_website',
+        'when_block', 'details_block', 'buttons_block', 'request_buttons_block', 'venue_block',
+        'customer_block', 'invoice_block', 'comment_block', 'outside_hours_block', 'cancellation_note',
+    ];
+
     // -------------------------------------------------------------------------
     // Platform defaults
     // -------------------------------------------------------------------------
+    //
+    // V2 (okt 2026): rijkere mails met kant-en-klare blokken (zie
+    // ReservationMailVars): datumvak, details, knoppen (reservatie, agenda,
+    // route), adres en contact van de zaak.
 
     public static function platformDefaults(): array
     {
+        $groet = '<p style="margin:26px 0 0;">Tot dan!<br><strong>{{tenant_name}}</strong></p>';
+
         return [
             'reservation-confirmation-customer' => [
-                'subject'   => 'Reservatie bevestigd – {{tenant_name}}',
-                'variables' => [
-                    'name', 'event_date', 'event_time', 'event_type',
-                    'stay_option', 'catering_option', 'participants_total',
-                    'tenant_name', 'tenant_phone', 'tenant_email', 'access_url',
-                ],
-                'body'      => <<<'HTML'
-<p>Hallo {{name}},</p>
+                'subject'   => 'Je reservatie bij {{tenant_name}} – {{event_date_long}}',
+                'variables' => self::VARIABLES,
+                'body'      => <<<HTML
+<p style="font-size:17px;font-weight:700;color:#0f172a;margin:0 0 6px;">Hallo {{first_name}},</p>
+<p>Leuk dat jullie komen! We hebben je reservatie goed ontvangen. Hieronder vind je alles op een rij.</p>
 
-<p>We hebben je reservatie goed ontvangen! Hieronder vind je een samenvatting.</p>
+{{when_block}}
 
-<table style="width:100%;border-collapse:collapse;font-size:14px;margin:16px 0;">
-  <tr><td style="padding:6px 0;color:#64748b;width:40%;">Datum</td><td style="padding:6px 0;font-weight:600;">{{event_date}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Startuur</td><td style="padding:6px 0;font-weight:600;">{{event_time}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Type event</td><td style="padding:6px 0;">{{event_type}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Formule</td><td style="padding:6px 0;">{{stay_option}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Catering</td><td style="padding:6px 0;">{{catering_option}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Aantal personen</td><td style="padding:6px 0;">{{participants_total}}</td></tr>
-</table>
+{{details_block}}
 
-<p>Heb je vragen? Contacteer ons via <a href="mailto:{{tenant_email}}">{{tenant_email}}</a> of {{tenant_phone}}.</p>
+{{comment_block}}
 
-<p style="margin-top:24px;">
-  <a href="{{access_url}}" style="display:inline-block;background:#3b82f6;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Bekijk je reservatie</a>
-</p>
+{{buttons_block}}
 
-<p style="font-size:12px;color:#94a3b8;margin-top:8px;">Via bovenstaande knop kan je je reservatie altijd raadplegen. Je hebt geen account nodig.</p>
+<p style="font-size:13px;color:#64748b;margin:4px 0 0;">{{cancellation_note}} De afspraak zit ook als bijlage bij deze mail, zodat je ze met één klik in je agenda zet.</p>
 
-<p>Met vriendelijke groet,<br>{{tenant_name}}</p>
+{{venue_block}}
+
+<p>Vragen of iets doorgeven? Antwoord gewoon op deze mail of bel ons op {{tenant_phone}}.</p>
+{$groet}
 HTML,
             ],
 
             'reservation-notification-tenant' => [
-                'subject'   => 'Nieuwe reservatie – {{name}} op {{event_date}}',
-                'variables' => [
-                    'name', 'email', 'phone', 'event_date', 'event_time',
-                    'event_type', 'stay_option', 'catering_option',
-                    'participants_total', 'participants_children',
-                    'participants_adults', 'participants_supervisors',
-                    'comment', 'outside_opening_hours', 'tenant_name',
-                ],
+                'subject'   => 'Nieuwe reservatie: {{event_type}} op {{event_date_long}} ({{participants_total}} pers.) – {{name}}',
+                'variables' => self::VARIABLES,
                 'body'      => <<<'HTML'
-<p>Er is een nieuwe reservatie binnengekomen.</p>
-
-<table style="width:100%;border-collapse:collapse;font-size:14px;margin:16px 0;">
-  <tr><td style="padding:6px 0;color:#64748b;width:40%;">Naam</td><td style="padding:6px 0;font-weight:600;">{{name}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">E-mail</td><td style="padding:6px 0;">{{email}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Telefoon</td><td style="padding:6px 0;">{{phone}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Datum</td><td style="padding:6px 0;font-weight:600;">{{event_date}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Startuur</td><td style="padding:6px 0;font-weight:600;">{{event_time}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Type event</td><td style="padding:6px 0;">{{event_type}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Formule</td><td style="padding:6px 0;">{{stay_option}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Catering</td><td style="padding:6px 0;">{{catering_option}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Kinderen</td><td style="padding:6px 0;">{{participants_children}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Volwassenen</td><td style="padding:6px 0;">{{participants_adults}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Begeleiders</td><td style="padding:6px 0;">{{participants_supervisors}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Totaal</td><td style="padding:6px 0;">{{participants_total}}</td></tr>
-</table>
-
-{{comment_block}}
+<p style="font-size:17px;font-weight:700;color:#0f172a;margin:0 0 6px;">Nieuwe reservatie</p>
+<p>Er kwam net een reservatie binnen via de website.</p>
 
 {{outside_hours_block}}
 
-<p style="font-size:12px;color:#94a3b8;">Beheer deze reservatie via de PlayDrive backoffice.</p>
+{{when_block}}
+
+<p style="margin:20px 0 0;font-weight:700;color:#0f172a;">Klant</p>
+{{customer_block}}
+
+<p style="margin:20px 0 0;font-weight:700;color:#0f172a;">Reservatie</p>
+{{details_block}}
+
+{{comment_block}}
+
+{{invoice_block}}
+
+<p style="font-size:12px;color:#94a3b8;margin-top:24px;">Beheer deze reservatie in PlayDrive (Reservaties).</p>
 HTML,
             ],
 
             'reservation-pending-customer' => [
-                'subject'   => 'Aanvraag ontvangen – {{tenant_name}}',
-                'variables' => [
-                    'name', 'event_date', 'event_time', 'event_type',
-                    'stay_option', 'participants_total', 'tenant_name',
-                    'tenant_phone', 'tenant_email', 'access_url',
-                ],
-                'body'      => <<<'HTML'
-<p>Hallo {{name}},</p>
+                'subject'   => 'We bekijken je aanvraag – {{tenant_name}}',
+                'variables' => self::VARIABLES,
+                'body'      => <<<HTML
+<p style="font-size:17px;font-weight:700;color:#0f172a;margin:0 0 6px;">Hallo {{first_name}},</p>
+<p>Bedankt voor je aanvraag! Je koos een moment buiten onze gewone openingsuren, dus we bekijken eerst of het lukt. Je hoort zo snel mogelijk van ons.</p>
 
-<p>We hebben je aanvraag voor een reservatie buiten onze normale openingsuren goed ontvangen. We bekijken dit zo snel mogelijk en nemen contact met je op ter bevestiging.</p>
+{{when_block}}
 
-<table style="width:100%;border-collapse:collapse;font-size:14px;margin:16px 0;">
-  <tr><td style="padding:6px 0;color:#64748b;width:40%;">Datum</td><td style="padding:6px 0;font-weight:600;">{{event_date}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Startuur</td><td style="padding:6px 0;font-weight:600;">{{event_time}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Type event</td><td style="padding:6px 0;">{{event_type}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Formule</td><td style="padding:6px 0;">{{stay_option}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Aantal personen</td><td style="padding:6px 0;">{{participants_total}}</td></tr>
-</table>
+{{details_block}}
 
-<p>Heb je vragen? Contacteer ons via <a href="mailto:{{tenant_email}}">{{tenant_email}}</a> of {{tenant_phone}}.</p>
+{{comment_block}}
 
-<p style="margin-top:24px;">
-  <a href="{{access_url}}" style="display:inline-block;background:#f59e0b;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Bekijk je aanvraag</a>
-</p>
+{{request_buttons_block}}
 
-<p>Met vriendelijke groet,<br>{{tenant_name}}</p>
+{{venue_block}}
+
+<p>Vragen? Antwoord gewoon op deze mail of bel ons op {{tenant_phone}}.</p>
+<p style="margin:26px 0 0;">Met vriendelijke groet,<br><strong>{{tenant_name}}</strong></p>
 HTML,
             ],
 
             'reservation-updated-customer' => [
-                'subject'   => 'Reservatie gewijzigd – {{tenant_name}}',
-                'variables' => [
-                    'name', 'event_date', 'event_time', 'event_type',
-                    'stay_option', 'participants_total', 'tenant_name',
-                    'tenant_phone', 'tenant_email', 'access_url',
-                ],
-                'body'      => <<<'HTML'
-<p>Hallo {{name}},</p>
+                'subject'   => 'Je reservatie is aangepast – {{event_date_long}}',
+                'variables' => self::VARIABLES,
+                'body'      => <<<HTML
+<p style="font-size:17px;font-weight:700;color:#0f172a;margin:0 0 6px;">Hallo {{first_name}},</p>
+<p>Je wijziging is goed doorgekomen. Dit zijn de nieuwe gegevens van je reservatie.</p>
 
-<p>Je reservatie werd succesvol aangepast. Hieronder vind je de bijgewerkte gegevens.</p>
+{{when_block}}
 
-<table style="width:100%;border-collapse:collapse;font-size:14px;margin:16px 0;">
-  <tr><td style="padding:6px 0;color:#64748b;width:40%;">Datum</td><td style="padding:6px 0;font-weight:600;">{{event_date}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Startuur</td><td style="padding:6px 0;font-weight:600;">{{event_time}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Type event</td><td style="padding:6px 0;">{{event_type}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Formule</td><td style="padding:6px 0;">{{stay_option}}</td></tr>
-  <tr><td style="padding:6px 0;color:#64748b;">Aantal personen</td><td style="padding:6px 0;">{{participants_total}}</td></tr>
-</table>
+{{details_block}}
 
-<p>Heb je vragen? Contacteer ons via <a href="mailto:{{tenant_email}}">{{tenant_email}}</a> of {{tenant_phone}}.</p>
+{{comment_block}}
 
-<p style="margin-top:24px;">
-  <a href="{{access_url}}" style="display:inline-block;background:#3b82f6;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Bekijk je reservatie</a>
-</p>
+{{buttons_block}}
 
-<p>Met vriendelijke groet,<br>{{tenant_name}}</p>
+<p style="font-size:13px;color:#64748b;margin:4px 0 0;">{{cancellation_note}}</p>
+
+{{venue_block}}
+{$groet}
 HTML,
             ],
 
             'reservation-cancelled-customer' => [
-                'subject'   => 'Reservatie geannuleerd – {{tenant_name}}',
-                'variables' => [
-                    'name', 'event_date', 'event_time', 'event_type',
-                    'tenant_name', 'tenant_phone', 'tenant_email',
-                ],
+                'subject'   => 'Je reservatie is geannuleerd – {{tenant_name}}',
+                'variables' => self::VARIABLES,
                 'body'      => <<<'HTML'
-<p>Hallo {{name}},</p>
+<p style="font-size:17px;font-weight:700;color:#0f172a;margin:0 0 6px;">Hallo {{first_name}},</p>
+<p>Je reservatie voor <strong>{{event_type}}</strong> op <strong>{{event_date_long}}</strong> om <strong>{{event_time}}</strong> is geannuleerd.</p>
+<p>Jammer dat het niet lukt. Wil je een nieuwe datum kiezen, of was dit een vergissing? Laat het ons gerust weten, we helpen je graag verder.</p>
 
-<p>Je reservatie op <strong>{{event_date}} om {{event_time}}</strong> ({{event_type}}) werd geannuleerd.</p>
+{{venue_block}}
 
-<p>Heb je vragen of wil je een nieuwe reservatie maken? Neem gerust contact op via <a href="mailto:{{tenant_email}}">{{tenant_email}}</a> of {{tenant_phone}}.</p>
-
-<p>Met vriendelijke groet,<br>{{tenant_name}}</p>
+<p style="margin:26px 0 0;">Met vriendelijke groet,<br><strong>{{tenant_name}}</strong></p>
 HTML,
             ],
         ];

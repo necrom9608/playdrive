@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\TemplateMail;
 use App\Services\EmailTemplateResolver;
+use App\Services\ReservationMailVars;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -72,6 +74,18 @@ class EmailTemplateController extends Controller
                 ['key' => 'reservation-notification-tenant', 'label' => 'Reservatie notificatie (intern)', 'description' => 'Platformstandaard voor de notificatiemail die naar de uitbater gaat bij elke nieuwe reservatie. Tenants kunnen dit verder aanpassen in hun eigen backoffice.'],
                 EmailTemplateResolver::platformDefaults()['reservation-notification-tenant']
             ),
+            array_merge(
+                ['key' => 'reservation-pending-customer', 'label' => 'Reservatie buiten openingsuren (klant)', 'description' => 'Platformstandaard voor de mail bij een aanvraag buiten de openingsuren.'],
+                EmailTemplateResolver::platformDefaults()['reservation-pending-customer']
+            ),
+            array_merge(
+                ['key' => 'reservation-updated-customer', 'label' => 'Reservatie aangepast (klant)', 'description' => 'Platformstandaard voor de mail na een aanpassing door de klant.'],
+                EmailTemplateResolver::platformDefaults()['reservation-updated-customer']
+            ),
+            array_merge(
+                ['key' => 'reservation-cancelled-customer', 'label' => 'Reservatie geannuleerd (klant)', 'description' => 'Platformstandaard voor de mail na een annulering door de klant.'],
+                EmailTemplateResolver::platformDefaults()['reservation-cancelled-customer']
+            ),
         ];
     }
 
@@ -136,6 +150,23 @@ class EmailTemplateController extends Controller
 
         $subject = $data['subject'] ?? $current['subject'];
         $body    = $data['body']    ?? $current['body'];
+
+        // Reservatiemails: voorbeeldwaarden en dezelfde layout als de echte mail
+        if (str_starts_with($key, 'reservation-')) {
+            $voorbeeld = (object) [
+                'display_name' => 'Game-INN', 'email' => 'info@voorbeeld.be', 'phone' => '0472 / 600 780',
+                'full_address' => 'Vijfseweg 92, 8790 Waregem', 'website_url' => 'https://www.voorbeeld.be',
+                'logo_url' => null, 'tagline' => null,
+            ];
+            $rendered = EmailTemplateResolver::render(['subject' => $subject, 'body' => $body], ReservationMailVars::sample($voorbeeld));
+
+            return response()->json(['html' => view('emails.template-mail', [
+                'mailSubject' => $rendered['subject'],
+                'bodyHtml'    => $rendered['body'],
+                'tenantName'  => $voorbeeld->display_name,
+                'brand'       => TemplateMail::brandFor($voorbeeld),
+            ])->render()]);
+        }
 
         // Replace variable placeholders with sample values for the preview
         $sampleValues = [

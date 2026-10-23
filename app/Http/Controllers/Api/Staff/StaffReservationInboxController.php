@@ -71,11 +71,12 @@ class StaffReservationInboxController extends Controller
         if ($wasPending) {
             try {
                 $tenant = $currentTenant->tenant;
+                // Klant krijgt nu de gewone bevestiging; de zaak kreeg de melding al bij de aanvraag
                 ReservationMailService::sendAfterSubmission($registration->fresh([
                     'eventType:id,name,emoji',
                     'stayOption:id,name',
                     'cateringOption:id,name',
-                ]), $tenant);
+                ]), $tenant, notifyTenant: false);
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::error('Bevestigingsmail (staff confirm pending) mislukt', [
                     'registration_id' => $registration->id,

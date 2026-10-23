@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api\Backoffice;
 
 use App\Http\Controllers\Controller;
+use App\Mail\TemplateMail;
 use App\Models\TenantEmailTemplate;
 use App\Services\EmailTemplateResolver;
+use App\Services\ReservationMailVars;
 use App\Support\CurrentTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,7 +43,7 @@ class EmailTemplateController extends Controller
                 'key'           => $key,
                 'label'         => $this->labelFor($key),
                 'description'   => $this->descriptionFor($key),
-                'variables'     => $default['variables'] ?? [],
+                'variables'     => $default['variables'] ?? EmailTemplateResolver::VARIABLES,
                 'subject'       => $effective['subject'],
                 'body'          => $effective['body'],
                 'is_customized' => $tenantOverride !== null,
@@ -102,34 +104,19 @@ class EmailTemplateController extends Controller
         $subject   = $data['subject'] ?? $effective['subject'];
         $body      = $data['body']    ?? $effective['body'];
 
-        // Injecteren met voorbeeldwaarden
-        $sampleVars = [
-            'name'                    => 'Jan Peeters',
-            'email'                   => 'jan@voorbeeld.be',
-            'phone'                   => '+32 478 12 34 56',
-            'event_date'              => date('d/m/Y', strtotime('+14 days')),
-            'event_time'              => '14:00',
-            'event_type'              => 'Verjaardagsfeest 🎂',
-            'stay_option'             => '2 uur',
-            'catering_option'         => 'Warme maaltijd',
-            'participants_children'   => '8',
-            'participants_adults'     => '4',
-            'participants_supervisors'=> '2',
-            'participants_total'      => '14',
-            'tenant_name'             => $currentTenant->tenant->display_name,
-            'tenant_email'            => $currentTenant->tenant->email ?? 'info@voorbeeld.be',
-            'tenant_phone'            => $currentTenant->tenant->phone ?? '+32 9 123 45 67',
-            'access_url'              => url('/reservatie/voorbeeld-token-abc123'),
-            'comment_block'           => '<p><strong>Opmerking van de klant:</strong><br>Graag een taart voorzien voor het kind.</p>',
-            'outside_hours_block'     => '',
-        ];
-
+        // Voorbeeldwaarden en exact dezelfde layout als de echte mail
+        $tenant   = $currentTenant->tenant;
         $rendered = EmailTemplateResolver::render(
             ['subject' => $subject, 'body' => $body],
-            $sampleVars
+            ReservationMailVars::sample($tenant)
         );
 
-        $html = $this->wrapInLayout($rendered['subject'], $rendered['body'], $currentTenant->tenant->display_name);
+        $html = view('emails.template-mail', [
+            'mailSubject' => $rendered['subject'],
+            'bodyHtml'    => $rendered['body'],
+            'tenantName'  => $tenant->display_name,
+            'brand'       => TemplateMail::brandFor($tenant),
+        ])->render();
 
         return response()->json(['html' => $html]);
     }
@@ -140,7 +127,10 @@ class EmailTemplateController extends Controller
     {
         return match ($key) {
             'reservation-confirmation-customer' => 'Bevestigingsmail klant',
-            'reservation-notification-tenant'   => 'Notificatiemail (intern)',
+            'reservation-notification-tenant'   => 'Melding nieuwe reservatie (intern)',
+            'reservation-pending-customer'      => 'Aanvraag buiten de openingsuren (klant)',
+            'reservation-updated-customer'      => 'Reservatie aangepast (klant)',
+            'reservation-cancelled-customer'    => 'Reservatie geannuleerd (klant)',
             default                              => $key,
         };
     }
@@ -148,43 +138,12 @@ class EmailTemplateController extends Controller
     private function descriptionFor(string $key): string
     {
         return match ($key) {
-            'reservation-confirmation-customer' => 'Verstuurd naar de klant nadat hij het reservatieformulier heeft ingevuld. Bevat de reservatiedetails en een persoonlijke link.',
-            'reservation-notification-tenant'   => 'Verstuurd naar jullie eigen e-mailadres bij elke nieuwe reservatie, zodat je direct op de hoogte bent.',
+            'reservation-confirmation-customer' => 'Naar de klant na het reservatieformulier: datum, details, knoppen om de reservatie te bekijken of in de agenda te zetten, en jullie adres. Met een agenda-bijlage (.ics).',
+            'reservation-notification-tenant'   => 'Naar jullie eigen e-mailadres bij elke nieuwe reservatie of aanvraag, met de contactgegevens van de klant, opmerkingen en factuurgegevens.',
+            'reservation-pending-customer'      => 'Naar de klant bij een aanvraag buiten de openingsuren: jullie bekijken ze eerst. Na bevestiging volgt de gewone bevestigingsmail.',
+            'reservation-updated-customer'      => 'Naar de klant wanneer hij zelf zijn reservatie aanpast.',
+            'reservation-cancelled-customer'    => 'Naar de klant wanneer hij zijn reservatie annuleert.',
             default                              => '',
         };
-    }
-
-    private function wrapInLayout(string $subject, string $body, string $tenantName): string
-    {
-        return <<<HTML
-<!DOCTYPE html>
-<html lang="nl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{$subject}</title>
-<style>
-  body { margin: 0; padding: 0; background: #f1f5f9; font-family: ui-sans-serif, system-ui, Arial, sans-serif; color: #0f172a; }
-  .wrapper { padding: 40px 16px; }
-  .card { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
-  .header { background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); padding: 28px 40px; }
-  .header-title { color: #ffffff; font-size: 18px; font-weight: 700; margin: 0; }
-  .body { padding: 32px 40px; font-size: 15px; line-height: 1.7; color: #334155; }
-  .body p { margin: 0 0 14px; }
-  .body a { color: #3b82f6; }
-  .footer { padding: 18px 40px 28px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #f1f5f9; }
-</style>
-</head>
-<body>
-<div class="wrapper">
-  <div class="card">
-    <div class="header"><p class="header-title">{$tenantName}</p></div>
-    <div class="body">{$body}</div>
-    <div class="footer">© {$tenantName} &middot; Voorbeeld e-mail</div>
-  </div>
-</div>
-</body>
-</html>
-HTML;
     }
 }

@@ -75,10 +75,16 @@ class PublicSubmissionController extends Controller
 
         // Bevestigings- en notificatiemail versturen
         // Stuur de juiste mail op basis van de status
-        if ($registration->status === Registration::STATUS_PENDING) {
-            ReservationMailService::sendPendingAcknowledgement($registration, $tenant);
-        } else {
-            ReservationMailService::sendAfterSubmission($registration, $tenant);
+        // Een mailprobleem mag de (al opgeslagen) reservatie niet laten mislukken:
+        // anders krijgt de klant een fout en dient hij opnieuw in (dubbel).
+        try {
+            if ($registration->status === Registration::STATUS_PENDING) {
+                ReservationMailService::sendPendingAcknowledgement($registration, $tenant);
+            } else {
+                ReservationMailService::sendAfterSubmission($registration, $tenant);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Reservatiemail mislukt', ['registration_id' => $registration->id, 'fout' => $e->getMessage()]);
         }
 
         return response()->json([
