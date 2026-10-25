@@ -8,7 +8,7 @@
     $accent = \App\Services\ReservationMailVars::ACCENT;
 @endphp
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -58,7 +58,7 @@
                     @if(! empty($brand['email']))<a href="mailto:{{ $brand['email'] }}" style="color:#94a3b8;">{{ $brand['email'] }}</a>@endif
                 @endif
                 @if(! empty($brand['website']))<br><a href="{{ $brand['website'] }}" style="color:#94a3b8;">{{ preg_replace('#^https?://(www\.)?#', '', rtrim($brand['website'], '/')) }}</a>@endif
-                <br><span style="color:#cbd5e1;">Verzonden via PlayDrive</span>
+                <br><span style="color:#cbd5e1;">{{ __('Verzonden via PlayDrive') }}</span>
             </td></tr>
         </table>
     </td></tr>

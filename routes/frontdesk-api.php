@@ -73,6 +73,7 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::get('/agenda', AgendaController::class);
 
         Route::get('/members', [MemberController::class, 'index']);
+        Route::get('/members/subscriber-lookup', [MemberController::class, 'subscriberLookup']);
         Route::post('/members/attendance/toggle', [MemberController::class, 'toggleAttendance']);
         Route::put('/members/{tenantMembership}', [MemberController::class, 'update']);
         Route::post('/members/{tenantMembership}/renew', [MemberController::class, 'renew']);

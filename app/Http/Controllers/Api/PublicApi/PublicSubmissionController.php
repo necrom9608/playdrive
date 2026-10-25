@@ -42,6 +42,7 @@ class PublicSubmissionController extends Controller
             'name' => $data['name'],
             'phone' => $this->nullableValue($data['phone'] ?? null),
             'email' => $this->nullableValue($data['email'] ?? null),
+            'locale' => $data['locale'] ?? 'nl',
             'postal_code' => $this->nullableValue($data['postal_code'] ?? null),
             'municipality' => $this->nullableValue($data['municipality'] ?? null),
             'event_type_id' => $data['event_type_id'] ?? null,
@@ -128,6 +129,7 @@ class PublicSubmissionController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
+            'locale' => ['nullable', Rule::in(['nl', 'fr', 'en'])],
             'postal_code' => ['nullable', 'string', 'max:10'],
             'municipality' => ['nullable', 'string', 'max:255'],
             'event_type_id' => [

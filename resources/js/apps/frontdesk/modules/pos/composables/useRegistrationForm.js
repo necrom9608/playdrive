@@ -57,6 +57,9 @@ function createDefaultForm() {
         invoice_address: '',
         invoice_postal_code: '',
         invoice_city: '',
+
+        // Abonnees in deze groep (zie RegistrationSubscribersBlock)
+        subscribers: [],
     }
 }
 
@@ -70,7 +73,11 @@ export function useRegistrationForm(initialValues = {}, selectedStayOption = nul
             ...defaults.stats,
             ...(initialValues.stats ?? {}),
         },
+        subscribers: (initialValues.subscribers ?? []).map(subscriber => ({ ...subscriber })),
     })
+
+    const subscribersChildren = computed(() => form.subscribers.filter(s => s.participant_scope === 'children').length)
+    const subscribersAdults = computed(() => form.subscribers.filter(s => s.participant_scope === 'adults').length)
 
     const totalParticipants = computed(() => {
         return Number(form.participants_children || 0)
@@ -124,12 +131,19 @@ export function useRegistrationForm(initialValues = {}, selectedStayOption = nul
                 return
             }
 
+            if (key === 'subscribers') {
+                form.subscribers = (values.subscribers ?? []).map(subscriber => ({ ...subscriber }))
+                return
+            }
+
             form[key] = values[key] ?? fresh[key]
         })
     }
 
     return {
         form,
+        subscribersChildren,
+        subscribersAdults,
         totalParticipants,
         plannedEndTime,
         resetForm,

@@ -18,6 +18,8 @@ class PricingContext
         public readonly ?CarbonInterface $checkedInAt,
         public readonly ?CarbonInterface $checkedOutAt,
         public readonly int $playedMinutes,
+        public readonly int $childrenSubscribers = 0,
+        public readonly int $adultsSubscribers = 0,
     ) {
     }
 
@@ -40,6 +42,8 @@ class PricingContext
             checkedInAt: $checkedInAt,
             checkedOutAt: $effectiveCheckedOutAt,
             playedMinutes: $playedMinutes,
+            childrenSubscribers: $registration->subscriberCountForScope('children'),
+            adultsSubscribers: $registration->subscriberCountForScope('adults'),
         );
     }
 
@@ -62,6 +66,23 @@ class PricingContext
             'children', 'child', 'kids', 'students', 'child_student' => $this->childrenCount,
             'adults', 'adult' => $this->adultsCount,
             'all' => $this->childrenCount + $this->adultsCount,
+            default => 0,
+        };
+    }
+
+    /**
+     * Aantal betalende deelnemers voor speeltijd: deelnemers min abonnees.
+     * Catering gebruikt participantCountForScope (abonnees betalen catering wel).
+     */
+    public function payingCountForScope(?string $scope): int
+    {
+        $children = max(0, $this->childrenCount - $this->childrenSubscribers);
+        $adults   = max(0, $this->adultsCount - $this->adultsSubscribers);
+
+        return match ($scope) {
+            'children', 'child', 'kids', 'students', 'child_student' => $children,
+            'adults', 'adult' => $adults,
+            'all' => $children + $adults,
             default => 0,
         };
     }

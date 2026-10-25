@@ -63,6 +63,11 @@ class StoreRegistrationRequest extends FormRequest
 
             // Backward compat: member_id wordt nog geaccepteerd maar account_id heeft voorkeur
             'member_id'  => ['nullable', 'integer', 'exists:members,id'],
+
+            // Abonnees in deze registratie (tenant_memberships.id).
+            // Ontbreekt de sleutel, dan blijven de bestaande abonnees ongewijzigd.
+            'subscriber_membership_ids'   => ['sometimes', 'array'],
+            'subscriber_membership_ids.*' => ['integer', 'distinct'],
         ];
     }
 
@@ -74,7 +79,15 @@ class StoreRegistrationRequest extends FormRequest
             'participants_children'  => (int) $this->input('participants_children', 0),
             'participants_adults'    => (int) $this->input('participants_adults', 0),
             'participants_supervisors' => (int) $this->input('participants_supervisors', 0),
-            'is_member'              => filter_var($this->input('is_member', false), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
         ]);
+
+        // is_member enkel normaliseren als het effectief meegestuurd wordt.
+        // Vroeger werd een ontbrekende waarde naar false gezet, waardoor het
+        // bewerken van een lidbezoek via het formulier het bezoek betalend maakte.
+        if ($this->has('is_member')) {
+            $this->merge([
+                'is_member' => filter_var($this->input('is_member'), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
+            ]);
+        }
     }
 }

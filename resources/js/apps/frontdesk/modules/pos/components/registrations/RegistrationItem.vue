@@ -36,10 +36,18 @@
                     </span>
 
                     <span
-                        v-if="registration.is_member"
+                        v-if="registration.is_member && (registration.subscriber_count ?? 1) <= 1"
                         class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-300 ring-1 ring-emerald-500/25"
                     >
                         🪪 Lid
+                    </span>
+
+                    <span
+                        v-if="registration.subscriber_count > 0 && !(registration.is_member && registration.subscriber_count === 1)"
+                        class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-300 ring-1 ring-emerald-500/25"
+                        :title="(registration.subscribers ?? []).map(s => s.full_name).join(', ')"
+                    >
+                        🎫 {{ registration.subscriber_count }} abonnee{{ registration.subscriber_count > 1 ? 's' : '' }}
                     </span>
 
                     <span class="inline-flex items-center rounded-full bg-blue-500/15 px-2 py-0.5 font-medium text-blue-300 ring-1 ring-blue-500/25">

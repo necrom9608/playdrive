@@ -35,6 +35,8 @@ class PricingEvaluationResult
                 'children_count' => $this->context->childrenCount,
                 'adults_count' => $this->context->adultsCount,
                 'supervisors_count' => $this->context->supervisorsCount,
+                'children_subscribers' => $this->context->childrenSubscribers,
+                'adults_subscribers' => $this->context->adultsSubscribers,
                 'catering_option_id' => $this->context->cateringOptionId,
                 'checked_in_at' => $this->context->checkedInAt?->toIso8601String(),
                 'checked_out_at' => $this->context->checkedOutAt?->toIso8601String(),

@@ -25,6 +25,7 @@ class Registration extends Model
         'name',
         'phone',
         'email',
+        'locale',
         'postal_code',
         'municipality',
         'event_type_id',
@@ -152,6 +153,11 @@ class Registration extends Model
         return $this->belongsTo(CateringOption::class);
     }
 
+    public function subscribers(): HasMany
+    {
+        return $this->hasMany(RegistrationSubscriber::class);
+    }
+
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class)->latest('id');
@@ -185,6 +191,19 @@ class Registration extends Model
     public function noShowBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'no_show_by');
+    }
+
+    /**
+     * Aantal abonnees in deze registratie voor een deelnemerscategorie
+     * ('children' of 'adults').
+     */
+    public function subscriberCountForScope(string $scope): int
+    {
+        $subscribers = $this->relationLoaded('subscribers')
+            ? $this->subscribers
+            : $this->subscribers()->get();
+
+        return $subscribers->where('participant_scope', $scope)->count();
     }
 
     public function getTotalParticipantsAttribute(): int

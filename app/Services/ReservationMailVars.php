@@ -23,6 +23,10 @@ use Carbon\CarbonInterface;
  *
  * build() werkt op een gewone array en een tenant-object, zodat de preview
  * in de backoffice exact dezelfde opmaak toont als de echte mail.
+ *
+ * Taal: $d['locale'] (nl, fr, en; standaard nl). Vaste teksten en de namen van
+ * soorten, formules en catering gaan door __() met lang/fr.json en
+ * lang/en.json (Nederlandse tekst als sleutel; geen vertaling = Nederlands).
  */
 class ReservationMailVars
 {
@@ -35,7 +39,7 @@ class ReservationMailVars
     // ── Data verzamelen ────────────────────────────────────────────────────
 
     /** @return array{vars: array<string,string>, ics: ?string} */
-    public static function forRegistration(Registration $r, Tenant $tenant, ?string $accessUrl = null): array
+    public static function forRegistration(Registration $r, Tenant $tenant, ?string $accessUrl = null, ?string $locale = null): array
     {
         $r->loadMissing(['eventType:id,name', 'cateringOption:id,name']);
         $stay = $r->stay_option_id
@@ -70,6 +74,7 @@ class ReservationMailVars
             ] : null,
             'access_url'    => $accessUrl,
             'cancel_hours'  => BookingFormConfig::query()->where('tenant_id', $tenant->id)->value('cancellation_hours_before'),
+            'locale'        => self::taal($locale ?? $r->locale),
         ];
 
         return ['vars' => self::build($data, $tenant), 'ics' => self::ics($data, $tenant)];
@@ -102,15 +107,45 @@ class ReservationMailVars
         ], $tenant);
     }
 
+    // ── Taal ───────────────────────────────────────────────────────────────
+
+    public const TALEN = ['nl', 'fr', 'en'];
+
+    public static function taal(?string $locale): string
+    {
+        return in_array($locale, self::TALEN, true) ? $locale : 'nl';
+    }
+
+    /** Vertaling in de taal van de mail die nu opgebouwd wordt. */
+    private static string $taal = 'nl';
+
+    private static function t(?string $tekst, array $vars = []): string
+    {
+        if ($tekst === null || $tekst === '') return (string) $tekst;
+        if (self::$taal === 'nl') {
+            // Nederlands = de tekst zelf (lang/nl.json heeft Engelse sleutels)
+            foreach ($vars as $k => $v) $tekst = str_replace(':' . $k, (string) $v, $tekst);
+
+            return $tekst;
+        }
+
+        return (string) __($tekst, $vars, self::$taal);
+    }
+
     // ── Variabelen en blokken ──────────────────────────────────────────────
 
     /** @return array<string,string> */
     public static function build(array $d, object $t): array
     {
-        $date  = $d['date'] instanceof CarbonInterface ? $d['date']->copy()->locale('nl') : null;
+        self::$taal = self::taal($d['locale'] ?? null);
+        // Namen uit PlayDrive (soort, formule, catering) in de taal van de mail
+        foreach (['event_type', 'stay_option', 'catering'] as $k) {
+            if (filled($d[$k] ?? null)) $d[$k] = self::t($d[$k]);
+        }
+        $date  = $d['date'] instanceof CarbonInterface ? $d['date']->copy()->locale(self::$taal) : null;
         $time  = $d['time'] ?: null;
         $eind  = ($date && $time && $d['duration']) ? Carbon::parse($date->format('Y-m-d') . ' ' . $time)->addMinutes((int) $d['duration'])->format('H:i') : null;
-        $periode = $time ? ($eind ? "{$time} – {$eind}" : "vanaf {$time}") : '—';
+        $periode = $time ? ($eind ? "{$time} – {$eind}" : self::t('vanaf :uur', ['uur' => $time])) : '—';
         $dagLang = $date ? $date->translatedFormat('l j F Y') : '—'; // "zaterdag 24 oktober 2026"
 
         $tenantName = (string) ($t->display_name ?? 'PlayDrive');
@@ -152,20 +187,20 @@ class ReservationMailVars
 
         $vars['when_block']          = self::whenBlock($d, $dagLang, $periode);
         $vars['details_block']       = self::detailsBlock($d);
-        $vars['buttons_block']       = self::buttonsBlock($d['access_url'] ?? null, 'Bekijk of wijzig je reservatie', $agendaUrl, $mapsUrl);
-        $vars['request_buttons_block']  = self::buttonsBlock($d['access_url'] ?? null, 'Bekijk je aanvraag', '', $mapsUrl);
+        $vars['buttons_block']       = self::buttonsBlock($d['access_url'] ?? null, self::t('Bekijk of wijzig je reservatie'), $agendaUrl, $mapsUrl);
+        $vars['request_buttons_block']  = self::buttonsBlock($d['access_url'] ?? null, self::t('Bekijk je aanvraag'), '', $mapsUrl);
         $vars['venue_block']         = self::venueBlock($t, $mapsUrl);
         $vars['customer_block']      = self::customerBlock($d);
         $vars['invoice_block']       = self::invoiceBlock($d['invoice'] ?? null);
         $vars['comment_block']       = filled($d['comment'] ?? null)
-            ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0;"><tr><td style="padding:14px 18px;background:#f8fafc;border-left:3px solid ' . self::ACCENT . ';border-radius:8px;font-size:14px;color:#334155;"><strong style="color:#0f172a;">Opmerking</strong><br>' . nl2br(e((string) $d['comment'])) . '</td></tr></table>'
+            ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0;"><tr><td style="padding:14px 18px;background:#f8fafc;border-left:3px solid ' . self::ACCENT . ';border-radius:8px;font-size:14px;color:#334155;"><strong style="color:#0f172a;">' . e(self::t('Opmerking')) . '</strong><br>' . nl2br(e((string) $d['comment'])) . '</td></tr></table>'
             : '';
         $vars['outside_hours_block'] = ! empty($d['outside_hours'])
-            ? '<p style="color:#92400e;background:#fef3c7;padding:12px 16px;border-radius:8px;font-size:14px;margin:18px 0;"><strong>Buiten de openingsuren</strong> – deze aanvraag valt buiten de normale openingstijden (privéboeking).</p>'
+            ? '<p style="color:#92400e;background:#fef3c7;padding:12px 16px;border-radius:8px;font-size:14px;margin:18px 0;"><strong>' . e(self::t('Buiten de openingsuren')) . '</strong> – ' . e(self::t('deze aanvraag valt buiten de normale openingstijden (privéboeking).')) . '</p>'
             : '';
         $vars['cancellation_note']   = ! empty($d['cancel_hours'])
-            ? 'Wijzigen of annuleren kan zelf, tot ' . (int) $d['cancel_hours'] . ' uur op voorhand, via de knop hierboven. Je hebt geen account nodig.'
-            : 'Via de knop hierboven kan je je reservatie altijd bekijken. Je hebt geen account nodig.';
+            ? self::t('Wijzigen of annuleren kan zelf, tot :uren uur op voorhand, via de knop hierboven. Je hebt geen account nodig.', ['uren' => (int) $d['cancel_hours']])
+            : self::t('Via de knop hierboven kan je je reservatie altijd bekijken. Je hebt geen account nodig.');
 
         return $vars;
     }
@@ -173,16 +208,16 @@ class ReservationMailVars
     private static function deelnemers(array $d): string
     {
         $delen = [];
-        if ($d['children'])    $delen[] = $d['children'] . ' ' . ($d['children'] === 1 ? 'kind' : 'kinderen');
-        if ($d['adults'])      $delen[] = $d['adults'] . ' ' . ($d['adults'] === 1 ? 'volwassene' : 'volwassenen');
-        if ($d['supervisors']) $delen[] = $d['supervisors'] . ' ' . ($d['supervisors'] === 1 ? 'begeleider' : 'begeleiders');
+        if ($d['children'])    $delen[] = $d['children'] . ' ' . self::t($d['children'] === 1 ? 'kind' : 'kinderen');
+        if ($d['adults'])      $delen[] = $d['adults'] . ' ' . self::t($d['adults'] === 1 ? 'volwassene' : 'volwassenen');
+        if ($d['supervisors']) $delen[] = $d['supervisors'] . ' ' . self::t($d['supervisors'] === 1 ? 'begeleider' : 'begeleiders');
 
         return $delen ? implode(' · ', $delen) : '—';
     }
 
     private static function whenBlock(array $d, string $dagLang, string $periode): string
     {
-        $soort = e((string) ($d['event_type'] ?: 'Reservatie'));
+        $soort = e((string) ($d['event_type'] ?: self::t('Reservatie')));
         $extra = filled($d['stay_option'] ?? null) ? ' &middot; ' . e((string) $d['stay_option']) : '';
 
         return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0 8px;border-collapse:separate;">'
@@ -201,10 +236,10 @@ class ReservationMailVars
     private static function detailsBlock(array $d): string
     {
         $rijen = '';
-        if (filled($d['event_type'] ?? null))  $rijen .= self::rij('Wat', e((string) $d['event_type']));
-        if (filled($d['stay_option'] ?? null)) $rijen .= self::rij('Formule', e((string) $d['stay_option']));
-        if (filled($d['catering'] ?? null))    $rijen .= self::rij('Catering', e((string) $d['catering']));
-        $rijen .= self::rij('Deelnemers', e(self::deelnemers($d)));
+        if (filled($d['event_type'] ?? null))  $rijen .= self::rij(self::t('Wat'), e((string) $d['event_type']));
+        if (filled($d['stay_option'] ?? null)) $rijen .= self::rij(self::t('Formule'), e((string) $d['stay_option']));
+        if (filled($d['catering'] ?? null))    $rijen .= self::rij(self::t('Catering'), e((string) $d['catering']));
+        $rijen .= self::rij(self::t('Deelnemers'), e(self::deelnemers($d)));
 
         return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:14px 0 6px;">' . $rijen . '</table>';
     }
@@ -222,8 +257,8 @@ class ReservationMailVars
     {
         $knoppen = '';
         if ($toegang) $knoppen .= self::knop($toegang, $label, true);
-        if ($agenda)  $knoppen .= self::knop($agenda, 'Zet in je agenda', false);
-        if ($maps)    $knoppen .= self::knop($maps, 'Route', false);
+        if ($agenda)  $knoppen .= self::knop($agenda, self::t('Zet in je agenda'), false);
+        if ($maps)    $knoppen .= self::knop($maps, self::t('Route'), false);
 
         return $knoppen ? '<div style="margin:22px 0 4px;">' . $knoppen . '</div>' : '';
     }
@@ -248,11 +283,11 @@ class ReservationMailVars
 
     private static function customerBlock(array $d): string
     {
-        $rijen = self::rij('Naam', e((string) $d['name']));
-        if (filled($d['email'] ?? null)) $rijen .= self::rij('E-mail', '<a href="mailto:' . e($d['email']) . '" style="color:' . self::ACCENT . ';">' . e($d['email']) . '</a>');
-        if (filled($d['phone'] ?? null)) $rijen .= self::rij('Telefoon', '<a href="tel:' . e(preg_replace('/[^\d+]/', '', (string) $d['phone'])) . '" style="color:#0f172a;">' . e($d['phone']) . '</a>');
+        $rijen = self::rij(self::t('Naam'), e((string) $d['name']));
+        if (filled($d['email'] ?? null)) $rijen .= self::rij(self::t('E-mail'), '<a href="mailto:' . e($d['email']) . '" style="color:' . self::ACCENT . ';">' . e($d['email']) . '</a>');
+        if (filled($d['phone'] ?? null)) $rijen .= self::rij(self::t('Telefoon'), '<a href="tel:' . e(preg_replace('/[^\d+]/', '', (string) $d['phone'])) . '" style="color:#0f172a;">' . e($d['phone']) . '</a>');
         $plaats = trim(($d['postal_code'] ?? '') . ' ' . ($d['municipality'] ?? ''));
-        if ($plaats !== '') $rijen .= self::rij('Woonplaats', e($plaats));
+        if ($plaats !== '') $rijen .= self::rij(self::t('Woonplaats'), e($plaats));
 
         return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:14px 0 6px;">' . $rijen . '</table>';
     }
@@ -261,13 +296,13 @@ class ReservationMailVars
     {
         if (! $f) return '';
         $rijen = '';
-        if (filled($f['company'] ?? null)) $rijen .= self::rij('Naam / bedrijf', e($f['company']));
-        if (filled($f['vat'] ?? null))     $rijen .= self::rij('Btw-nummer', e($f['vat']));
+        if (filled($f['company'] ?? null)) $rijen .= self::rij(self::t('Naam / bedrijf'), e($f['company']));
+        if (filled($f['vat'] ?? null))     $rijen .= self::rij(self::t('Btw-nummer'), e($f['vat']));
         $adres = trim(implode(', ', array_filter([$f['address'] ?? null, trim(($f['postal_code'] ?? '') . ' ' . ($f['city'] ?? ''))])));
-        if ($adres !== '')                 $rijen .= self::rij('Adres', e($adres));
-        if (filled($f['email'] ?? null))   $rijen .= self::rij('E-mail factuur', e($f['email']));
+        if ($adres !== '')                 $rijen .= self::rij(self::t('Adres'), e($adres));
+        if (filled($f['email'] ?? null))   $rijen .= self::rij(self::t('E-mail factuur'), e($f['email']));
 
-        return '<p style="margin:20px 0 0;font-weight:700;color:#0f172a;">Factuur gevraagd</p>'
+        return '<p style="margin:20px 0 0;font-weight:700;color:#0f172a;">' . e(self::t('Factuur gevraagd')) . '</p>'
             . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:6px 0;">' . $rijen . '</table>';
     }
 
@@ -289,11 +324,11 @@ class ReservationMailVars
 
         return 'https://calendar.google.com/calendar/render?' . http_build_query([
             'action'   => 'TEMPLATE',
-            'text'     => trim(($d['event_type'] ?: 'Reservatie') . ' – ' . ($t->display_name ?? '')),
+            'text'     => trim(($d['event_type'] ?: self::t('Reservatie')) . ' – ' . ($t->display_name ?? '')),
             'dates'    => $start->format('Ymd\THis') . '/' . $einde->format('Ymd\THis'),
             'ctz'      => 'Europe/Brussels',
             'location' => trim(($t->display_name ?? '') . ', ' . ($t->full_address ?? ''), ', '),
-            'details'  => ($d['access_url'] ?? null) ? 'Je reservatie: ' . $d['access_url'] : '',
+            'details'  => ($d['access_url'] ?? null) ? self::t('Je reservatie: :url', ['url' => $d['access_url']]) : '',
         ]);
     }
 
@@ -315,9 +350,9 @@ class ReservationMailVars
             'DTSTAMP:' . now()->utc()->format('Ymd\THis\Z'),
             'DTSTART:' . $start->copy()->utc()->format('Ymd\THis\Z'), // UTC: geen VTIMEZONE nodig
             'DTEND:' . $einde->copy()->utc()->format('Ymd\THis\Z'),
-            'SUMMARY:' . $esc(trim(($d['event_type'] ?: 'Reservatie') . ' – ' . ($t->display_name ?? ''))),
+            'SUMMARY:' . $esc(trim(self::t($d['event_type'] ?: 'Reservatie') . ' – ' . ($t->display_name ?? ''))),
             'LOCATION:' . $esc(trim(($t->display_name ?? '') . ', ' . ($t->full_address ?? ''), ', ')),
-            'DESCRIPTION:' . $esc(($d['access_url'] ?? null) ? 'Je reservatie bekijken of wijzigen: ' . $d['access_url'] : ''),
+            'DESCRIPTION:' . $esc(($d['access_url'] ?? null) ? self::t('Je reservatie bekijken of wijzigen: :url', ['url' => $d['access_url']]) : ''),
             'END:VEVENT',
             'END:VCALENDAR',
         ]) . "\r\n";

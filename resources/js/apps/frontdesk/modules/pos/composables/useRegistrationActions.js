@@ -5,6 +5,7 @@ export function useRegistrationActions(store) {
     const showRegistrationModal = ref(false)
     const showFilters = ref(false)
     const editingReservationId = ref(null)
+    const registrationSubmitError = ref('')
 
     const editingReservation = computed(() => {
         if (!editingReservationId.value) {
@@ -31,17 +32,36 @@ export function useRegistrationActions(store) {
     function closeRegistrationModal() {
         showRegistrationModal.value = false
         editingReservationId.value = null
+        registrationSubmitError.value = ''
+    }
+
+    function buildRegistrationBody(payload) {
+        const body = { ...payload }
+
+        // Abonnees → lijst van tenant_membership ids voor de API
+        if (Array.isArray(payload.subscribers)) {
+            body.subscriber_membership_ids = payload.subscribers
+                .map(subscriber => subscriber.tenant_membership_id)
+                .filter(Boolean)
+        }
+
+        delete body.subscribers
+
+        return body
     }
 
     async function handleRegistrationSubmit(payload) {
+        registrationSubmitError.value = ''
+
         try {
             let response
+            const body = buildRegistrationBody(payload)
 
             if (payload.id) {
-                response = await axios.put(`/api/frontdesk/registrations/${payload.id}`, payload)
+                response = await axios.put(`/api/frontdesk/registrations/${payload.id}`, body)
                 store.updateReservation(response.data.data)
             } else {
-                response = await axios.post('/api/frontdesk/registrations', payload)
+                response = await axios.post('/api/frontdesk/registrations', body)
                 store.addReservation(response.data.data)
             }
 
@@ -51,6 +71,12 @@ export function useRegistrationActions(store) {
 
             if (error.response?.status === 422) {
                 console.log('validation errors', error.response.data.errors)
+
+                const errors = error.response.data.errors ?? {}
+                const first = Object.values(errors).flat()[0]
+                registrationSubmitError.value = first || error.response.data.message || 'Registratie kon niet opgeslagen worden.'
+            } else {
+                registrationSubmitError.value = error.response?.data?.message || 'Registratie kon niet opgeslagen worden.'
             }
         }
     }
@@ -203,6 +229,7 @@ export function useRegistrationActions(store) {
         openEditRegistrationModal,
         closeRegistrationModal,
         handleRegistrationSubmit,
+        registrationSubmitError,
         handleCheckIn,
         handleCheckOut,
         handleCancelReservation,

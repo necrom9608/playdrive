@@ -40,6 +40,7 @@
         <RegistrationModal
             :open="showRegistrationModal"
             :initial-values="editingReservation"
+            :error="registrationSubmitError"
             @close="closeRegistrationModal"
             @submit="handleRegistrationSubmit"
         />
@@ -66,6 +67,7 @@ const {
     openEditRegistrationModal,
     closeRegistrationModal,
     handleRegistrationSubmit,
+    registrationSubmitError,
     handleCheckIn,
     handleCheckOut,
     handleCancelReservation,

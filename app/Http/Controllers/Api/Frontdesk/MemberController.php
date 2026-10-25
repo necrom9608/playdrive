@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BadgeTemplate;
 use App\Models\PhysicalCard;
 use App\Models\Registration;
+use App\Models\RegistrationSubscriber;
 use App\Models\TenantMembership;
 use App\Support\CurrentTenant;
 use Carbon\Carbon;
@@ -56,15 +57,8 @@ class MemberController extends Controller
         $membershipIds = $memberships->pluck('id')->all();
         $accountIds    = $memberships->pluck('account_id')->filter()->unique()->values()->all();
 
-        $playStats = Registration::query()
-            ->selectRaw('account_id')
-            ->selectRaw('MAX(COALESCE(checked_out_at, checked_in_at, created_at)) as last_played_at')
-            ->selectRaw('COUNT(DISTINCT COALESCE(event_date, DATE(created_at))) as play_days')
-            ->selectRaw('SUM(COALESCE(played_minutes, TIMESTAMPDIFF(MINUTE, checked_in_at, checked_out_at), 0)) as play_minutes')
-            ->where('tenant_id', $currentTenant->id())
-            ->where('is_member', true)
-            ->whereIn('account_id', $accountIds)
-            ->groupBy('account_id')
+        $playStats = $this->playStatsQuery($currentTenant)
+            ->whereIn('rs.account_id', $accountIds)
             ->get()
             ->keyBy('account_id');
 
@@ -222,6 +216,8 @@ class MemberController extends Controller
                 ->where('account_id', $membership->account_id)
                 ->where('status', Registration::STATUS_CHECKED_IN)
                 ->whereDate('checked_in_at', now()->toDateString())
+                // enkel het eigen lidbezoek (1 persoon), geen groep van abonnees
+                ->whereRaw('COALESCE(participants_children, 0) + COALESCE(participants_adults, 0) + COALESCE(participants_supervisors, 0) <= 1')
                 ->latest('id')
                 ->first();
 
@@ -237,6 +233,21 @@ class MemberController extends Controller
                 return ['registration' => $open->fresh(), 'action' => 'checked_out'];
             }
 
+            // Zit dit lid vandaag al als abonnee in een ingecheckte groep?
+            // Dan geen apart lidbezoek aanmaken.
+            $group = Registration::query()
+                ->where('tenant_id', $currentTenant->id())
+                ->where('status', Registration::STATUS_CHECKED_IN)
+                ->whereDate('checked_in_at', now()->toDateString())
+                ->whereHas('subscribers', fn (Builder $q) => $q->where('tenant_membership_id', $membership->id))
+                ->latest('id')
+                ->first();
+
+            if ($group) {
+                return ['registration' => $group, 'action' => 'in_group'];
+            }
+
+            $scope        = RegistrationSubscriber::scopeForMembershipType($membership->membership_type);
             $account      = $membership->account;
             $registration = Registration::query()->create([
                 'tenant_id'               => $currentTenant->id(),
@@ -246,8 +257,8 @@ class MemberController extends Controller
                 'municipality'            => $account?->city,
                 'event_date'              => now()->toDateString(),
                 'event_time'              => now()->format('H:i'),
-                'participants_children'   => 0,
-                'participants_adults'     => 1,
+                'participants_children'   => $scope === RegistrationSubscriber::SCOPE_CHILDREN ? 1 : 0,
+                'participants_adults'     => $scope === RegistrationSubscriber::SCOPE_ADULTS ? 1 : 0,
                 'participants_supervisors' => 0,
                 'comment'                 => 'Lidbezoek',
                 'stats'                   => [],
@@ -264,8 +275,29 @@ class MemberController extends Controller
                 'account_id'              => $membership->account_id,
             ]);
 
+            $registration->subscribers()->create([
+                'tenant_id'            => $currentTenant->id(),
+                'tenant_membership_id' => $membership->id,
+                'account_id'           => $membership->account_id,
+                'participant_scope'    => $scope,
+            ]);
+
             return ['registration' => $registration, 'action' => 'checked_in'];
         });
+
+        if ($result['action'] === 'in_group') {
+            $group = $result['registration'];
+
+            return response()->json([
+                'message' => sprintf(
+                    '%s is al ingecheckt als abonnee in de groep "%s" (sinds %s).',
+                    $membership->full_name,
+                    $group->name,
+                    optional($group->checked_in_at)->format('H:i') ?? '?'
+                ),
+                'member'  => $this->loadMembership($membership->fresh(), $currentTenant, $today),
+            ], 422);
+        }
 
         $reg    = $result['registration'];
         $action = $result['action'];
@@ -287,6 +319,95 @@ class MemberController extends Controller
                 'account_id'       => $reg->account_id,
             ],
         ]);
+    }
+
+    /**
+     * Lichte zoekfunctie voor het abonnee-blok in het registratieformulier.
+     * Zoekt op naam/e-mail/RFID (q) of exact op RFID (rfid).
+     * is_valid = actief abonnement op de opgegeven datum (standaard vandaag).
+     */
+    public function subscriberLookup(Request $request, CurrentTenant $currentTenant): JsonResponse
+    {
+        $data = $request->validate([
+            'q'    => ['nullable', 'string', 'max:255'],
+            'rfid' => ['nullable', 'string', 'max:100'],
+            'date' => ['nullable', 'date'],
+        ]);
+
+        $q    = trim((string) ($data['q'] ?? ''));
+        $rfid = trim((string) ($data['rfid'] ?? ''));
+        $date = ! empty($data['date']) ? Carbon::parse($data['date'])->startOfDay() : now()->startOfDay();
+
+        if ($q === '' && $rfid === '') {
+            return response()->json(['data' => []]);
+        }
+
+        $query = TenantMembership::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->with('account:id,first_name,last_name,email');
+
+        if ($rfid !== '') {
+            $query->where('rfid_uid', $rfid);
+        } else {
+            $query->where(function (Builder $w) use ($q) {
+                $w->where('rfid_uid', 'like', '%' . $q . '%')
+                  ->orWhereHas('account', fn (Builder $aq) => $aq
+                      ->where('first_name', 'like', '%' . $q . '%')
+                      ->orWhere('last_name', 'like', '%' . $q . '%')
+                      ->orWhereRaw("concat(first_name, ' ', last_name) like ?", ['%' . $q . '%'])
+                      ->orWhere('email', 'like', '%' . $q . '%')
+                  );
+            });
+        }
+
+        $results = $query
+            ->orderByDesc('is_active')
+            ->orderByDesc('membership_ends_at')
+            ->limit(10)
+            ->get()
+            ->map(fn (TenantMembership $m) => self::mapSubscriberCandidate($m, $date))
+            ->values();
+
+        return response()->json(['data' => $results]);
+    }
+
+    /**
+     * Compacte voorstelling van een abonnement voor het registratieformulier.
+     * Wordt ook door RegistrationController gebruikt.
+     */
+    public static function mapSubscriberCandidate(TenantMembership $m, Carbon $date): array
+    {
+        $account = $m->account;
+        $endsAt  = $m->membership_ends_at?->copy()->startOfDay();
+
+        return [
+            'tenant_membership_id' => $m->id,
+            'account_id'           => $m->account_id,
+            'full_name'            => trim(($account?->first_name ?? '') . ' ' . ($account?->last_name ?? '')),
+            'email'                => $account?->email,
+            'membership_type'      => $m->membership_type,
+            'participant_scope'    => RegistrationSubscriber::scopeForMembershipType($m->membership_type),
+            'membership_ends_at'   => $endsAt?->toDateString(),
+            'is_active'            => (bool) $m->is_active,
+            'is_valid'             => (bool) $m->is_active && $endsAt !== null && $endsAt->gte($date),
+            'expires_soon'         => $endsAt !== null && $endsAt->gte($date) && $date->diffInDays($endsAt, false) <= 14,
+        ];
+    }
+
+    /**
+     * Speelstatistieken per account, gebaseerd op alle registraties waarin
+     * het lid als abonnee meetelde (eigen lidbezoeken én groepen).
+     */
+    private function playStatsQuery(CurrentTenant $currentTenant): \Illuminate\Database\Eloquent\Builder
+    {
+        return Registration::query()
+            ->join('registration_subscribers as rs', 'rs.registration_id', '=', 'registrations.id')
+            ->selectRaw('rs.account_id as account_id')
+            ->selectRaw('MAX(COALESCE(registrations.checked_out_at, registrations.checked_in_at, registrations.created_at)) as last_played_at')
+            ->selectRaw('COUNT(DISTINCT COALESCE(registrations.event_date, DATE(registrations.created_at))) as play_days')
+            ->selectRaw('SUM(COALESCE(registrations.played_minutes, TIMESTAMPDIFF(MINUTE, registrations.checked_in_at, registrations.checked_out_at), 0)) as play_minutes')
+            ->where('registrations.tenant_id', $currentTenant->id())
+            ->groupBy('rs.account_id');
     }
 
     // ------------------------------------------------------------------
@@ -348,15 +469,8 @@ class MemberController extends Controller
         $m->loadMissing('account:id,first_name,last_name,email,phone,birth_date,created_at');
         $soonDate = $today->copy()->addDays(30);
 
-        $playStat = Registration::query()
-            ->selectRaw('account_id')
-            ->selectRaw('MAX(COALESCE(checked_out_at, checked_in_at, created_at)) as last_played_at')
-            ->selectRaw('COUNT(DISTINCT COALESCE(event_date, DATE(created_at))) as play_days')
-            ->selectRaw('SUM(COALESCE(played_minutes, TIMESTAMPDIFF(MINUTE, checked_in_at, checked_out_at), 0)) as play_minutes')
-            ->where('tenant_id', $currentTenant->id())
-            ->where('is_member', true)
-            ->where('account_id', $m->account_id)
-            ->groupBy('account_id')
+        $playStat = $this->playStatsQuery($currentTenant)
+            ->where('rs.account_id', $m->account_id)
             ->first();
 
         $card = PhysicalCard::query()

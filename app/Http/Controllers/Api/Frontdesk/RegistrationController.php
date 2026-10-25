@@ -9,11 +9,15 @@ use App\Models\Account;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Registration;
+use App\Models\RegistrationSubscriber;
+use App\Models\TenantMembership;
 use App\Models\User;
 use App\Support\CurrentTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class RegistrationController extends Controller
 {
@@ -33,6 +37,7 @@ class RegistrationController extends Controller
             'stayOption:id,name,code,duration_minutes',
             'cateringOption:id,name,code,emoji',
             'account:id,first_name,last_name,email',
+            'subscribers.tenantMembership',
             'createdBy:id,name',
             'updatedBy:id,name',
             'checkedInBy:id,name',
@@ -106,7 +111,21 @@ class RegistrationController extends Controller
             $data['no_show_by'] = $actorUserId;
         }
 
-        $registration = Registration::create($data);
+        $subscriberIds = $request->has('subscriber_membership_ids')
+            ? array_map('intval', $data['subscriber_membership_ids'] ?? [])
+            : null;
+        unset($data['subscriber_membership_ids']);
+
+        $registration = DB::transaction(function () use ($data, $subscriberIds, $currentTenant) {
+            $registration = Registration::create($data);
+
+            if ($subscriberIds !== null) {
+                $this->syncSubscribers($registration, $subscriberIds, $currentTenant);
+            }
+
+            return $registration;
+        });
+
         $registration->load($this->withRelations());
 
         return response()->json([
@@ -149,7 +168,19 @@ class RegistrationController extends Controller
             $data['no_show_by'] = $registration->no_show_by ?: $actorUserId;
         }
 
-        $registration->update($data);
+        $subscriberIds = $request->has('subscriber_membership_ids')
+            ? array_map('intval', $data['subscriber_membership_ids'] ?? [])
+            : null;
+        unset($data['subscriber_membership_ids']);
+
+        DB::transaction(function () use ($registration, $data, $subscriberIds, $currentTenant) {
+            $registration->update($data);
+
+            if ($subscriberIds !== null) {
+                $this->syncSubscribers($registration, $subscriberIds, $currentTenant);
+            }
+        });
+
         $registration->load($this->withRelations());
 
         return response()->json([
@@ -319,6 +350,10 @@ class RegistrationController extends Controller
             'member_id'             => $registration->member_id,      // backward compat voor frontend
             'account_id'            => $registration->account_id,
             'member'                => $account ? $this->transformAccount($account) : null,
+            'subscribers'           => $this->transformSubscribers($registration),
+            'subscriber_count'      => $registration->subscribers->count(),
+            'subscribers_children'  => $registration->subscribers->where('participant_scope', RegistrationSubscriber::SCOPE_CHILDREN)->count(),
+            'subscribers_adults'    => $registration->subscribers->where('participant_scope', RegistrationSubscriber::SCOPE_ADULTS)->count(),
             'duration_label'        => $registration->stayOption?->name,
             'event_type'            => $registration->eventType?->name,
             'catering_option'       => $registration->cateringOption?->name,
@@ -328,6 +363,146 @@ class RegistrationController extends Controller
             'event_type_emoji'      => $registration->eventType?->emoji,
             'catering_option_emoji' => $registration->cateringOption?->emoji,
         ];
+    }
+
+    protected function transformSubscribers(Registration $registration): array
+    {
+        $date = $registration->event_date
+            ? Carbon::parse($registration->event_date)->startOfDay()
+            : now()->startOfDay();
+
+        return $registration->subscribers
+            ->map(function (RegistrationSubscriber $subscriber) use ($date) {
+                $membership = $subscriber->tenantMembership;
+
+                if ($membership) {
+                    return [
+                        ...MemberController::mapSubscriberCandidate($membership, $date),
+                        'id'                => $subscriber->id,
+                        'participant_scope' => $subscriber->participant_scope,
+                    ];
+                }
+
+                // Abonnement intussen verwijderd: toon wat we nog weten
+                return [
+                    'id'                   => $subscriber->id,
+                    'tenant_membership_id' => null,
+                    'account_id'           => $subscriber->account_id,
+                    'full_name'            => 'Verwijderd abonnement',
+                    'email'                => null,
+                    'membership_type'      => null,
+                    'participant_scope'    => $subscriber->participant_scope,
+                    'membership_ends_at'   => null,
+                    'is_active'            => false,
+                    'is_valid'             => false,
+                    'expires_soon'         => false,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Zet de abonnees van een registratie gelijk aan de opgegeven lijst
+     * (tenant_membership ids) en leidt is_member/account_id af.
+     *
+     * - nieuw toegevoegde abonnees moeten een actief abonnement hebben op de bezoekdatum
+     * - per categorie nooit meer abonnees dan deelnemers
+     * - is_member = true als er geen betalende deelnemers overblijven
+     */
+    protected function syncSubscribers(Registration $registration, array $membershipIds, CurrentTenant $currentTenant): void
+    {
+        $membershipIds = array_values(array_unique(array_filter($membershipIds)));
+
+        $memberships = TenantMembership::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->whereIn('id', $membershipIds)
+            ->get()
+            ->keyBy('id');
+
+        if ($memberships->count() !== count($membershipIds)) {
+            throw ValidationException::withMessages([
+                'subscriber_membership_ids' => 'Eén of meer abonnees werden niet gevonden.',
+            ]);
+        }
+
+        $existing = $registration->subscribers()->get();
+        $existingIds = $existing->pluck('tenant_membership_id')->filter()->map(fn ($id) => (int) $id)->all();
+
+        $date = $registration->event_date
+            ? Carbon::parse($registration->event_date)->startOfDay()
+            : now()->startOfDay();
+
+        foreach ($membershipIds as $id) {
+            if (in_array($id, $existingIds, true)) {
+                continue; // bestaande abonnee: niet opnieuw valideren
+            }
+
+            /** @var TenantMembership $m */
+            $m = $memberships->get($id);
+            $endsAt = $m->membership_ends_at?->copy()->startOfDay();
+
+            if (! $m->is_active || ! $endsAt || $endsAt->lt($date)) {
+                throw ValidationException::withMessages([
+                    'subscriber_membership_ids' => sprintf('%s heeft geen actief abonnement op %s.', $m->full_name, $date->format('d/m/Y')),
+                ]);
+            }
+        }
+
+        // Categorie per abonnee: bestaande rijen behouden hun categorie
+        $scopes = [];
+        foreach ($membershipIds as $id) {
+            $row = $existing->firstWhere('tenant_membership_id', $id);
+            $scopes[$id] = $row?->participant_scope
+                ?? RegistrationSubscriber::scopeForMembershipType($memberships->get($id)->membership_type);
+        }
+
+        $childrenSubs = count(array_filter($scopes, fn ($s) => $s === RegistrationSubscriber::SCOPE_CHILDREN));
+        $adultsSubs   = count(array_filter($scopes, fn ($s) => $s === RegistrationSubscriber::SCOPE_ADULTS));
+        $children     = (int) $registration->participants_children;
+        $adults       = (int) $registration->participants_adults;
+
+        if ($childrenSubs > $children || $adultsSubs > $adults) {
+            throw ValidationException::withMessages([
+                'subscriber_membership_ids' => 'Er zijn meer abonnees dan deelnemers in een categorie. Pas de aantallen aan.',
+            ]);
+        }
+
+        // Sync
+        $registration->subscribers()
+            ->where(fn ($q) => $q
+                ->whereNull('tenant_membership_id')
+                ->orWhereNotIn('tenant_membership_id', $membershipIds ?: [0])
+            )
+            ->delete();
+
+        foreach ($membershipIds as $id) {
+            if (in_array($id, $existingIds, true)) {
+                continue;
+            }
+
+            $m = $memberships->get($id);
+
+            $registration->subscribers()->create([
+                'tenant_id'            => $registration->tenant_id,
+                'tenant_membership_id' => $m->id,
+                'account_id'           => $m->account_id,
+                'participant_scope'    => $scopes[$id],
+            ]);
+        }
+
+        // Afgeleide velden
+        $paying = max(0, $children - $childrenSubs) + max(0, $adults - $adultsSubs);
+        $hasSubscribers = count($membershipIds) > 0;
+
+        $registration->is_member = $hasSubscribers && $paying === 0;
+
+        if ($hasSubscribers && ! $registration->account_id) {
+            $registration->account_id = $memberships->get($membershipIds[0])->account_id;
+        }
+
+        $registration->save();
+        $registration->unsetRelation('subscribers');
     }
 
     protected function transformAccount(Account $account): array

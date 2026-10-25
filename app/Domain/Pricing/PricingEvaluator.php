@@ -31,7 +31,8 @@ class PricingEvaluator
         $lines = collect();
 
         foreach (['children', 'adults'] as $scope) {
-            $count = $context->participantCountForScope($scope);
+            // Speeltijd: abonnees betalen niet mee
+            $count = $context->payingCountForScope($scope);
 
             if ($count <= 0) {
                 continue;

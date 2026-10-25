@@ -17,6 +17,9 @@ use Throwable;
  * Alle mails krijgen dezelfde, uitgebreide set variabelen en blokken
  * (ReservationMailVars) en de merkgegevens van de tenant (logo, adres, …).
  * Een mail die niet vertrekt wordt gelogd maar breekt de reservatie nooit af.
+ *
+ * Taal: mails naar de klant in $registration->locale (nl, fr, en), de
+ * melding naar de zaak altijd in het Nederlands.
  */
 class ReservationMailService
 {
@@ -28,13 +31,16 @@ class ReservationMailService
     public static function sendAfterSubmission(Registration $registration, Tenant $tenant, bool $notifyTenant = true): void
     {
         $token = self::newToken($registration);
-        ['vars' => $vars, 'ics' => $ics] = ReservationMailVars::forRegistration($registration, $tenant, url('/reservatie/' . $token));
+        $link = url('/reservatie/' . $token);
+        $taal = ReservationMailVars::taal($registration->locale);
 
         if (filled($registration->email)) {
-            self::send('reservation-confirmation-customer', $tenant, $vars, $registration->email, $registration->name, $ics);
+            ['vars' => $vars, 'ics' => $ics] = ReservationMailVars::forRegistration($registration, $tenant, $link, $taal);
+            self::send('reservation-confirmation-customer', $tenant, $vars, $registration->email, $registration->name, $ics, $taal);
         }
 
         if ($notifyTenant && filled($tenant->email)) {
+            ['vars' => $vars] = ReservationMailVars::forRegistration($registration, $tenant, $link, 'nl');
             self::send('reservation-notification-tenant', $tenant, $vars, $tenant->email, $tenant->display_name);
         }
     }
@@ -50,11 +56,12 @@ class ReservationMailService
             ->latest()
             ->first();
 
+        $taal = ReservationMailVars::taal($registration->locale);
         ['vars' => $vars, 'ics' => $ics] = ReservationMailVars::forRegistration(
-            $registration, $tenant, $token ? url('/reservatie/' . $token->token) : null
+            $registration, $tenant, $token ? url('/reservatie/' . $token->token) : null, $taal
         );
 
-        self::send('reservation-updated-customer', $tenant, $vars, $registration->email, $registration->name, $ics);
+        self::send('reservation-updated-customer', $tenant, $vars, $registration->email, $registration->name, $ics, $taal);
     }
 
     /** Na een annulering door de klant. */
@@ -62,9 +69,10 @@ class ReservationMailService
     {
         if (! filled($registration->email)) return;
 
-        ['vars' => $vars] = ReservationMailVars::forRegistration($registration, $tenant);
+        $taal = ReservationMailVars::taal($registration->locale);
+        ['vars' => $vars] = ReservationMailVars::forRegistration($registration, $tenant, null, $taal);
 
-        self::send('reservation-cancelled-customer', $tenant, $vars, $registration->email, $registration->name);
+        self::send('reservation-cancelled-customer', $tenant, $vars, $registration->email, $registration->name, null, $taal);
     }
 
     /**
@@ -74,13 +82,16 @@ class ReservationMailService
     public static function sendPendingAcknowledgement(Registration $registration, Tenant $tenant): void
     {
         $token = self::newToken($registration);
-        ['vars' => $vars] = ReservationMailVars::forRegistration($registration, $tenant, url('/reservatie/' . $token));
+        $link = url('/reservatie/' . $token);
+        $taal = ReservationMailVars::taal($registration->locale);
 
         if (filled($registration->email)) {
-            self::send('reservation-pending-customer', $tenant, $vars, $registration->email, $registration->name);
+            ['vars' => $vars] = ReservationMailVars::forRegistration($registration, $tenant, $link, $taal);
+            self::send('reservation-pending-customer', $tenant, $vars, $registration->email, $registration->name, null, $taal);
         }
 
         if (filled($tenant->email)) {
+            ['vars' => $vars] = ReservationMailVars::forRegistration($registration, $tenant, $link, 'nl');
             self::send('reservation-notification-tenant', $tenant, $vars, $tenant->email, $tenant->display_name);
         }
     }
@@ -99,10 +110,10 @@ class ReservationMailService
         ])->token;
     }
 
-    private static function send(string $key, Tenant $tenant, array $vars, string $to, ?string $toName, ?string $ics = null): void
+    private static function send(string $key, Tenant $tenant, array $vars, string $to, ?string $toName, ?string $ics = null, string $taal = 'nl'): void
     {
         try {
-            $rendered = EmailTemplateResolver::render(EmailTemplateResolver::resolve($key, $tenant), $vars);
+            $rendered = EmailTemplateResolver::render(EmailTemplateResolver::resolve($key, $tenant, $taal), $vars);
 
             $mail = new TemplateMail(
                 mailSubject: $rendered['subject'],
@@ -111,6 +122,7 @@ class ReservationMailService
                 brand:       TemplateMail::brandFor($tenant),
                 ics:         $ics,
             );
+            $mail->locale($taal);
 
             $sent = Mail::to($to, $toName)->send($mail);
 

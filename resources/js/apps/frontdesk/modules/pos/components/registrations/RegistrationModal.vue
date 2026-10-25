@@ -21,6 +21,13 @@
             </div>
 
             <div class="min-h-0 flex-1 overflow-y-auto bg-slate-950 p-6">
+                <div
+                    v-if="error"
+                    class="mb-4 rounded-2xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
+                >
+                    {{ error }}
+                </div>
+
                 <RegistrationForm
                     :initial-values="initialValues"
                     @cancel="$emit('close')"
@@ -43,6 +50,10 @@ const props = defineProps({
     initialValues: {
         type: Object,
         default: () => ({}),
+    },
+    error: {
+        type: String,
+        default: '',
     },
 })
 
