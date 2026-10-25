@@ -93,19 +93,7 @@ class FamilyMembershipService
 
         // Limiet van de zaak
         if (! $force) {
-            $limits = $this->limits((int) $head->tenant_id);
-            $counts = $this->counts($head);
-            $key    = $type === TenantMembership::TYPE_STUDENT ? 'children' : 'adults';
-
-            if ($limits[$key] !== null && $counts[$key] >= $limits[$key]) {
-                throw ValidationException::withMessages([
-                    self::ERROR_LIMIT => sprintf(
-                        'Limiet bereikt: max. %d %s per familieabonnement.',
-                        $limits[$key],
-                        $key === 'children' ? 'kinderen/studenten' : 'volwassenen'
-                    ),
-                ]);
-            }
+            $this->assertWithinLimit($head, $type);
         }
 
         $rfid = trim((string) ($data['rfid_uid'] ?? '')) ?: null;
@@ -183,6 +171,77 @@ class FamilyMembershipService
                 'tenant_id'  => $head->tenant_id,
             ]);
         });
+    }
+
+    /**
+     * Bestaand lid (met of zonder eigen abonnement) aan het gezin toevoegen.
+     * Het eigen abonnement vervalt: de geldigheid volgt voortaan het hoofd.
+     *
+     * @throws ValidationException
+     */
+    public function addExistingMember(TenantMembership $head, TenantMembership $member, bool $force = false): TenantMembership
+    {
+        if (! $head->isFamilyHead()) {
+            throw ValidationException::withMessages(['family' => 'Dit is geen familieabonnement.']);
+        }
+
+        if ((int) $member->tenant_id !== (int) $head->tenant_id) {
+            throw ValidationException::withMessages(['tenant_membership_id' => 'Lid niet gevonden.']);
+        }
+
+        if ((int) $member->id === (int) $head->id) {
+            throw ValidationException::withMessages(['tenant_membership_id' => 'Dit is het hoofd van het gezin zelf.']);
+        }
+
+        if ($member->isFamilyHead() && $member->familyMembers()->exists()) {
+            throw ValidationException::withMessages(['tenant_membership_id' => "{$member->full_name} heeft zelf een familieabonnement met gezinsleden."]);
+        }
+
+        if ($member->family_membership_id) {
+            throw ValidationException::withMessages([
+                'tenant_membership_id' => (int) $member->family_membership_id === (int) $head->id
+                    ? "{$member->full_name} zit al in dit gezin."
+                    : "{$member->full_name} zit al in een ander gezin.",
+            ]);
+        }
+
+        $type = $member->membership_type === TenantMembership::TYPE_STUDENT
+            ? TenantMembership::TYPE_STUDENT
+            : TenantMembership::TYPE_ADULT;
+
+        if (! $force) {
+            $this->assertWithinLimit($head, $type);
+        }
+
+        $member->update([
+            'membership_type'      => $type,
+            'family_membership_id' => $head->id,
+            'membership_starts_at' => $head->membership_starts_at?->toDateString(),
+            'membership_ends_at'   => $head->membership_ends_at?->toDateString(),
+            'is_active'            => (bool) $head->is_active,
+        ]);
+
+        return $member->fresh();
+    }
+
+    /**
+     * @throws ValidationException met sleutel ERROR_LIMIT
+     */
+    private function assertWithinLimit(TenantMembership $head, string $type): void
+    {
+        $limits = $this->limits((int) $head->tenant_id);
+        $counts = $this->counts($head);
+        $key    = $type === TenantMembership::TYPE_STUDENT ? 'children' : 'adults';
+
+        if ($limits[$key] !== null && $counts[$key] >= $limits[$key]) {
+            throw ValidationException::withMessages([
+                self::ERROR_LIMIT => sprintf(
+                    'Limiet bereikt: max. %d %s per familieabonnement.',
+                    $limits[$key],
+                    $key === 'children' ? 'kinderen/studenten' : 'volwassenen'
+                ),
+            ]);
+        }
     }
 
     /**

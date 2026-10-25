@@ -106,20 +106,111 @@
                         <div v-if="limitMessage" class="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-200">
                             {{ limitMessage }}
                             <div class="mt-2">
-                                <button type="button" class="rounded-xl border border-amber-500/40 px-3 py-1.5 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20" :disabled="busy" @click="submitMember(true)">
+                                <button type="button" class="rounded-xl border border-amber-500/40 px-3 py-1.5 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20" :disabled="busy" @click="retryWithForce">
                                     Toch toevoegen
                                 </button>
                             </div>
                         </div>
 
-                        <button
-                            v-if="!showForm"
-                            type="button"
-                            class="mt-3 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-700"
-                            @click="openForm"
-                        >
-                            ＋ Gezinslid toevoegen
-                        </button>
+                        <div v-if="!showForm && !showExisting" class="mt-3 flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                class="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-700"
+                                @click="openForm"
+                            >
+                                ＋ Nieuw gezinslid
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-xs font-semibold text-violet-200 transition hover:bg-violet-500/20"
+                                @click="openExisting"
+                            >
+                                ＋ Bestaand lid toevoegen
+                            </button>
+                        </div>
+
+                        <!-- Bestaand lid toevoegen (huidig abonnement omzetten) -->
+                        <div v-if="showExisting" class="mt-3 space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4">
+                            <div class="text-sm font-semibold text-slate-200">Bestaand lid toevoegen</div>
+
+                            <template v-if="!selectedExisting">
+                                <input
+                                    ref="existingInput"
+                                    v-model="existingQuery"
+                                    type="text"
+                                    placeholder="Zoek op naam, e-mail of RFID…"
+                                    autocomplete="off"
+                                    :class="fieldClass"
+                                >
+
+                                <div v-if="existingQuery.trim().length >= 2" class="max-h-60 overflow-y-auto rounded-xl border border-slate-800">
+                                    <div v-if="existingSearching" class="px-3 py-3 text-xs text-slate-400">Zoeken…</div>
+                                    <div v-else-if="!existingResults.length" class="px-3 py-3 text-xs text-slate-500">Geen leden gevonden</div>
+                                    <button
+                                        v-for="candidate in existingResults"
+                                        v-else
+                                        :key="candidate.tenant_membership_id"
+                                        type="button"
+                                        class="flex w-full items-center gap-3 border-b border-slate-800 px-3 py-2 text-left last:border-b-0"
+                                        :class="existingBlockReason(candidate) ? 'cursor-not-allowed opacity-50' : 'hover:bg-slate-800'"
+                                        @click="selectExisting(candidate)"
+                                    >
+                                        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-800 text-xs font-bold text-slate-300">
+                                            {{ initials(candidate.full_name) }}
+                                        </div>
+                                        <div class="min-w-0 flex-1">
+                                            <div class="truncate text-sm font-semibold text-slate-100">{{ candidate.full_name }}</div>
+                                            <div class="truncate text-[11px] text-slate-400">
+                                                {{ typeLabel(candidate.membership_type) }}
+                                                · {{ candidate.membership_ends_at ? `abonnement t/m ${formatDate(candidate.membership_ends_at)}` : 'geen abonnement' }}
+                                            </div>
+                                        </div>
+                                        <span v-if="existingBlockReason(candidate)" class="shrink-0 text-[10px] font-semibold text-slate-400">
+                                            {{ existingBlockReason(candidate) }}
+                                        </span>
+                                    </button>
+                                </div>
+                            </template>
+
+                            <!-- Bevestigen -->
+                            <div v-else class="space-y-3">
+                                <div class="flex items-center gap-3 rounded-xl border border-violet-500/25 bg-violet-500/10 px-3 py-2.5">
+                                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-xs font-bold text-violet-300">
+                                        {{ initials(selectedExisting.full_name) }}
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="truncate text-sm font-semibold text-slate-100">{{ selectedExisting.full_name }}</div>
+                                        <div class="truncate text-xs text-slate-400">
+                                            {{ selectedExisting.membership_type === 'student' ? 'Kind / student' : 'Volwassene' }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <p class="text-xs text-slate-400">
+                                    <template v-if="selectedExisting.membership_ends_at">
+                                        Het eigen abonnement (t/m {{ formatDate(selectedExisting.membership_ends_at) }}) wordt omgezet:
+                                    </template>
+                                    {{ selectedExisting.full_name }} volgt voortaan de geldigheid van het gezin
+                                    (t/m {{ formatDate(family.membership_ends_at) }}).
+                                </p>
+
+                                <div
+                                    v-if="endsLaterThanFamily(selectedExisting)"
+                                    class="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
+                                >
+                                    Let op: het eigen abonnement loopt langer dan het gezinsabonnement. Na het omzetten vervalt het op {{ formatDate(family.membership_ends_at) }}.
+                                </div>
+
+                                <div class="flex gap-3">
+                                    <button type="button" class="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-slate-700" @click="selectedExisting = null">Terug</button>
+                                    <button type="button" class="flex-1 rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:opacity-50" :disabled="busy" @click="submitExisting(false)">
+                                        {{ busy ? 'Toevoegen…' : 'Toevoegen aan gezin' }}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button v-if="!selectedExisting" type="button" class="text-xs text-slate-400 hover:text-white" @click="closeExisting">Annuleren</button>
+                        </div>
 
                         <!-- Formulier gezinslid -->
                         <div v-if="showForm" class="mt-3 space-y-4 rounded-xl border border-slate-800 bg-slate-900 p-4">
@@ -187,7 +278,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import axios from '@/lib/http'
 import ScanRfidButton from '@/shared/components/scanners/ScanRfidButton.vue'
 
@@ -207,6 +298,17 @@ const error = ref('')
 const limitMessage = ref('')
 const showForm = ref(false)
 const confirmRemoveId = ref(null)
+const lastAction = ref('new')
+
+// Bestaand lid toevoegen
+const showExisting = ref(false)
+const existingQuery = ref('')
+const existingResults = ref([])
+const existingSearching = ref(false)
+const selectedExisting = ref(null)
+const existingInput = ref(null)
+let existingTimer = null
+let existingSeq = 0
 
 const newMember = reactive({
     first_name: '',
@@ -225,6 +327,7 @@ watch(() => [props.open, props.membershipId], ([open]) => {
     error.value = ''
     limitMessage.value = ''
     showForm.value = false
+    closeExisting()
     load()
 })
 
@@ -254,7 +357,117 @@ function openForm() {
     resetForm()
     error.value = ''
     limitMessage.value = ''
+    closeExisting()
     showForm.value = true
+}
+
+async function openExisting() {
+    error.value = ''
+    limitMessage.value = ''
+    showForm.value = false
+    showExisting.value = true
+    await nextTick()
+    existingInput.value?.focus()
+}
+
+function closeExisting() {
+    showExisting.value = false
+    existingQuery.value = ''
+    existingResults.value = []
+    selectedExisting.value = null
+    limitMessage.value = ''
+}
+
+function existingBlockReason(candidate) {
+    if (!family.value) return ''
+    if (candidate.tenant_membership_id === family.value.head_membership_id) return 'hoofd'
+    if (candidate.family_membership_id === family.value.head_membership_id) return 'al in gezin'
+    if (candidate.is_family_head) return 'eigen gezin'
+    if (candidate.family_membership_id) return 'ander gezin'
+    return ''
+}
+
+function selectExisting(candidate) {
+    if (existingBlockReason(candidate)) return
+    error.value = ''
+    limitMessage.value = ''
+    selectedExisting.value = candidate
+}
+
+function endsLaterThanFamily(candidate) {
+    const own = candidate?.membership_ends_at
+    const fam = family.value?.membership_ends_at
+    return !!own && !!fam && own > fam
+}
+
+function typeLabel(type) {
+    if (type === 'student') return 'Student'
+    if (type === 'adult') return 'Volwassene'
+    if (type === 'family') return 'Gezinshoofd'
+    return 'Lid'
+}
+
+watch(existingQuery, (value) => {
+    window.clearTimeout(existingTimer)
+    const q = value.trim()
+
+    if (q.length < 2) {
+        existingResults.value = []
+        existingSearching.value = false
+        return
+    }
+
+    existingSearching.value = true
+    const seq = ++existingSeq
+
+    existingTimer = window.setTimeout(async () => {
+        try {
+            const { data } = await axios.get('/api/frontdesk/members/subscriber-lookup', { params: { q } })
+            if (seq === existingSeq) existingResults.value = data?.data ?? []
+        } catch {
+            if (seq === existingSeq) existingResults.value = []
+        } finally {
+            if (seq === existingSeq) existingSearching.value = false
+        }
+    }, 250)
+})
+
+async function submitExisting(force) {
+    if (!family.value || !selectedExisting.value) return
+    error.value = ''
+    lastAction.value = 'existing'
+    busy.value = true
+
+    try {
+        const { data } = await axios.post(`/api/frontdesk/members/${family.value.head_membership_id}/family/members`, {
+            tenant_membership_id: selectedExisting.value.tenant_membership_id,
+            force,
+        })
+        family.value = data.data
+        closeExisting()
+        emit('changed')
+    } catch (err) {
+        handleSubmitError(err)
+    } finally {
+        busy.value = false
+    }
+}
+
+function retryWithForce() {
+    if (lastAction.value === 'existing') {
+        submitExisting(true)
+    } else {
+        submitMember(true)
+    }
+}
+
+function handleSubmitError(err) {
+    const res = err?.response?.data
+    if (res?.limit_reached) {
+        limitMessage.value = res.message
+    } else {
+        error.value = res?.errors ? Object.values(res.errors).flat()[0] : (res?.message ?? 'Toevoegen mislukt.')
+    }
 }
 
 function closeForm() {
@@ -271,6 +484,7 @@ async function submitMember(force) {
         return
     }
 
+    lastAction.value = 'new'
     busy.value = true
     try {
         const { data } = await axios.post(`/api/frontdesk/members/${family.value.head_membership_id}/family/members`, {
@@ -285,12 +499,7 @@ async function submitMember(force) {
         showForm.value = false
         emit('changed')
     } catch (err) {
-        const res = err?.response?.data
-        if (res?.limit_reached) {
-            limitMessage.value = res.message
-        } else {
-            error.value = res?.errors ? Object.values(res.errors).flat()[0] : (res?.message ?? 'Toevoegen mislukt.')
-        }
+        handleSubmitError(err)
     } finally {
         busy.value = false
     }

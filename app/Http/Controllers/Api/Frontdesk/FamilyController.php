@@ -34,6 +34,27 @@ class FamilyController extends Controller
     {
         $head = $this->resolveHead($currentTenant, $tenantMembership);
 
+        // Bestaand lid aan het gezin toevoegen (huidig abonnement omzetten)
+        if ($request->filled('tenant_membership_id')) {
+            $data = $request->validate([
+                'tenant_membership_id' => ['required', 'integer'],
+                'force'                => ['sometimes', 'boolean'],
+            ]);
+
+            $existing = TenantMembership::query()
+                ->where('tenant_id', $currentTenant->id())
+                ->findOrFail($data['tenant_membership_id']);
+
+            return $this->withLimitHandling(function () use ($head, $existing, $data) {
+                $this->families->addExistingMember($head, $existing, (bool) ($data['force'] ?? false));
+
+                return response()->json([
+                    'message' => 'Lid toegevoegd aan het gezin.',
+                    'data'    => $this->mapFamily($head->fresh()),
+                ], 201);
+            });
+        }
+
         $data = $request->validate([
             'first_name'      => ['required', 'string', 'max:255'],
             'last_name'       => ['required', 'string', 'max:255'],
@@ -44,8 +65,28 @@ class FamilyController extends Controller
             'force'           => ['sometimes', 'boolean'],
         ]);
 
-        try {
+        return $this->withLimitHandling(function () use ($head, $data, $currentTenant, $request) {
             $member = $this->families->addMember($head, $data, (bool) ($data['force'] ?? false));
+
+            if (! empty($member->rfid_uid)) {
+                app(MemberController::class)->syncCard($member, $currentTenant, $request->attributes->get('frontdesk_user')?->id);
+            }
+
+            return response()->json([
+                'message' => 'Gezinslid toegevoegd.',
+                'data'    => $this->mapFamily($head->fresh()),
+            ], 201);
+        });
+    }
+
+    /**
+     * Limiet-overschrijding als aparte 422 met limit_reached, zodat de
+     * frontdesk "Toch toevoegen" kan aanbieden.
+     */
+    private function withLimitHandling(callable $action): JsonResponse
+    {
+        try {
+            return $action();
         } catch (ValidationException $e) {
             $errors = $e->errors();
 
@@ -58,15 +99,6 @@ class FamilyController extends Controller
 
             throw $e;
         }
-
-        if (! empty($member->rfid_uid)) {
-            app(MemberController::class)->syncCard($member, $currentTenant, $request->attributes->get('frontdesk_user')?->id);
-        }
-
-        return response()->json([
-            'message' => 'Gezinslid toegevoegd.',
-            'data'    => $this->mapFamily($head->fresh()),
-        ], 201);
     }
 
     public function destroyMember(CurrentTenant $currentTenant, TenantMembership $tenantMembership, TenantMembership $member): JsonResponse

@@ -67,6 +67,16 @@
                         </button>
 
                         <button
+                            v-if="canConvertToFamily(store.selectedMember)"
+                            type="button"
+                            class="rounded-2xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm font-semibold text-violet-200 transition hover:bg-violet-500/20 disabled:opacity-50"
+                            :disabled="converting"
+                            @click="convertToFamily(store.selectedMember)"
+                        >
+                            {{ converting ? 'Omzetten…' : '👨‍👩‍👧 Omzetten naar gezin' }}
+                        </button>
+
+                        <button
                             v-if="store.selectedMember?.is_family_head || store.selectedMember?.family_membership_id"
                             type="button"
                             class="rounded-2xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm font-semibold text-violet-200 transition hover:bg-violet-500/20"
@@ -146,6 +156,7 @@ const activatingId           = ref(null)
 const newRegistrations       = ref([])
 const inviting               = ref(false)
 const inviteMessage          = ref('')
+const converting             = ref(false)
 const showFamilyModal        = ref(false)
 const familyMembershipId     = ref(null)
 
@@ -188,6 +199,33 @@ function openEditModal(member) {
 function openFamilyModal(member) {
     familyMembershipId.value = member?.id ?? null
     showFamilyModal.value = !!member
+}
+
+/**
+ * Huidig abonnement omzetten naar een familieabonnement: dit lid wordt het
+ * hoofd, de geldigheid blijft behouden. Daarna meteen gezinsleden toevoegen.
+ */
+function canConvertToFamily(member) {
+    return !!member
+        && !member.is_family_head
+        && !member.family_membership_id
+        && member.status !== 'none'
+}
+
+async function convertToFamily(member) {
+    if (!member?.id || converting.value) return
+    converting.value = true
+    store.error = ''
+    try {
+        await axios.put(`/api/frontdesk/members/${member.id}`, { membership_type: 'family' })
+        await store.fetchMembers()
+        store.selectMember(member.id)
+        openFamilyModal(member)
+    } catch (err) {
+        store.error = err?.response?.data?.message ?? 'Omzetten naar gezin mislukt.'
+    } finally {
+        converting.value = false
+    }
 }
 
 function closeFamilyModal() {
