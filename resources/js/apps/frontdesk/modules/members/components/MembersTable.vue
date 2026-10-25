@@ -46,9 +46,10 @@
                             <span class="font-semibold text-white">{{ row.member.full_name }}</span>
                             <span
                                 v-if="row.member.is_family_head"
-                                class="inline-flex items-center rounded-full bg-violet-500/15 px-2 py-0.5 text-xs font-semibold text-violet-300"
+                                class="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-xs font-semibold text-violet-300"
                             >
-                                👨‍👩‍👧 Gezin · {{ (row.member.family_member_count ?? 0) + 1 }} personen
+                                <UserGroupIcon class="h-3.5 w-3.5" />
+                                Gezin · {{ (row.member.family_member_count ?? 0) + 1 }} personen
                             </span>
                             <span
                                 v-else-if="row.member.family_membership_id && !row.nested"
@@ -110,6 +111,7 @@
 </template>
 
 <script setup>
+import { UserGroupIcon } from '@heroicons/vue/24/outline'
 import { computed } from 'vue'
 
 const props = defineProps({

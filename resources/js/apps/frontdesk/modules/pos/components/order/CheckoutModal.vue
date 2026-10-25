@@ -37,7 +37,7 @@
                                     class="rounded-xl border border-slate-700 bg-slate-800/90 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700"
                                     @click="emit('split')"
                                 >
-                                    ✂ Bon splitsen
+                                    <span class="inline-flex items-center gap-1.5"><ScissorsIcon class="h-4 w-4" /> Bon splitsen</span>
                                 </button>
                             </div>
                         </div>
@@ -398,6 +398,7 @@ import {
     CheckIcon,
     DocumentTextIcon,
     PrinterIcon,
+    ScissorsIcon,
     TrashIcon,
     XMarkIcon,
 } from '@heroicons/vue/24/outline'

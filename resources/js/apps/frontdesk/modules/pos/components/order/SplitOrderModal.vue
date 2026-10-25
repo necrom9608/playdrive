@@ -18,7 +18,7 @@
                         class="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800/90 text-white transition hover:bg-slate-700"
                         @click="handleClose"
                     >
-                        ✕
+                        <XMarkIcon class="h-5 w-5" />
                     </button>
                 </div>
 
@@ -44,7 +44,7 @@
                             class="rounded-2xl px-3 py-2 text-xs font-semibold text-slate-300 transition hover:bg-slate-800"
                             @click="addBon"
                         >
-                            ＋ Nieuwe bon
+                            <span class="inline-flex items-center gap-1.5"><PlusIcon class="h-4 w-4" /> Nieuwe bon</span>
                         </button>
                     </div>
 
@@ -90,7 +90,7 @@
                                         title="Hele lijn verplaatsen"
                                         @click.stop="tapLine(index, line.item_id, true)"
                                     >
-                                        ⇥
+                                        <ChevronDoubleRightIcon class="h-4 w-4" />
                                     </button>
                                 </div>
 
@@ -159,7 +159,7 @@
                                 class="shrink-0 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
                                 @click="$emit('print', row.orderId)"
                             >
-                                🧾 Ticket
+                                <span class="inline-flex items-center gap-1.5"><PrinterIcon class="h-4 w-4" /> Ticket</span>
                             </button>
                             <button
                                 v-else-if="!row.paid"
@@ -194,6 +194,7 @@
 </template>
 
 <script setup>
+import { ChevronDoubleRightIcon, PlusIcon, PrinterIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { computed, ref, watch } from 'vue'
 
 const props = defineProps({

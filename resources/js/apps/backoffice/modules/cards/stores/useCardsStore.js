@@ -162,6 +162,18 @@ export const useCardsStore = defineStore('backofficeCards', {
         },
 
 
+        async bulkCreateMemberCards() {
+            this.error = null
+            try {
+                const response = await axios.post('/api/backoffice/cards/bulk-member-cards')
+                return response.data ?? null
+            } catch (error) {
+                console.error('Failed to create member cards', error)
+                this.error = error?.response?.data?.message ?? 'Kaarten aanmaken mislukt.'
+                return null
+            }
+        },
+
         async deleteCard(cardId) {
             if (!cardId || this.deleting) {
                 return false

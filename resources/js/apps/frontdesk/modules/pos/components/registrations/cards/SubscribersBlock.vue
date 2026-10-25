@@ -1,8 +1,9 @@
 <template>
     <div class="rounded-xl border border-slate-700 bg-slate-950/60 p-3">
         <div class="mb-3 flex items-center justify-between">
-            <div class="text-xs font-medium text-slate-400">
-                🎫 Abonnees in deze groep
+            <div class="flex items-center gap-1.5 text-xs font-medium text-slate-400">
+                <TicketIcon class="h-4 w-4" />
+                Abonnees in deze groep
             </div>
 
             <span
@@ -45,7 +46,7 @@
                     title="Verwijderen"
                     @click="removeSubscriber(subscriber)"
                 >
-                    ✕
+                    <XMarkIcon class="h-4 w-4" />
                 </button>
             </div>
         </div>
@@ -72,7 +73,8 @@
                 class="inline-flex flex-1 items-center justify-center gap-1 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-700"
                 @click="toggleSearch"
             >
-                ＋ Abonnee zoeken
+                <PlusIcon class="h-4 w-4" />
+                Abonnee zoeken
             </button>
 
             <ScanRfidButton
@@ -116,7 +118,7 @@
                         class="flex items-center gap-3 border-b border-slate-800 bg-violet-500/5 px-3 py-2"
                     >
                         <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-sm">
-                            👨‍👩‍👧
+                            <UserGroupIcon class="h-4 w-4 text-violet-300" />
                         </div>
                         <div class="min-w-0 flex-1">
                             <div class="truncate text-sm font-semibold text-slate-100">{{ family.name }}</div>
@@ -227,6 +229,7 @@
 </template>
 
 <script setup>
+import { PlusIcon, TicketIcon, UserGroupIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import axios from '@/lib/http'
 import { nextTick, ref, watch } from 'vue'
 import ScanRfidButton from '@/shared/components/scanners/ScanRfidButton.vue'

@@ -120,15 +120,8 @@ class PhysicalCardController extends Controller
                     ->get(['id', 'name', 'username', 'email', 'rfid_uid'])
                     ->map(fn (User $u) => $this->transformStaffOption($u))
                     ->values(),
-                // Leden: via TenantMembership → Account
-                'members' => TenantMembership::query()
-                    ->where('tenant_id', $currentTenant->id())
-                    ->with('account:id,first_name,last_name,email')
-                    ->orderBy('id')
-                    ->get()
-                    ->sortBy(fn ($m) => strtolower(($m->account?->last_name ?? '') . ' ' . ($m->account?->first_name ?? '')))
-                    ->map(fn (TenantMembership $m) => $this->transformMembershipOption($m))
-                    ->values(),
+                // Leden: via TenantMembership → Account, met abonnementsstatus en bestaande kaart
+                'members' => $this->memberOptions($currentTenant),
                 'cards' => $cards->map(fn (PhysicalCard $card) => $this->transformCard($card))->values(),
             ],
         ]);
@@ -400,6 +393,8 @@ class PhysicalCardController extends Controller
             'name'                => $template->name,
             'template_type'       => $template->template_type,
             'template_type_label' => PhysicalCard::typeOptions()[$template->template_type] ?? ucfirst((string) $template->template_type),
+            'is_default'          => (bool) $template->is_default,
+            'config_json'         => $template->config_json,
         ];
     }
 
@@ -664,6 +659,11 @@ class PhysicalCardController extends Controller
                 ->value('rfid_uid'));
         }
 
+        // Abonnementskaart zonder chip: tijdelijk nummer, chip na het printen scannen
+        if ($rfidUid === '' && ($data['card_type'] ?? null) === PhysicalCard::TYPE_MEMBER) {
+            $rfidUid = sprintf('TMP-MEMBER-%d-%d-%s', $currentTenant->id(), $holderId, \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(8)));
+        }
+
         abort_if($rfidUid === '', 422, 'Scan eerst een RFID-kaart of koppel een lid/medewerker met een bestaande RFID UID.');
 
         return $rfidUid;
@@ -700,15 +700,105 @@ class PhysicalCardController extends Controller
         ];
     }
 
-    protected function transformMembershipOption(TenantMembership $membership): array
+    protected function memberOptions(CurrentTenant $currentTenant)
     {
+        $cards = PhysicalCard::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->where('card_type', PhysicalCard::TYPE_MEMBER)
+            ->where('holder_type', PhysicalCard::TYPE_MEMBER)
+            ->whereNotIn('status', [PhysicalCard::STATUS_BLOCKED, PhysicalCard::STATUS_RETIRED])
+            ->orderByDesc('id')
+            ->get(['id', 'holder_id', 'status', 'printed_at'])
+            ->groupBy('holder_id')
+            ->map(fn ($group) => $group->first());
+
+        return TenantMembership::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->with(['account:id,first_name,last_name,email', 'family.account:id,last_name'])
+            ->get()
+            ->sortBy(fn ($m) => mb_strtolower(trim(($m->account?->last_name ?? '') . ' ' . ($m->account?->first_name ?? ''))))
+            ->map(fn (TenantMembership $m) => $this->transformMembershipOption($m, $cards->get($m->id)))
+            ->values();
+    }
+
+    protected function transformMembershipOption(TenantMembership $membership, ?PhysicalCard $card = null): array
+    {
+        $today  = now()->startOfDay();
+        $endsAt = $membership->membership_ends_at?->copy()->startOfDay();
+
+        $status = match (true) {
+            ! $endsAt                                   => 'none',
+            ! $membership->is_active || $endsAt->lt($today) => 'expired',
+            $endsAt->lte($today->copy()->addDays(30))   => 'expiring',
+            default                                     => 'active',
+        };
+
+        $email = $membership->email;
+        if ($email && (str_contains($email, '@playdrive.local') || str_contains($email, '@migrated.local'))) {
+            $email = null;
+        }
+
+        $familyHead = $membership->isFamilyHead() ? $membership : $membership->family;
+
         return [
-            'id'         => $membership->id,
-            'name'       => $membership->full_name,
-            'first_name' => $membership->first_name,
-            'last_name'  => $membership->last_name,
-            'email'      => $membership->email,
-            'rfid_uid'   => $membership->rfid_uid,
+            'id'                 => $membership->id,
+            'name'               => $membership->full_name,
+            'first_name'         => $membership->first_name,
+            'last_name'          => $membership->last_name,
+            'email'              => $email,
+            'rfid_uid'           => MemberCardService::isTemporaryUid($membership->rfid_uid) ? null : $membership->rfid_uid,
+            'membership_type'    => $membership->membership_type,
+            'type_label'         => match ($membership->membership_type) {
+                'student' => 'Student',
+                'family'  => 'Gezinshoofd',
+                default   => 'Volwassene',
+            },
+            'membership_ends_at' => $endsAt?->toDateString(),
+            'valid_until'        => $endsAt?->format('d/m/Y'),
+            'status'             => $status,
+            'family_name'        => $familyHead?->account?->last_name ? 'Familie ' . $familyHead->account->last_name : null,
+            'card'               => $card ? [
+                'id'           => $card->id,
+                'status'       => $card->status,
+                'status_label' => PhysicalCard::statusOptions()[$card->status] ?? $card->status,
+                'printed'      => (bool) $card->printed_at,
+            ] : null,
         ];
+    }
+
+    /**
+     * Kaarten aanmaken voor alle actieve abonnementen zonder kaart
+     * (standaardontwerp, komen in de printwachtrij).
+     */
+    public function bulkCreateMemberCards(Request $request, CurrentTenant $currentTenant, MemberCardService $cards): JsonResponse
+    {
+        $userId = $this->backofficeUserId($request);
+        $today  = now()->toDateString();
+
+        $withCard = PhysicalCard::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->where('card_type', PhysicalCard::TYPE_MEMBER)
+            ->where('holder_type', PhysicalCard::TYPE_MEMBER)
+            ->whereNotIn('status', [PhysicalCard::STATUS_BLOCKED, PhysicalCard::STATUS_RETIRED])
+            ->pluck('holder_id');
+
+        $memberships = TenantMembership::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->where('is_active', true)
+            ->whereDate('membership_ends_at', '>=', $today)
+            ->whereNotIn('id', $withCard)
+            ->with('account')
+            ->get();
+
+        foreach ($memberships as $membership) {
+            $cards->ensureCard($membership, $userId);
+        }
+
+        return response()->json([
+            'message' => $memberships->count()
+                ? sprintf('%d kaart(en) aangemaakt en klaargezet om te printen.', $memberships->count())
+                : 'Alle actieve leden hebben al een kaart.',
+            'created' => $memberships->count(),
+        ]);
     }
 }

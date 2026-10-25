@@ -51,12 +51,17 @@ import { resolveImageUrl, sampleData } from '../utils/badgeEditor'
 const props = defineProps({
     template: { type: Object, required: true },
     width: { type: Number, default: 280 },
+    // optioneel: echte gegevens i.p.v. voorbeelddata (bv. gekozen lid)
+    data: { type: Object, default: null },
 })
 
 const scale = computed(() => props.width / (props.template?.config_json?.width || 1012))
 const config = computed(() => props.template?.config_json || props.template || { width: 1012, height: 638, elements: [] })
 const ratioHeight = computed(() => Math.round((config.value.height || 638) * scale.value))
-const previewData = computed(() => sampleData[props.template?.template_type] || sampleData.staff)
+const previewData = computed(() => {
+    const sample = sampleData[props.template?.template_type] || sampleData.staff
+    return props.data ? { ...sample, ...props.data } : sample
+})
 
 const wrapperStyle = computed(() => ({
     width: `${props.width}px`,

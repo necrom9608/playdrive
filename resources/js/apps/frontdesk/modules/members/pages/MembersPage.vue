@@ -73,7 +73,10 @@
                             :disabled="converting"
                             @click="convertToFamily(store.selectedMember)"
                         >
-                            {{ converting ? 'Omzetten…' : '👨‍👩‍👧 Omzetten naar gezin' }}
+                            <span class="inline-flex items-center gap-2">
+                                <UserGroupIcon class="h-4 w-4" />
+                                {{ converting ? 'Omzetten…' : 'Omzetten naar gezin' }}
+                            </span>
                         </button>
 
                         <button
@@ -82,7 +85,10 @@
                             class="rounded-2xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm font-semibold text-violet-200 transition hover:bg-violet-500/20"
                             @click="openFamilyModal(store.selectedMember)"
                         >
-                            👨‍👩‍👧 Gezin beheren
+                            <span class="inline-flex items-center gap-2">
+                                <UserGroupIcon class="h-4 w-4" />
+                                Gezin beheren
+                            </span>
                         </button>
 
                         <button
@@ -133,6 +139,7 @@
 </template>
 
 <script setup>
+import { UserGroupIcon } from '@heroicons/vue/24/outline'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import axios from '@/lib/http'
 import MembersSummaryCards from '../components/MembersSummaryCards.vue'

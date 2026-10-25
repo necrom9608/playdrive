@@ -96,7 +96,7 @@
                                         title="Uit gezin halen"
                                         @click="confirmRemoveId = person.tenant_membership_id"
                                     >
-                                        ✕
+                                        <XMarkIcon class="h-4 w-4" />
                                     </button>
                                 </template>
                             </div>
@@ -118,14 +118,14 @@
                                 class="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-700"
                                 @click="openForm"
                             >
-                                ＋ Nieuw gezinslid
+                                <span class="inline-flex items-center gap-1.5"><PlusIcon class="h-4 w-4" /> Nieuw gezinslid</span>
                             </button>
                             <button
                                 type="button"
                                 class="rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-xs font-semibold text-violet-200 transition hover:bg-violet-500/20"
                                 @click="openExisting"
                             >
-                                ＋ Bestaand lid toevoegen
+                                <span class="inline-flex items-center gap-1.5"><UserPlusIcon class="h-4 w-4" /> Bestaand lid toevoegen</span>
                             </button>
                         </div>
 
@@ -278,6 +278,7 @@
 </template>
 
 <script setup>
+import { PlusIcon, UserPlusIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import axios from '@/lib/http'
 import ScanRfidButton from '@/shared/components/scanners/ScanRfidButton.vue'

@@ -166,6 +166,7 @@ Route::prefix('api/backoffice')->group(function () {
 
         Route::get('/cards', [PhysicalCardController::class, 'index']);
         Route::post('/cards', [PhysicalCardController::class, 'store']);
+        Route::post('/cards/bulk-member-cards', [PhysicalCardController::class, 'bulkCreateMemberCards']);
         Route::put('/cards/{card}', [PhysicalCardController::class, 'update']);
         Route::delete('/cards/{card}', [PhysicalCardController::class, 'destroy']);
         Route::post('/cards/{card}/render-image', [PhysicalCardController::class, 'uploadRenderImage']);

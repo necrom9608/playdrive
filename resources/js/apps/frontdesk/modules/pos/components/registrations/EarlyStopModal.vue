@@ -18,7 +18,7 @@
                     class="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-800 hover:text-white"
                     @click="$emit('close')"
                 >
-                    ✕
+                    <XMarkIcon class="h-5 w-5" />
                 </button>
             </div>
 
@@ -31,11 +31,11 @@
                         :key="stop.id"
                         class="flex items-center gap-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2"
                     >
-                        <span>⏸</span>
+                        <PauseCircleIcon class="h-5 w-5 shrink-0 text-amber-300" />
                         <div class="min-w-0 flex-1 text-sm">
                             <div class="font-semibold text-slate-100">
                                 {{ stopLabel(stop) }}
-                                <span v-if="stop.subscriber_name" class="font-normal text-emerald-300">· 🎫 {{ stop.subscriber_name }}</span>
+                                <span v-if="stop.subscriber_name" class="inline-flex items-center gap-1 font-normal text-emerald-300">· <TicketIcon class="h-3.5 w-3.5" /> {{ stop.subscriber_name }}</span>
                             </div>
                             <div class="text-xs text-slate-400">
                                 gestopt om {{ stop.stopped_time }}
@@ -94,7 +94,7 @@
                                 : 'border-slate-700 text-slate-300 hover:border-slate-500'"
                             @click="toggleSubscriber(subscriber)"
                         >
-                            🎫 {{ subscriber.full_name }}
+                            <span class="inline-flex items-center gap-1.5"><TicketIcon class="h-3.5 w-3.5" /> {{ subscriber.full_name }}</span>
                         </button>
                     </div>
                     <div class="mt-1.5 text-xs text-slate-500">Een abonnee die stopt verandert niets aan de prijs, enkel aan de speeltijd.</div>
@@ -145,6 +145,7 @@
 </template>
 
 <script setup>
+import { PauseCircleIcon, TicketIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import axios from '@/lib/http'
 import { computed, reactive, ref, watch } from 'vue'
 

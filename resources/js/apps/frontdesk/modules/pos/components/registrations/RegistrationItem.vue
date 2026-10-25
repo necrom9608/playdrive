@@ -32,14 +32,16 @@
                         v-if="registration.outside_opening_hours"
                         class="inline-flex items-center gap-1 rounded-full bg-violet-500 px-2 py-0.5 font-semibold text-white shadow-sm"
                     >
-                        🌙 Buiten
+                        <MoonIcon class="h-3.5 w-3.5" />
+                        Buiten
                     </span>
 
                     <span
                         v-if="registration.is_member && (registration.subscriber_count ?? 1) <= 1"
                         class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-300 ring-1 ring-emerald-500/25"
                     >
-                        🪪 Lid
+                        <IdentificationIcon class="h-3.5 w-3.5" />
+                        Lid
                     </span>
 
                     <span
@@ -47,14 +49,16 @@
                         class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-300 ring-1 ring-emerald-500/25"
                         :title="(registration.subscribers ?? []).map(s => s.full_name).join(', ')"
                     >
-                        🎫 {{ registration.subscriber_count }} abonnee{{ registration.subscriber_count > 1 ? 's' : '' }}
+                        <TicketIcon class="h-3.5 w-3.5" />
+                        {{ registration.subscriber_count }} abonnee{{ registration.subscriber_count > 1 ? 's' : '' }}
                     </span>
 
                     <span
                         v-if="stoppedCount > 0"
                         class="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 font-semibold text-amber-300 ring-1 ring-amber-500/25"
                     >
-                        ⏸ {{ children + adults - stoppedCount }} spelen · {{ stoppedCount }} gestopt
+                        <PauseCircleIcon class="h-3.5 w-3.5" />
+                        {{ children + adults - stoppedCount }} spelen · {{ stoppedCount }} gestopt
                     </span>
 
                     <span class="inline-flex items-center rounded-full bg-blue-500/15 px-2 py-0.5 font-medium text-blue-300 ring-1 ring-blue-500/25">
@@ -97,6 +101,7 @@
 </template>
 
 <script setup>
+import { IdentificationIcon, MoonIcon, PauseCircleIcon, TicketIcon } from '@heroicons/vue/24/outline'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 const nowTs = ref(Date.now())

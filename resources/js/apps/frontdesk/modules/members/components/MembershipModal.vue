@@ -21,7 +21,8 @@
 
                 <!-- Gezinslid: geldigheid via hoofdabonnement -->
                 <div v-if="isFamilyMember" class="rounded-2xl border border-violet-500/25 bg-violet-500/10 px-4 py-3 text-sm text-violet-200">
-                    👨‍👩‍👧 Dit lid hoort bij <span class="font-semibold">{{ member?.family_name || 'een familieabonnement' }}</span>.
+                    <UserGroupIcon class="mr-1 inline h-4 w-4 align-text-bottom" />
+                    Dit lid hoort bij <span class="font-semibold">{{ member?.family_name || 'een familieabonnement' }}</span>.
                     De geldigheid volgt het hoofdabonnement (#{{ member?.family_membership_id }}).
                 </div>
 
@@ -132,6 +133,7 @@
 </template>
 
 <script setup>
+import { UserGroupIcon } from '@heroicons/vue/24/outline'
 import { computed, reactive, ref, watch } from 'vue'
 import ScanRfidButton from '@/shared/components/scanners/ScanRfidButton.vue'
 
