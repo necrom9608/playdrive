@@ -6,6 +6,7 @@ use App\Models\PricingProfile;
 use App\Models\PricingRule;
 use App\Models\Product;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class PricingEvaluator
 {
@@ -40,18 +41,41 @@ class PricingEvaluator
                     continue;
                 }
 
-                $rule = $this->findMatchingDurationRule($rules, $scope, (int) $segment['minutes']);
+                $minutes = (int) $segment['minutes'];
+                $rule = $this->findMatchingDurationRule($rules, $scope, $minutes);
+
+                // "Doorschuiven naar volgend tarief": het volgende tarief van
+                // dezelfde doelgroep aanrekenen (bv. 1u22 → tarief 2u).
+                $rule = $rule ? $this->resolveNextRuleChain($rules, $rule, $scope) : null;
 
                 if (! $rule) {
+                    Log::warning('Pricing: geen speeltijdtarief gevonden', [
+                        'registration_id' => $context->registrationId,
+                        'scope'           => $scope,
+                        'count'           => $count,
+                        'minutes'         => $minutes,
+                    ]);
+
                     continue;
+                }
+
+                $ruleLines = $this->expandRuleToLines($rule, $context, $count, 'duration', $minutes);
+
+                if ($ruleLines->isEmpty()) {
+                    Log::warning('Pricing: speeltijdregel zonder product', [
+                        'registration_id' => $context->registrationId,
+                        'rule_id'         => $rule->id,
+                        'scope'           => $scope,
+                        'count'           => $count,
+                    ]);
                 }
 
                 $matchedRules[] = $this->mapMatchedRule($rule, 'duration', [
                     'participant_scope' => $scope,
-                    'minutes'           => (int) $segment['minutes'],
+                    'minutes'           => $minutes,
                     'stopped_at'        => $segment['stopped_at'],
                 ]);
-                $lines = $lines->merge($this->expandRuleToLines($rule, $context, $count, 'duration'));
+                $lines = $lines->merge($ruleLines);
             }
         }
 
@@ -129,6 +153,47 @@ class PricingEvaluator
             });
     }
 
+    /**
+     * Volg "doorschuiven naar volgend tarief" tot een regel met een product.
+     * Volgend tarief = duurregel van dezelfde doelgroep (of iedereen) met de
+     * kleinste "van minuut" groter dan die van de huidige regel.
+     */
+    private function resolveNextRuleChain(Collection $rules, PricingRule $rule, string $scope): ?PricingRule
+    {
+        $guard = 0;
+
+        while ((((array) ($rule->actions ?? []))['billing_mode'] ?? 'fixed_product') === 'next_rule' && $guard++ < 10) {
+            $currentFrom = (int) (((array) ($rule->conditions ?? []))['from_minutes'] ?? 0);
+
+            $next = $rules
+                ->filter(fn (PricingRule $candidate) => $candidate->type === PricingRule::TYPE_DURATION)
+                ->filter(function (PricingRule $candidate) use ($scope, $currentFrom, $rule) {
+                    if ((int) $candidate->id === (int) $rule->id) {
+                        return false;
+                    }
+
+                    $conditions = (array) ($candidate->conditions ?? []);
+                    $candidateScope = $this->normalizeScope($conditions['participant_scope'] ?? $conditions['audience'] ?? null);
+
+                    if ($candidateScope !== $scope && $candidateScope !== 'all') {
+                        return false;
+                    }
+
+                    return (int) ($conditions['from_minutes'] ?? 0) > $currentFrom;
+                })
+                ->sortBy(fn (PricingRule $candidate) => (int) (((array) ($candidate->conditions ?? []))['from_minutes'] ?? 0))
+                ->first();
+
+            if (! $next) {
+                return null;
+            }
+
+            $rule = $next;
+        }
+
+        return $rule;
+    }
+
     private function matchesCateringRule(PricingRule $rule, PricingContext $context): bool
     {
         $conditions = (array) ($rule->conditions ?? []);
@@ -150,7 +215,7 @@ class PricingEvaluator
     /**
      * @return Collection<int, PricingEvaluationLine>
      */
-    private function expandRuleToLines(PricingRule $rule, PricingContext $context, int $participantCount, string $source): Collection
+    private function expandRuleToLines(PricingRule $rule, PricingContext $context, int $participantCount, string $source, ?int $minutes = null): Collection
     {
         $actions = (array) ($rule->actions ?? []);
 
