@@ -16,6 +16,7 @@ export const useCardsStore = defineStore('backofficeCards', {
         cardType: '',
         voucherTemplateId: '',
         badgeTemplateId: '',
+        toPrint: false,
         summary: {
             total: 0,
             voucher: 0,
@@ -25,6 +26,7 @@ export const useCardsStore = defineStore('backofficeCards', {
             in_circulation: 0,
             returned: 0,
             blocked: 0,
+            to_print: 0,
         },
         cardTypes: [],
         voucherTemplates: [],
@@ -64,6 +66,7 @@ export const useCardsStore = defineStore('backofficeCards', {
                         card_type: this.cardType || undefined,
                         voucher_template_id: this.voucherTemplateId || undefined,
                         badge_template_id: this.badgeTemplateId || undefined,
+                        to_print: this.toPrint ? 1 : undefined,
                     },
                 })
 

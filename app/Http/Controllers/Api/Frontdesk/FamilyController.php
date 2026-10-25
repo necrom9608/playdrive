@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Frontdesk;
 
 use App\Domain\Memberships\FamilyMembershipService;
+use App\Domain\Memberships\MemberCardService;
 use App\Http\Controllers\Controller;
 use App\Models\TenantMembership;
 use App\Support\CurrentTenant;
@@ -45,8 +46,9 @@ class FamilyController extends Controller
                 ->where('tenant_id', $currentTenant->id())
                 ->findOrFail($data['tenant_membership_id']);
 
-            return $this->withLimitHandling(function () use ($head, $existing, $data) {
-                $this->families->addExistingMember($head, $existing, (bool) ($data['force'] ?? false));
+            return $this->withLimitHandling(function () use ($head, $existing, $data, $request) {
+                $member = $this->families->addExistingMember($head, $existing, (bool) ($data['force'] ?? false));
+                app(MemberCardService::class)->ensureCard($member, $request->attributes->get('frontdesk_user')?->id);
 
                 return response()->json([
                     'message' => 'Lid toegevoegd aan het gezin.',
@@ -68,8 +70,13 @@ class FamilyController extends Controller
         return $this->withLimitHandling(function () use ($head, $data, $currentTenant, $request) {
             $member = $this->families->addMember($head, $data, (bool) ($data['force'] ?? false));
 
+            $actorId = $request->attributes->get('frontdesk_user')?->id;
+
             if (! empty($member->rfid_uid)) {
-                app(MemberController::class)->syncCard($member, $currentTenant, $request->attributes->get('frontdesk_user')?->id);
+                app(MemberController::class)->syncCard($member, $currentTenant, $actorId);
+            } else {
+                // kaart klaarzetten voor Backoffice → Kaarten (nog te printen)
+                app(MemberCardService::class)->ensureCard($member, $actorId);
             }
 
             return response()->json([

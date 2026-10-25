@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Frontdesk;
 
 use App\Domain\Memberships\FamilyMembershipService;
+use App\Domain\Memberships\MemberCardService;
 use App\Http\Controllers\Controller;
 use App\Models\BadgeTemplate;
 use App\Models\PhysicalCard;
@@ -152,6 +153,9 @@ class MemberController extends Controller
 
             if (array_key_exists('badge_template_id', $data) || array_key_exists('rfid_uid', $data)) {
                 $this->syncCard($tenantMembership->fresh(), $currentTenant, $actorId, $data['badge_template_id'] ?? null);
+            } elseif ($tenantMembership->fresh()->is_active) {
+                // bv. "Omzetten naar gezin": zorg dat er een kaart klaarstaat
+                app(MemberCardService::class)->ensureCard($tenantMembership->fresh(), $actorId);
             }
 
             // hoofd van een gezin: geldigheid doorzetten naar de gezinsleden

@@ -1,6 +1,6 @@
 <template>
     <div class="flex h-full min-h-0 flex-col gap-4">
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <article v-for="card in summaryCards" :key="card.label" class="rounded-3xl border p-5 shadow-xl" :class="card.class">
                 <p class="text-sm font-medium" :class="card.labelClass">{{ card.label }}</p>
                 <p class="mt-3 text-3xl font-semibold" :class="card.valueClass">{{ card.value }}</p>
@@ -37,6 +37,17 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-3">
+                <button
+                    type="button"
+                    class="rounded-2xl border px-4 py-2.5 text-xs font-semibold transition"
+                    :class="store.toPrint
+                        ? 'border-amber-500/50 bg-amber-500/15 text-amber-200'
+                        : 'border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-500'"
+                    @click="toggleToPrint"
+                >
+                    🖨 Nog te printen ({{ store.summary.to_print ?? 0 }})
+                </button>
+
                 <div class="flex flex-wrap gap-2 rounded-2xl border border-slate-700 bg-slate-950 p-2">
                     <button v-for="option in statusOptions" :key="option.value" type="button" class="rounded-full px-3 py-2 text-xs font-semibold transition" :class="store.statuses.includes(option.value) ? option.activeClass : 'bg-slate-800 text-slate-300'" @click="toggleStatus(option.value)">
                         {{ option.label }}
@@ -70,8 +81,14 @@
                                 </tr>
                                 <tr v-for="card in store.cards" :key="card.id" class="cursor-pointer border-t border-slate-800 transition hover:bg-slate-800/30" :class="card.id === store.selectedCardId ? 'bg-slate-800/60' : ''" @click="store.selectCard(card.id)">
                                     <td class="px-5 py-4 align-top">
-                                        <div class="font-semibold text-white">{{ card.rfid_uid }}</div>
-                                        <div class="mt-1 text-xs text-slate-500">{{ card.label || defaultLabel(card) }}</div>
+                                        <div v-if="isTemporaryUid(card.rfid_uid)" class="inline-flex rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-300" :title="card.rfid_uid">
+                                            Chip nog te koppelen
+                                        </div>
+                                        <div v-else class="font-semibold text-white">{{ card.rfid_uid }}</div>
+                                        <div class="mt-1 text-xs text-slate-500">
+                                            {{ card.label || defaultLabel(card) }}
+                                            <span v-if="!card.printed_at" class="ml-1 text-amber-300">· niet gedrukt</span>
+                                        </div>
                                     </td>
                                     <td class="px-5 py-4 align-top text-slate-200">
                                         <span class="rounded-full px-3 py-1 text-xs font-semibold" :class="typeClass(card.card_type)">{{ card.card_type_label }}</span>
@@ -297,7 +314,18 @@ const summaryCards = computed(() => [
     { label: 'Voucher', value: store.summary.voucher ?? 0, class: 'border-amber-500/20 bg-amber-500/10', labelClass: 'text-amber-300', valueClass: 'text-amber-200' },
     { label: 'Staff', value: store.summary.staff ?? 0, class: 'border-sky-500/20 bg-sky-500/10', labelClass: 'text-sky-300', valueClass: 'text-sky-200' },
     { label: 'Members', value: store.summary.member ?? 0, class: 'border-violet-500/20 bg-violet-500/10', labelClass: 'text-violet-300', valueClass: 'text-violet-200' },
+    { label: 'Nog te printen', value: store.summary.to_print ?? 0, class: 'border-amber-500/20 bg-amber-500/10', labelClass: 'text-amber-300', valueClass: 'text-amber-200' },
 ])
+
+function toggleToPrint() {
+    store.toPrint = !store.toPrint
+    store.fetchCards()
+}
+
+// Tijdelijk nummer tot de echte chip gescand is
+function isTemporaryUid(uid) {
+    return !uid || String(uid).startsWith('TMP-')
+}
 
 const availableFilterTemplates = computed(() => {
     const voucherTemplates = store.cardType === 'staff' || store.cardType === 'member'
@@ -321,7 +349,7 @@ const labelPlaceholder = computed(() => {
     }
 
     if (form.card_type === 'staff') return 'Wordt automatisch STAFF #ID'
-    if (form.card_type === 'member') return 'Wordt automatisch MEMBER #ID'
+    if (form.card_type === 'member') return 'Wordt automatisch LID #ID - naam'
     return 'Wordt automatisch CARD #ID'
 })
 
@@ -510,7 +538,7 @@ function money(value) {
 
 function defaultLabel(card) {
     if (card.card_type === 'staff') return `STAFF #${card.id}`
-    if (card.card_type === 'member') return `MEMBER #${card.id}`
+    if (card.card_type === 'member') return `LID #${card.id}`
     return `CARD #${card.id}`
 }
 </script>

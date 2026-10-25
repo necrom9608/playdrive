@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Backoffice;
 
+use App\Domain\Memberships\MemberCardService;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\BadgeTemplate;
@@ -28,6 +29,7 @@ class PhysicalCardController extends Controller
         $cardType          = $this->nullableValue($request->input('card_type'));
         $voucherTemplateId = $request->integer('voucher_template_id') ?: null;
         $badgeTemplateId   = $request->integer('badge_template_id') ?: null;
+        $toPrint           = $request->boolean('to_print');
 
         $query = PhysicalCard::query()
             ->where('tenant_id', $currentTenant->id())
@@ -68,6 +70,11 @@ class PhysicalCardController extends Controller
         if ($badgeTemplateId) {
             $query->where('badge_template_id', $badgeTemplateId);
         }
+        if ($toPrint) {
+            // printwachtrij: nog niet gedrukte, bruikbare kaarten
+            $query->whereNull('printed_at')
+                ->whereNotIn('status', [PhysicalCard::STATUS_BLOCKED, PhysicalCard::STATUS_RETIRED]);
+        }
 
         $cards     = $query->orderByDesc('id')->get();
         $baseQuery = PhysicalCard::query()->where('tenant_id', $currentTenant->id());
@@ -83,6 +90,10 @@ class PhysicalCardController extends Controller
                     'in_circulation' => (clone $baseQuery)->where('status', PhysicalCard::STATUS_IN_CIRCULATION)->count(),
                     'returned'       => (clone $baseQuery)->where('status', PhysicalCard::STATUS_RETURNED)->count(),
                     'blocked'        => (clone $baseQuery)->whereIn('status', [PhysicalCard::STATUS_BLOCKED, PhysicalCard::STATUS_RETIRED])->count(),
+                    'to_print'       => (clone $baseQuery)
+                        ->whereNull('printed_at')
+                        ->whereNotIn('status', [PhysicalCard::STATUS_BLOCKED, PhysicalCard::STATUS_RETIRED])
+                        ->count(),
                 ],
                 'card_types' => collect(PhysicalCard::typeOptions())
                     ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
@@ -128,6 +139,10 @@ class PhysicalCardController extends Controller
         $data   = $this->validatePayload($request, $currentTenant, null);
         $userId = $this->backofficeUserId($request);
 
+        if ($conflict = $this->holderRfidConflict($data, $currentTenant, null)) {
+            return response()->json(['message' => $conflict, 'errors' => ['rfid_uid' => [$conflict]]], 422);
+        }
+
         $card = PhysicalCard::query()->create([
             'tenant_id'          => $currentTenant->id(),
             'card_type'          => $data['card_type'],
@@ -151,6 +166,8 @@ class PhysicalCardController extends Controller
             $card->forceFill(['label' => $this->defaultLabelForCard($card)])->save();
         }
 
+        $this->syncHolderRfid($card, $currentTenant, null, null, null);
+
         $card->load($this->detailRelations());
 
         return response()->json(['data' => $this->transformCard($card)], 201);
@@ -162,6 +179,14 @@ class PhysicalCardController extends Controller
 
         $data   = $this->validatePayload($request, $currentTenant, $card->id);
         $userId = $this->backofficeUserId($request);
+
+        if ($conflict = $this->holderRfidConflict($data, $currentTenant, $card->id)) {
+            return response()->json(['message' => $conflict, 'errors' => ['rfid_uid' => [$conflict]]], 422);
+        }
+
+        $previousType     = $card->card_type;
+        $previousHolderId = $card->holder_id ? (int) $card->holder_id : null;
+        $previousRfid     = $card->rfid_uid;
 
         $card->fill([
             'card_type'          => $data['card_type'],
@@ -185,6 +210,7 @@ class PhysicalCardController extends Controller
         }
 
         $card->save();
+        $this->syncHolderRfid($card, $currentTenant, $previousType, $previousHolderId, $previousRfid);
         $card->load($this->detailRelations());
 
         return response()->json(['data' => $this->transformCard($card)]);
@@ -470,6 +496,150 @@ class PhysicalCardController extends Controller
         return $binary === false ? null : $binary;
     }
 
+    // ------------------------------------------------------------------
+    // RFID kaart ↔ houder (abonnement of medewerker)
+    //
+    // Aan de balie wordt op het RFID-nummer van het abonnement
+    // (tenant_memberships.rfid_uid) of van de medewerker (users.rfid_uid)
+    // gezocht. Een chip die hier gescand wordt, moet daar dus ook komen.
+    // ------------------------------------------------------------------
+
+    /**
+     * Foutmelding als de RFID al bij een ándere houder hoort, anders null.
+     */
+    protected function holderRfidConflict(array $data, CurrentTenant $currentTenant, ?int $cardId): ?string
+    {
+        $uid      = trim((string) ($data['rfid_uid'] ?? ''));
+        $holderId = (int) ($data['holder_id'] ?? 0);
+        $type     = $data['card_type'] ?? null;
+
+        if (MemberCardService::isTemporaryUid($uid) || $holderId <= 0) {
+            return null;
+        }
+
+        if ($type === PhysicalCard::TYPE_MEMBER) {
+            $other = TenantMembership::query()
+                ->where('tenant_id', $currentTenant->id())
+                ->where('rfid_uid', $uid)
+                ->where('id', '!=', $holderId)
+                ->first();
+
+            if ($other && ! $this->cardBelongsTo($cardId, PhysicalCard::TYPE_MEMBER, $other->id)) {
+                return "Deze RFID is al gekoppeld aan lid {$other->full_name}.";
+            }
+        }
+
+        if ($type === PhysicalCard::TYPE_STAFF) {
+            $other = User::query()
+                ->where('tenant_id', $currentTenant->id())
+                ->where('rfid_uid', $uid)
+                ->where('id', '!=', $holderId)
+                ->first();
+
+            if ($other && ! $this->cardBelongsTo($cardId, PhysicalCard::TYPE_STAFF, $other->id)) {
+                return "Deze RFID is al gekoppeld aan medewerker {$other->name}.";
+            }
+        }
+
+        return null;
+    }
+
+    /** Was deze kaart (vóór de wijziging) van deze houder? */
+    protected function cardBelongsTo(?int $cardId, string $holderType, int $holderId): bool
+    {
+        if (! $cardId) {
+            return false;
+        }
+
+        return PhysicalCard::query()
+            ->where('id', $cardId)
+            ->where('holder_type', $holderType)
+            ->where('holder_id', $holderId)
+            ->exists();
+    }
+
+    /**
+     * RFID van de kaart doorzetten naar de houder.
+     * - kaart aan iemand anders gegeven → oude houder verliest de RFID
+     * - kaart geblokkeerd/buiten gebruik → houder verliest de RFID
+     */
+    protected function syncHolderRfid(PhysicalCard $card, CurrentTenant $currentTenant, ?string $previousType, ?int $previousHolderId, ?string $previousRfid): void
+    {
+        $tenantId = $currentTenant->id();
+        $uid      = (string) $card->rfid_uid;
+
+        // Vorige houder loskoppelen
+        $holderChanged = $previousHolderId
+            && ((int) $previousHolderId !== (int) $card->holder_id || $previousType !== $card->card_type);
+
+        if ($holderChanged && ! MemberCardService::isTemporaryUid($previousRfid)) {
+            $this->clearHolderRfid($previousType, $previousHolderId, $previousRfid, $tenantId);
+        }
+
+        if (! $card->holder_id || ! in_array($card->card_type, [PhysicalCard::TYPE_MEMBER, PhysicalCard::TYPE_STAFF], true)) {
+            return;
+        }
+
+        // Geblokkeerde of afgedankte kaart: chip mag niet meer werken
+        if (in_array($card->status, [PhysicalCard::STATUS_BLOCKED, PhysicalCard::STATUS_RETIRED], true)) {
+            $this->clearHolderRfid($card->card_type, (int) $card->holder_id, $uid, $tenantId);
+
+            return;
+        }
+
+        if (MemberCardService::isTemporaryUid($uid)) {
+            return;
+        }
+
+        // Oude RFID van dezelfde kaart bij de houder vervangen door de nieuwe
+        if ($card->card_type === PhysicalCard::TYPE_MEMBER) {
+            TenantMembership::query()
+                ->where('tenant_id', $tenantId)
+                ->where('rfid_uid', $uid)
+                ->where('id', '!=', $card->holder_id)
+                ->update(['rfid_uid' => null]);
+
+            TenantMembership::query()
+                ->where('tenant_id', $tenantId)
+                ->where('id', $card->holder_id)
+                ->update(['rfid_uid' => $uid]);
+        } else {
+            User::query()
+                ->where('tenant_id', $tenantId)
+                ->where('rfid_uid', $uid)
+                ->where('id', '!=', $card->holder_id)
+                ->update(['rfid_uid' => null]);
+
+            User::query()
+                ->where('tenant_id', $tenantId)
+                ->where('id', $card->holder_id)
+                ->update(['rfid_uid' => $uid]);
+        }
+    }
+
+    protected function clearHolderRfid(?string $type, int $holderId, ?string $uid, int $tenantId): void
+    {
+        if (! $uid) {
+            return;
+        }
+
+        if ($type === PhysicalCard::TYPE_MEMBER) {
+            TenantMembership::query()
+                ->where('tenant_id', $tenantId)
+                ->where('id', $holderId)
+                ->where('rfid_uid', $uid)
+                ->update(['rfid_uid' => null]);
+        }
+
+        if ($type === PhysicalCard::TYPE_STAFF) {
+            User::query()
+                ->where('tenant_id', $tenantId)
+                ->where('id', $holderId)
+                ->where('rfid_uid', $uid)
+                ->update(['rfid_uid' => null]);
+        }
+    }
+
     protected function resolvedRfidUid(array $data, CurrentTenant $currentTenant): string
     {
         $rfidUid  = trim((string) ($data['rfid_uid'] ?? ''));
@@ -512,7 +682,9 @@ class PhysicalCardController extends Controller
     {
         return match ($card->card_type) {
             PhysicalCard::TYPE_STAFF  => 'STAFF #' . $card->id,
-            PhysicalCard::TYPE_MEMBER => 'MEMBER #' . $card->id,
+            PhysicalCard::TYPE_MEMBER => $card->memberHolder
+                ? MemberCardService::label($card->memberHolder)
+                : 'LID #' . $card->id,
             default                   => 'CARD #' . $card->id,
         };
     }

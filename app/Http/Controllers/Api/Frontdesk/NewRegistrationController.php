@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Frontdesk;
 
+use App\Domain\Memberships\MemberCardService;
 use App\Http\Controllers\Controller;
 use App\Mail\MemberLifecycleMail;
 use App\Models\TenantMembership;
@@ -84,6 +85,9 @@ class NewRegistrationController extends Controller
                 'confirmation_mail_sent_at' => now(),
             ]);
         });
+
+        // Kaart klaarzetten voor Backoffice → Kaarten (nog te printen)
+        app(MemberCardService::class)->ensureCard($membership->fresh(), $request->attributes->get('frontdesk_user')?->id);
 
         // Bevestigingsmail sturen als er een geldig e-mailadres is
         $account = $membership->account;

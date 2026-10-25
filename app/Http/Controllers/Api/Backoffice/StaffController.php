@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Backoffice;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backoffice\StoreStaffRequest;
 use App\Http\Requests\Backoffice\UpdateStaffRequest;
+use App\Models\PhysicalCard;
 use App\Models\User;
 use App\Support\CurrentTenant;
 use Illuminate\Http\JsonResponse;
@@ -80,7 +81,29 @@ class StaffController extends Controller
 
         $staff->save();
 
+        $this->syncStaffCardRfid($staff);
+
         return response()->json($this->mapStaff($staff->fresh()));
+    }
+
+    /**
+     * RFID van de medewerker ook op zijn personeelsbadge zetten
+     * (Backoffice → Kaarten), zodat badge en login hetzelfde nummer hebben.
+     */
+    private function syncStaffCardRfid(User $staff): void
+    {
+        if (blank($staff->rfid_uid)) {
+            return;
+        }
+
+        PhysicalCard::query()
+            ->where('tenant_id', $staff->tenant_id)
+            ->where('card_type', PhysicalCard::TYPE_STAFF)
+            ->where('holder_type', PhysicalCard::TYPE_STAFF)
+            ->where('holder_id', $staff->id)
+            ->whereNotIn('status', [PhysicalCard::STATUS_BLOCKED, PhysicalCard::STATUS_RETIRED])
+            ->where('rfid_uid', '!=', $staff->rfid_uid)
+            ->update(['rfid_uid' => $staff->rfid_uid]);
     }
 
     public function destroy(CurrentTenant $currentTenant, User $staff): JsonResponse
