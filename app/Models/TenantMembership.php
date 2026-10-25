@@ -8,10 +8,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TenantMembership extends Model
 {
+    public const TYPE_ADULT   = 'adult';
+    public const TYPE_STUDENT = 'student';
+    public const TYPE_FAMILY  = 'family'; // hoofd van een familieabonnement
+
     protected $fillable = [
         'account_id',
         'tenant_id',
         'membership_type',
+        'family_membership_id',
         'rfid_uid',
         'membership_starts_at',
         'membership_ends_at',
@@ -50,6 +55,28 @@ class TenantMembership extends Model
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    /** Hoofdabonnement (enkel voor gezinsleden). */
+    public function family(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'family_membership_id');
+    }
+
+    /** Gezinsleden (enkel voor het hoofd). */
+    public function familyMembers(): HasMany
+    {
+        return $this->hasMany(self::class, 'family_membership_id');
+    }
+
+    public function isFamilyHead(): bool
+    {
+        return $this->membership_type === self::TYPE_FAMILY;
+    }
+
+    public function isFamilyMember(): bool
+    {
+        return $this->family_membership_id !== null;
     }
 
     public function physicalCards(): HasMany

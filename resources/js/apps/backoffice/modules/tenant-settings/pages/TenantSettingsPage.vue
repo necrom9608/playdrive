@@ -110,6 +110,24 @@
         </section>
 
         <section class="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl shadow-slate-950/20">
+            <h2 class="text-xl font-semibold text-white">Familieabonnement</h2>
+            <p class="mt-2 text-sm text-slate-400">
+                Maximum aantal personen per familieabonnement. Leeg laten = onbeperkt. Het hoofd telt mee als volwassene.
+                Bij overschrijding krijgt de frontdesk een melding en kan toch toevoegen.
+            </p>
+            <div class="mt-5 grid gap-4 md:grid-cols-2">
+                <label class="space-y-2">
+                    <span class="text-sm font-medium text-slate-300">Max. volwassenen</span>
+                    <input v-model="form.family_max_adults" type="number" min="1" placeholder="Onbeperkt" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-sky-500">
+                </label>
+                <label class="space-y-2">
+                    <span class="text-sm font-medium text-slate-300">Max. kinderen / studenten</span>
+                    <input v-model="form.family_max_children" type="number" min="0" placeholder="Onbeperkt" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-sky-500">
+                </label>
+            </div>
+        </section>
+
+        <section class="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl shadow-slate-950/20">
             <h2 class="text-xl font-semibold text-white">Bon footer</h2>
             <textarea
                 v-model="form.receipt_footer"
@@ -144,6 +162,8 @@ const form = ref({
     phone: '',
     email: '',
     receipt_footer: '',
+    family_max_adults: '',
+    family_max_children: '',
 })
 
 function applyData(data = {}) {
@@ -159,6 +179,8 @@ function applyData(data = {}) {
         phone: data.phone ?? '',
         email: data.email ?? '',
         receipt_footer: data.receipt_footer ?? '',
+        family_max_adults: data.family_max_adults ?? '',
+        family_max_children: data.family_max_children ?? '',
     }
 
     logoPreview.value = data.logo_url ?? ''

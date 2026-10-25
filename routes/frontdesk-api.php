@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Display\DeviceController as DisplayDeviceController
 use App\Http\Controllers\Api\Frontdesk\AgendaController;
 use App\Http\Controllers\Api\Frontdesk\AuthController;
 use App\Http\Controllers\Api\Frontdesk\CatalogController;
+use App\Http\Controllers\Api\Frontdesk\FamilyController;
 use App\Http\Controllers\Api\Frontdesk\FormOptionsController;
 use App\Http\Controllers\Api\Frontdesk\GiftVoucherController;
 use App\Http\Controllers\Api\Frontdesk\LocationSearchController;
@@ -78,6 +79,10 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::put('/members/{tenantMembership}', [MemberController::class, 'update']);
         Route::post('/members/{tenantMembership}/renew', [MemberController::class, 'renew']);
         Route::post('/members/{tenantMembership}/invite', MemberInviteController::class);
+
+        Route::get('/members/{tenantMembership}/family', [FamilyController::class, 'show']);
+        Route::post('/members/{tenantMembership}/family/members', [FamilyController::class, 'storeMember']);
+        Route::delete('/members/{tenantMembership}/family/members/{member}', [FamilyController::class, 'destroyMember']);
 
         Route::get('/new-registrations', [NewRegistrationController::class, 'index']);
         Route::post('/new-registrations/activate', [NewRegistrationController::class, 'activate']);

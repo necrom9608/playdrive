@@ -39,6 +39,8 @@ class TenantSettingsController extends Controller
             'receipt_footer' => ['nullable', 'string', 'max:2000'],
             'logo' => ['nullable', 'image', 'max:5120'],
             'remove_logo' => ['nullable', 'boolean'],
+            'family_max_adults' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'family_max_children' => ['nullable', 'integer', 'min:0', 'max:50'],
         ]);
 
         if ($request->boolean('remove_logo') && $tenant->logo_path) {
@@ -66,6 +68,9 @@ class TenantSettingsController extends Controller
             'phone' => $data['phone'] ?? null,
             'email' => $data['email'] ?? null,
             'receipt_footer' => $data['receipt_footer'] ?? null,
+            // leeg = onbeperkt
+            'family_max_adults' => filled($data['family_max_adults'] ?? null) ? (int) $data['family_max_adults'] : null,
+            'family_max_children' => filled($data['family_max_children'] ?? null) ? (int) $data['family_max_children'] : null,
         ]);
         $tenant->save();
 
@@ -94,6 +99,8 @@ class TenantSettingsController extends Controller
             'logo_path' => $tenant->logo_path,
             'logo_url' => $tenant->logo_url,
             'receipt_footer' => $tenant->receipt_footer,
+            'family_max_adults' => $tenant->family_max_adults,
+            'family_max_children' => $tenant->family_max_children,
         ];
     }
 }

@@ -36,6 +36,8 @@ class Tenant extends Model
         'hero_image_path',
         'video_url',
         'receipt_footer',
+        'family_max_adults',
+        'family_max_children',
     ];
 
     protected $appends = [
@@ -51,6 +53,8 @@ class Tenant extends Model
         'latitude'          => 'decimal:7',
         'longitude'         => 'decimal:7',
         'target_audiences'  => 'array',
+        'family_max_adults'   => 'integer',
+        'family_max_children' => 'integer',
     ];
 
     // ------------------------------------------------------------------

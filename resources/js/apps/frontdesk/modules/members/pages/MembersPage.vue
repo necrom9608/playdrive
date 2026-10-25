@@ -67,6 +67,15 @@
                         </button>
 
                         <button
+                            v-if="store.selectedMember?.is_family_head || store.selectedMember?.family_membership_id"
+                            type="button"
+                            class="rounded-2xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm font-semibold text-violet-200 transition hover:bg-violet-500/20"
+                            @click="openFamilyModal(store.selectedMember)"
+                        >
+                            👨‍👩‍👧 Gezin beheren
+                        </button>
+
+                        <button
                             type="button"
                             class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
                             :disabled="!store.selectedMember"
@@ -78,10 +87,11 @@
                         <button
                             type="button"
                             class="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-                            :disabled="!store.selectedMember || store.selectedMember?.status === 'none'"
+                            :disabled="!store.selectedMember || store.selectedMember?.status === 'none' || !!store.selectedMember?.family_membership_id"
+                            :title="store.selectedMember?.family_membership_id ? 'Verleng het hoofdabonnement van het gezin' : ''"
                             @click="handleRenew(store.selectedMember)"
                         >
-                            Verlengen
+                            {{ store.selectedMember?.is_family_head ? 'Verlengen (hele gezin)' : 'Verlengen' }}
                         </button>
                     </div>
                 </div>
@@ -94,6 +104,13 @@
             :badge-templates="store.memberBadgeTemplates"
             @close="closeModal"
             @submit="handleSubmit"
+        />
+
+        <FamilyModal
+            :open="showFamilyModal"
+            :membership-id="familyMembershipId"
+            @close="closeFamilyModal"
+            @changed="store.fetchMembers()"
         />
 
         <ActivateMembershipModal
@@ -114,6 +131,7 @@ import MembersTable from '../components/MembersTable.vue'
 import MembershipModal from '../components/MembershipModal.vue'
 import NewRegistrationsPanel from '../components/NewRegistrationsPanel.vue'
 import ActivateMembershipModal from '../components/ActivateMembershipModal.vue'
+import FamilyModal from '../components/FamilyModal.vue'
 import { useMembersStore } from '../stores/useMembersStore'
 import { usePosStore } from '@/apps/frontdesk/modules/pos/stores/usePosStore'
 
@@ -128,6 +146,8 @@ const activatingId           = ref(null)
 const newRegistrations       = ref([])
 const inviting               = ref(false)
 const inviteMessage          = ref('')
+const showFamilyModal        = ref(false)
+const familyMembershipId     = ref(null)
 
 const editingMember = computed(() =>
     editingMemberId.value ? store.members.find(m => m.id === editingMemberId.value) ?? null : null
@@ -163,6 +183,16 @@ async function handleActivated() {
 function openEditModal(member) {
     editingMemberId.value = member?.id ?? null
     showModal.value = true
+}
+
+function openFamilyModal(member) {
+    familyMembershipId.value = member?.id ?? null
+    showFamilyModal.value = !!member
+}
+
+function closeFamilyModal() {
+    showFamilyModal.value = false
+    familyMembershipId.value = null
 }
 
 function closeModal() {

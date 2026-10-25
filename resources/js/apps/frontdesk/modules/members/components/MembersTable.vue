@@ -17,63 +17,85 @@
                 </thead>
 
                 <tbody>
-                <tr v-if="!members.length">
+                <tr v-if="!orderedMembers.length">
                     <td colspan="9" class="px-5 py-10 text-center text-slate-500">Geen leden gevonden.</td>
                 </tr>
 
                 <tr
-                    v-for="member in members"
-                    :key="member.id"
+                    v-for="row in orderedMembers"
+                    :key="row.member.id"
                     class="cursor-pointer border-t border-slate-800 transition hover:bg-slate-800/30"
                     :class="[
-                        member.id === selectedMemberId ? 'bg-slate-800/60' : '',
-                        member.is_new ? 'border-l-2 border-l-cyan-500' : '',
+                        row.member.id === selectedMemberId ? 'bg-slate-800/60' : (row.nested ? 'bg-slate-950/40' : ''),
+                        row.member.is_new ? 'border-l-2 border-l-cyan-500' : '',
                     ]"
-                    @click="$emit('select', member.id)"
+                    @click="$emit('select', row.member.id)"
                 >
                     <td class="px-5 py-4 align-top">
-                        <div class="inline-flex rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-1.5 font-semibold text-white">
-                            #{{ member.id }}
+                        <div v-if="row.nested" class="flex items-center gap-2 pl-3 text-slate-500">
+                            <span>{{ row.last ? '└' : '├' }}</span>
+                            <span class="text-xs">#{{ row.member.id }}</span>
+                        </div>
+                        <div v-else class="inline-flex rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-1.5 font-semibold text-white">
+                            #{{ row.member.id }}
                         </div>
                     </td>
 
                     <td class="px-5 py-4 align-top">
-                        <div class="flex items-center gap-2">
-                            <span class="font-semibold text-white">{{ member.full_name }}</span>
-                            <span v-if="member.is_new" class="inline-flex items-center rounded-full bg-cyan-500/15 border border-cyan-400/30 px-2 py-0.5 text-xs font-semibold text-cyan-300 animate-pulse">Nieuw</span>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="font-semibold text-white">{{ row.member.full_name }}</span>
+                            <span
+                                v-if="row.member.is_family_head"
+                                class="inline-flex items-center rounded-full bg-violet-500/15 px-2 py-0.5 text-xs font-semibold text-violet-300"
+                            >
+                                👨‍👩‍👧 Gezin · {{ (row.member.family_member_count ?? 0) + 1 }} personen
+                            </span>
+                            <span
+                                v-else-if="row.member.family_membership_id && !row.nested"
+                                class="inline-flex items-center rounded-full bg-violet-500/10 px-2 py-0.5 text-xs font-medium text-violet-300"
+                            >
+                                via {{ row.member.family_name || 'gezin' }}
+                            </span>
+                            <span
+                                v-if="row.member.family_membership_id && row.member.membership_type === 'student'"
+                                class="inline-flex items-center rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-medium text-sky-300"
+                            >
+                                kind/student
+                            </span>
+                            <span v-if="row.member.is_new" class="inline-flex items-center rounded-full bg-cyan-500/15 border border-cyan-400/30 px-2 py-0.5 text-xs font-semibold text-cyan-300 animate-pulse">Nieuw</span>
                         </div>
-                        <div class="mt-1 text-xs text-slate-500">{{ member.email || 'Geen e-mail' }}</div>
+                        <div class="mt-1 text-xs text-slate-500">{{ displayEmail(row.member.email) }}</div>
                     </td>
 
                     <td class="px-5 py-4 align-top text-slate-300">
-                        {{ member.membership_started_label || '—' }}
+                        {{ row.member.membership_started_label || '—' }}
                     </td>
 
                     <td class="px-5 py-4 align-top text-slate-300">
-                        {{ member.membership_expires_label || '—' }}
+                        {{ row.member.membership_expires_label || '—' }}
                     </td>
 
                     <td class="px-5 py-4 align-top text-slate-300">
-                        {{ member.last_played_label }}
+                        {{ row.member.last_played_label }}
                     </td>
 
                     <td class="px-5 py-4 align-top text-slate-300">
-                        {{ member.play_days || 0 }}
+                        {{ row.member.play_days || 0 }}
                     </td>
 
                     <td class="px-5 py-4 align-top text-slate-300">
-                        {{ member.play_hours_label || '0u 00m' }}
+                        {{ row.member.play_hours_label || '0u 00m' }}
                     </td>
 
                     <td class="px-5 py-4 align-top">
-                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold" :class="daysClass(member)">
-                            {{ daysLabel(member) }}
+                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold" :class="daysClass(row.member)">
+                            {{ daysLabel(row.member) }}
                         </span>
                     </td>
 
                     <td class="px-5 py-4 align-top">
-                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold" :class="statusClass(member.status)">
-                            {{ statusLabel(member.status) }}
+                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold" :class="statusClass(row.member.status)">
+                            {{ statusLabel(row.member.status) }}
                         </span>
                     </td>
                 </tr>
@@ -88,10 +110,49 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
     members: { type: Array, default: () => [] },
     selectedMemberId: { type: Number, default: null },
 })
+
+/**
+ * Gezinsleden direct onder hun hoofdabonnement tonen.
+ * Gezinsleden waarvan het hoofd niet in de (gefilterde) lijst staat,
+ * worden gewoon op hun eigen plek getoond met „via gezin”.
+ */
+const orderedMembers = computed(() => {
+    const ids = new Set(props.members.map(m => m.id))
+    const byFamily = new Map()
+
+    props.members.forEach((m) => {
+        if (m.family_membership_id && ids.has(m.family_membership_id)) {
+            if (!byFamily.has(m.family_membership_id)) byFamily.set(m.family_membership_id, [])
+            byFamily.get(m.family_membership_id).push(m)
+        }
+    })
+
+    const rows = []
+
+    props.members.forEach((m) => {
+        if (m.family_membership_id && ids.has(m.family_membership_id)) return
+
+        rows.push({ member: m, nested: false, last: false })
+
+        const children = byFamily.get(m.id) ?? []
+        children.forEach((child, index) => {
+            rows.push({ member: child, nested: true, last: index === children.length - 1 })
+        })
+    })
+
+    return rows
+})
+
+function displayEmail(email) {
+    if (!email || email.includes('@migrated.local') || email.includes('@playdrive.local')) return 'Geen e-mail'
+    return email
+}
 
 defineEmits(['select'])
 

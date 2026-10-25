@@ -105,13 +105,41 @@
                     Zoeken…
                 </div>
 
-                <div v-else-if="!results.length" class="px-3 py-3 text-xs text-slate-500">
+                <div v-else-if="!results.length && !families.length" class="px-3 py-3 text-xs text-slate-500">
                     Geen leden gevonden
                 </div>
 
+                <template v-if="!searching">
+                    <div
+                        v-for="family in families"
+                        :key="'fam-' + family.head_membership_id"
+                        class="flex items-center gap-3 border-b border-slate-800 bg-violet-500/5 px-3 py-2"
+                    >
+                        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-sm">
+                            👨‍👩‍👧
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="truncate text-sm font-semibold text-slate-100">{{ family.name }}</div>
+                            <div class="truncate text-[11px] text-slate-400">
+                                {{ family.members.length }} personen
+                                <template v-if="family.membership_ends_at">· t/m {{ formatDate(family.membership_ends_at) }}</template>
+                            </div>
+                        </div>
+                        <button
+                            v-if="family.is_valid"
+                            type="button"
+                            class="shrink-0 rounded-lg border border-violet-500/35 bg-violet-500/15 px-2.5 py-1.5 text-[11px] font-semibold text-violet-200 transition hover:bg-violet-500/25"
+                            @click="openFamilyPick(family)"
+                        >
+                            Gezin toevoegen
+                        </button>
+                        <span v-else class="shrink-0 rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-semibold text-rose-300">Verlopen</span>
+                    </div>
+                </template>
+
+                <template v-if="!searching">
                 <button
                     v-for="candidate in results"
-                    v-else
                     :key="candidate.tenant_membership_id"
                     type="button"
                     class="flex w-full items-center gap-3 border-b border-slate-800 px-3 py-2 text-left last:border-b-0"
@@ -144,6 +172,55 @@
                         {{ badgeLabel(candidate) }}
                     </span>
                 </button>
+                </template>
+            </div>
+        </div>
+
+        <!-- Voorstel na scan van een gezinslid -->
+        <div
+            v-if="familyPrompt && !familyPick"
+            class="mt-3 flex items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-xs text-violet-200"
+        >
+            <span class="flex-1">Ook andere leden van {{ familyPrompt.name }} toevoegen?</span>
+            <button type="button" class="rounded-lg bg-violet-500/20 px-2.5 py-1 font-semibold hover:bg-violet-500/30" @click="openFamilyPick(familyPrompt)">Ja</button>
+            <button type="button" class="rounded-lg px-2 py-1 text-slate-400 hover:text-white" @click="familyPrompt = null">Nee</button>
+        </div>
+
+        <!-- Gezin: wie is er mee? -->
+        <div v-if="familyPick" class="mt-3 rounded-xl border border-violet-500/35 bg-violet-500/5 p-3">
+            <div class="mb-1 text-sm font-semibold text-slate-100">{{ familyPick.name }} — wie is er vandaag mee?</div>
+
+            <label
+                v-for="person in familyPick.members"
+                :key="'pick-' + person.tenant_membership_id"
+                class="flex items-center gap-3 rounded-lg px-1 py-1.5"
+                :class="isAdded(person) || !person.is_valid ? 'opacity-50' : 'cursor-pointer'"
+            >
+                <input
+                    v-model="pickedIds"
+                    type="checkbox"
+                    :value="person.tenant_membership_id"
+                    :disabled="isAdded(person) || !person.is_valid"
+                    class="h-4 w-4 rounded border-slate-600 bg-slate-900 text-violet-500"
+                >
+                <span class="min-w-0 flex-1 truncate text-sm text-slate-200">{{ person.full_name }}</span>
+                <span class="shrink-0 text-[11px] text-slate-400">
+                    {{ isAdded(person) ? 'al toegevoegd' : typeLabel(person.membership_type) }}
+                </span>
+            </label>
+
+            <div class="mt-2 flex gap-2">
+                <button type="button" class="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700" @click="closeFamilyPick">
+                    Annuleren
+                </button>
+                <button
+                    type="button"
+                    class="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+                    :disabled="!pickedIds.length"
+                    @click="confirmFamilyPick"
+                >
+                    Toevoegen ({{ pickedIds.length }})
+                </button>
             </div>
         </div>
     </div>
@@ -162,6 +239,10 @@ const results = ref([])
 const searching = ref(false)
 const error = ref('')
 const searchInput = ref(null)
+const families = ref([])
+const familyPick = ref(null)
+const familyPrompt = ref(null)
+const pickedIds = ref([])
 
 let searchTimer = null
 let searchSeq = 0
@@ -184,6 +265,7 @@ function initials(name) {
 function typeLabel(type) {
     if (type === 'student') return 'Student'
     if (type === 'adult') return 'Volwassene'
+    if (type === 'family') return 'Volwassene · gezinshoofd'
     return 'Abonnement'
 }
 
@@ -219,10 +301,13 @@ async function lookup(params) {
         params: { ...params, date: model.value.event_date || undefined },
     })
 
-    return response.data?.data ?? []
+    return {
+        results: response.data?.data ?? [],
+        families: response.data?.families ?? [],
+    }
 }
 
-function addSubscriber(candidate) {
+function addSubscriber(candidate, { close = true } = {}) {
     error.value = ''
 
     if (isAdded(candidate)) {
@@ -264,6 +349,38 @@ function addSubscriber(candidate) {
         model.value.name = candidate.full_name
     }
 
+    if (close) closeSearch()
+}
+
+function openFamilyPick(family) {
+    error.value = ''
+    familyPrompt.value = null
+    familyPick.value = family
+    pickedIds.value = family.members
+        .filter(person => person.is_valid && !isAdded(person))
+        .map(person => person.tenant_membership_id)
+}
+
+function closeFamilyPick() {
+    familyPick.value = null
+    pickedIds.value = []
+}
+
+function confirmFamilyPick() {
+    const family = familyPick.value
+    if (!family) return
+
+    family.members
+        .filter(person => pickedIds.value.includes(person.tenant_membership_id))
+        .forEach(person => addSubscriber(person, { close: false }))
+
+    // Lege of automatisch ingevulde klantnaam → gezinsnaam
+    const firstNames = family.members.map(person => person.full_name)
+    if (!String(model.value.name || '').trim() || firstNames.includes(model.value.name)) {
+        model.value.name = family.name
+    }
+
+    closeFamilyPick()
     closeSearch()
 }
 
@@ -293,6 +410,7 @@ function closeSearch() {
     showSearch.value = false
     query.value = ''
     results.value = []
+    families.value = []
 }
 
 async function handleRfid(uid) {
@@ -304,12 +422,19 @@ async function handleRfid(uid) {
     try {
         const found = await lookup({ rfid })
 
-        if (!found.length) {
+        if (!found.results.length) {
             error.value = 'Geen abonnee gevonden voor deze kaart.'
             return
         }
 
-        addSubscriber(found[0])
+        const candidate = found.results[0]
+        addSubscriber(candidate)
+
+        // Gezinslid gescand: voorstellen om de rest van het gezin toe te voegen
+        const family = found.families.find(f => f.head_membership_id === candidate.family_membership_id)
+        if (family && family.is_valid && family.members.some(person => person.is_valid && !isAdded(person))) {
+            familyPrompt.value = family
+        }
     } catch (e) {
         console.error('subscriber rfid lookup failed', e)
         error.value = 'Kaart kon niet opgezocht worden.'
@@ -322,6 +447,7 @@ watch(query, (value) => {
     const q = value.trim()
     if (q.length < 2) {
         results.value = []
+        families.value = []
         searching.value = false
         return
     }
@@ -332,10 +458,16 @@ watch(query, (value) => {
     searchTimer = window.setTimeout(async () => {
         try {
             const found = await lookup({ q })
-            if (seq === searchSeq) results.value = found
+            if (seq === searchSeq) {
+                results.value = found.results
+                families.value = found.families
+            }
         } catch (e) {
             console.error('subscriber lookup failed', e)
-            if (seq === searchSeq) results.value = []
+            if (seq === searchSeq) {
+                results.value = []
+                families.value = []
+            }
         } finally {
             if (seq === searchSeq) searching.value = false
         }

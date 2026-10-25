@@ -19,6 +19,12 @@
             <!-- Body -->
             <div class="min-h-0 overflow-y-auto p-6 space-y-5">
 
+                <!-- Gezinslid: geldigheid via hoofdabonnement -->
+                <div v-if="isFamilyMember" class="rounded-2xl border border-violet-500/25 bg-violet-500/10 px-4 py-3 text-sm text-violet-200">
+                    👨‍👩‍👧 Dit lid hoort bij <span class="font-semibold">{{ member?.family_name || 'een familieabonnement' }}</span>.
+                    De geldigheid volgt het hoofdabonnement (#{{ member?.family_membership_id }}).
+                </div>
+
                 <!-- Type + actief -->
                 <div class="grid gap-5 md:grid-cols-2">
                     <label class="space-y-2 text-sm text-slate-300">
@@ -26,11 +32,18 @@
                         <select v-model="form.membership_type" :class="fieldClass">
                             <option value="adult">Volwassene</option>
                             <option value="student">Student</option>
+                            <option value="family" :disabled="isFamilyMember">Gezin (hoofd)</option>
                         </select>
+                        <span v-if="form.membership_type === 'family' && !isFamilyMember" class="block text-xs text-slate-500">
+                            Gezinsleden beheer je via „Gezin beheren”. Zij volgen de geldigheid van dit abonnement.
+                        </span>
                     </label>
 
-                    <label class="flex items-center gap-3 rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 cursor-pointer">
-                        <input type="checkbox" v-model="form.is_active" class="h-4 w-4 rounded border-slate-600 bg-slate-900 text-blue-600">
+                    <label
+                        class="flex items-center gap-3 rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3"
+                        :class="isFamilyMember ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'"
+                    >
+                        <input type="checkbox" v-model="form.is_active" :disabled="isFamilyMember" class="h-4 w-4 rounded border-slate-600 bg-slate-900 text-blue-600">
                         <div>
                             <div class="text-sm font-medium text-slate-200">Actief</div>
                             <div class="text-xs text-slate-500">Lid kan inloggen en bezoeken registreren</div>
@@ -42,11 +55,11 @@
                 <div class="grid gap-5 md:grid-cols-2">
                     <label class="space-y-2 text-sm text-slate-300">
                         <span>Startdatum</span>
-                        <input v-model="form.membership_starts_at" type="date" :class="fieldClass">
+                        <input v-model="form.membership_starts_at" type="date" :disabled="isFamilyMember" :class="fieldClass + (isFamilyMember ? ' opacity-50' : '')">
                     </label>
                     <label class="space-y-2 text-sm text-slate-300">
                         <span>Einddatum</span>
-                        <input v-model="form.membership_ends_at" type="date" :class="fieldClass">
+                        <input v-model="form.membership_ends_at" type="date" :disabled="isFamilyMember" :class="fieldClass + (isFamilyMember ? ' opacity-50' : '')">
                     </label>
                 </div>
 
@@ -119,7 +132,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import ScanRfidButton from '@/shared/components/scanners/ScanRfidButton.vue'
 
 const props = defineProps({
@@ -129,6 +142,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'submit'])
+
+const isFamilyMember = computed(() => !!props.member?.family_membership_id)
 
 const saving = ref(false)
 const error  = ref('')

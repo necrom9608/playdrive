@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Frontdesk;
 
+use App\Domain\Memberships\FamilyMembershipService;
 use App\Http\Controllers\Controller;
 use App\Models\BadgeTemplate;
 use App\Models\PhysicalCard;
@@ -32,7 +33,8 @@ class MemberController extends Controller
 
         $query = TenantMembership::query()
             ->where('tenant_memberships.tenant_id', $currentTenant->id())
-            ->with('account:id,first_name,last_name,email,phone,birth_date,created_at');
+            ->with(['account:id,first_name,last_name,email,phone,birth_date,created_at', 'family'])
+            ->withCount('familyMembers');
 
         if ($search !== '') {
             $query->where(function (Builder $q) use ($search) {
@@ -111,13 +113,30 @@ class MemberController extends Controller
         $actorId = $request->attributes->get('frontdesk_user')?->id;
 
         $data = $request->validate([
-            'membership_type'      => ['sometimes', 'nullable', 'in:adult,student'],
+            'membership_type'      => ['sometimes', 'nullable', 'in:adult,student,family'],
             'rfid_uid'             => ['sometimes', 'nullable', 'string', 'max:100'],
             'membership_starts_at' => ['sometimes', 'nullable', 'date'],
             'membership_ends_at'   => ['sometimes', 'nullable', 'date'],
             'is_active'            => ['sometimes', 'boolean'],
             'badge_template_id'    => ['sometimes', 'nullable', 'integer'],
         ]);
+
+        // Familieabonnement
+        if ($tenantMembership->isFamilyMember()) {
+            // geldigheid van een gezinslid volgt altijd het hoofd
+            unset($data['membership_starts_at'], $data['membership_ends_at'], $data['is_active']);
+
+            if (($data['membership_type'] ?? null) === TenantMembership::TYPE_FAMILY) {
+                return response()->json(['message' => 'Een gezinslid kan zelf geen familieabonnement hebben. Haal het eerst uit het gezin.'], 422);
+            }
+        }
+
+        if ($tenantMembership->isFamilyHead()
+            && array_key_exists('membership_type', $data)
+            && $data['membership_type'] !== TenantMembership::TYPE_FAMILY
+            && $tenantMembership->familyMembers()->exists()) {
+            return response()->json(['message' => 'Dit familieabonnement heeft nog gezinsleden. Haal die eerst uit het gezin.'], 422);
+        }
 
         DB::transaction(function () use ($tenantMembership, $data, $currentTenant, $actorId) {
             $fill = [];
@@ -134,6 +153,9 @@ class MemberController extends Controller
             if (array_key_exists('badge_template_id', $data) || array_key_exists('rfid_uid', $data)) {
                 $this->syncCard($tenantMembership->fresh(), $currentTenant, $actorId, $data['badge_template_id'] ?? null);
             }
+
+            // hoofd van een gezin: geldigheid doorzetten naar de gezinsleden
+            app(FamilyMembershipService::class)->syncValidity($tenantMembership->fresh());
         });
 
         return response()->json(['data' => $this->loadMembership($tenantMembership->fresh(), $currentTenant, $today)]);
@@ -145,6 +167,12 @@ class MemberController extends Controller
 
         $today = now()->startOfDay();
 
+        if ($tenantMembership->isFamilyMember()) {
+            return response()->json([
+                'message' => sprintf('Dit lid hoort bij een familieabonnement. Verleng het hoofdabonnement (#%d).', $tenantMembership->family_membership_id),
+            ], 422);
+        }
+
         $newStart = $tenantMembership->membership_ends_at && $tenantMembership->membership_ends_at->greaterThanOrEqualTo($today)
             ? $tenantMembership->membership_ends_at->copy()->addDay()
             : $today->copy();
@@ -154,6 +182,8 @@ class MemberController extends Controller
             'membership_ends_at'   => $newStart->copy()->addYear()->toDateString(),
             'is_active'            => true,
         ]);
+
+        app(FamilyMembershipService::class)->syncValidity($tenantMembership->fresh());
 
         return response()->json(['data' => $this->loadMembership($tenantMembership->fresh(), $currentTenant, $today)]);
     }
@@ -368,7 +398,29 @@ class MemberController extends Controller
             ->map(fn (TenantMembership $m) => self::mapSubscriberCandidate($m, $date))
             ->values();
 
-        return response()->json(['data' => $results]);
+        // Gezinnen van de gevonden leden (voor "Gezin toevoegen")
+        $familyIds = $results->pluck('family_membership_id')->filter()->unique()->values();
+
+        $families = TenantMembership::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->whereIn('id', $familyIds)
+            ->where('membership_type', TenantMembership::TYPE_FAMILY)
+            ->with(['account:id,first_name,last_name,email', 'familyMembers.account:id,first_name,last_name,email'])
+            ->get()
+            ->map(function (TenantMembership $head) use ($date) {
+                $people = collect([$head])->merge($head->familyMembers);
+
+                return [
+                    'head_membership_id' => $head->id,
+                    'name'               => app(FamilyMembershipService::class)->familyName($head),
+                    'membership_ends_at' => $head->membership_ends_at?->toDateString(),
+                    'is_valid'           => self::mapSubscriberCandidate($head, $date)['is_valid'],
+                    'members'            => $people->map(fn (TenantMembership $m) => self::mapSubscriberCandidate($m, $date))->values()->all(),
+                ];
+            })
+            ->values();
+
+        return response()->json(['data' => $results, 'families' => $families]);
     }
 
     /**
@@ -391,6 +443,8 @@ class MemberController extends Controller
             'is_active'            => (bool) $m->is_active,
             'is_valid'             => (bool) $m->is_active && $endsAt !== null && $endsAt->gte($date),
             'expires_soon'         => $endsAt !== null && $endsAt->gte($date) && $date->diffInDays($endsAt, false) <= 14,
+            'family_membership_id' => $m->isFamilyHead() ? $m->id : $m->family_membership_id,
+            'is_family_head'       => $m->isFamilyHead(),
         ];
     }
 
@@ -442,6 +496,12 @@ class MemberController extends Controller
             'phone'                           => $account?->phone,
             'birth_date'                      => $account?->birth_date?->toDateString(),
             'membership_type'                 => $m->membership_type,
+            'family_membership_id'            => $m->family_membership_id,
+            'is_family_head'                  => $m->isFamilyHead(),
+            'family_member_count'             => $m->isFamilyHead() ? (int) ($m->family_members_count ?? $m->familyMembers()->count()) : null,
+            'family_name'                     => $m->isFamilyHead()
+                ? app(FamilyMembershipService::class)->familyName($m)
+                : ($m->family ? app(FamilyMembershipService::class)->familyName($m->family) : null),
             'rfid_uid'                        => $m->rfid_uid,
             'membership_starts_at'            => $m->membership_starts_at?->toDateString(),
             'membership_ends_at'              => $m->membership_ends_at?->toDateString(),
@@ -466,7 +526,8 @@ class MemberController extends Controller
 
     private function loadMembership(TenantMembership $m, CurrentTenant $currentTenant, Carbon $today): array
     {
-        $m->loadMissing('account:id,first_name,last_name,email,phone,birth_date,created_at');
+        $m->loadMissing(['account:id,first_name,last_name,email,phone,birth_date,created_at', 'family']);
+        $m->loadCount('familyMembers');
         $soonDate = $today->copy()->addDays(30);
 
         $playStat = $this->playStatsQuery($currentTenant)
@@ -485,7 +546,7 @@ class MemberController extends Controller
         return $this->mapMembership($m, $today, $soonDate, $playStat, $card);
     }
 
-    private function syncCard(TenantMembership $m, CurrentTenant $currentTenant, ?int $actorId, mixed $badgeTemplateId = null): void
+    public function syncCard(TenantMembership $m, CurrentTenant $currentTenant, ?int $actorId, mixed $badgeTemplateId = null): void
     {
         $card = PhysicalCard::query()
             ->where('tenant_id', $currentTenant->id())

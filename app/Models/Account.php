@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -22,6 +23,7 @@ class Account extends Authenticatable implements MustVerifyEmail
     use HasFactory, HasApiTokens, Notifiable;
 
     protected $fillable = [
+        'managed_by_account_id',
         'email',
         'first_name',
         'last_name',
@@ -52,6 +54,12 @@ class Account extends Authenticatable implements MustVerifyEmail
     public function memberships(): HasMany
     {
         return $this->hasMany(TenantMembership::class);
+    }
+
+    /** Account dat dit (beheerde) account beheert, bv. ouder van een kind zonder e-mail. */
+    public function managedBy(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'managed_by_account_id');
     }
 
     public function getFullNameAttribute(): string

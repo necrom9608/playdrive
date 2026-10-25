@@ -32,6 +32,7 @@ class SendMembershipExpiryMailsCommand extends Command
         $window14dEnd   = $today->copy()->addDays(14)->endOfDay();
 
         $memberships14d = TenantMembership::query()
+            ->whereNull('family_membership_id') // gezinsleden: mails enkel naar het hoofd
             ->where('is_active', true)
             ->whereBetween('membership_ends_at', [$window14dStart, $window14dEnd])
             ->whereNull('expiry_warning_14d_mail_sent_at')
@@ -61,6 +62,7 @@ class SendMembershipExpiryMailsCommand extends Command
         $window7dEnd   = $today->copy()->addDays(7)->endOfDay();
 
         $memberships7d = TenantMembership::query()
+            ->whereNull('family_membership_id') // gezinsleden: mails enkel naar het hoofd
             ->where('is_active', true)
             ->whereBetween('membership_ends_at', [$window7dStart, $window7dEnd])
             ->whereNull('expiry_warning_7d_mail_sent_at')
@@ -91,6 +93,7 @@ class SendMembershipExpiryMailsCommand extends Command
         $expiredBefore = $today->copy()->subDay()->endOfDay();
 
         $membershipsExpired = TenantMembership::query()
+            ->whereNull('family_membership_id') // gezinsleden: mails enkel naar het hoofd
             ->where('is_active', true)
             ->where('membership_ends_at', '<=', $expiredBefore)
             ->whereNull('expired_mail_sent_at')
