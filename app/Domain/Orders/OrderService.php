@@ -304,14 +304,151 @@ class OrderService
                 });
 
             if ($registration) {
+                // Gesplitste bonnen: pas op betaald als er geen andere open bon met lijnen meer is
+                $hasOtherOpenOrder = Order::query()
+                    ->where('registration_id', $registration->id)
+                    ->where('status', Order::STATUS_OPEN)
+                    ->where('id', '!=', $order->id)
+                    ->whereHas('items')
+                    ->exists();
+
                 $registration->update([
-                    'status' => Registration::STATUS_PAID,
-                    'bill_total_cents' => (int) round(((float) $order->fresh()->total_incl_vat) * 100),
+                    'status' => $hasOtherOpenOrder ? $registration->status : Registration::STATUS_PAID,
+                    'bill_total_cents' => $this->registrationBillTotalCents($registration),
                     'updated_by' => $actorUserId,
                 ]);
             }
 
             return $order->fresh(['items.product', 'registration']);
+        });
+    }
+
+    /**
+     * Bon splitsen: een deel van de lijnen van een open order afsplitsen naar
+     * een nieuwe bon en die meteen afrekenen (eigen betaalwijze, korting en
+     * ticket). De rest blijft op het originele order staan.
+     *
+     * $lines: [['item_id' => int, 'quantity' => int], ...]
+     */
+    public function checkoutSplit(Order $order, array $lines, array $payload, CurrentTenant $currentTenant): Order
+    {
+        if (! $currentTenant->exists() || (int) $order->tenant_id !== (int) $currentTenant->id()) {
+            throw new InvalidArgumentException('Order hoort niet bij de huidige tenant.');
+        }
+
+        if ($order->status !== Order::STATUS_OPEN) {
+            throw new InvalidArgumentException('Alleen open orders kunnen gesplitst worden.');
+        }
+
+        $requested = collect($lines)
+            ->map(fn ($line) => [
+                'item_id'  => (int) ($line['item_id'] ?? 0),
+                'quantity' => (int) ($line['quantity'] ?? 0),
+            ])
+            ->filter(fn ($line) => $line['item_id'] > 0 && $line['quantity'] > 0)
+            ->groupBy('item_id')
+            ->map(fn ($group) => (int) $group->sum('quantity'));
+
+        if ($requested->isEmpty()) {
+            throw new InvalidArgumentException('Kies minstens één lijn voor deze bon.');
+        }
+
+        $items = $order->items()->whereIn('id', $requested->keys())->get()->keyBy('id');
+
+        if ($items->count() !== $requested->count()) {
+            throw new InvalidArgumentException('Eén of meer lijnen horen niet (meer) bij dit order.');
+        }
+
+        foreach ($requested as $itemId => $quantity) {
+            if ($quantity > (int) $items[$itemId]->quantity) {
+                throw new InvalidArgumentException("Te veel stuks gekozen voor {$items[$itemId]->name}.");
+            }
+        }
+
+        $actorUserId = $this->frontdeskUserId();
+
+        return DB::transaction(function () use ($order, $requested, $items, $payload, $currentTenant, $actorUserId) {
+            $split = Order::create([
+                'tenant_id' => $order->tenant_id,
+                'registration_id' => $order->registration_id,
+                'status' => Order::STATUS_OPEN,
+                'source' => $order->source,
+                'subtotal_excl_vat' => 0,
+                'total_vat' => 0,
+                'total_incl_vat' => 0,
+                'payment_method' => null,
+                'invoice_requested' => false,
+                'paid_at' => null,
+                'created_by' => $actorUserId,
+                'updated_by' => $actorUserId,
+                'paid_by' => null,
+                'notes' => null,
+            ]);
+
+            $sort = 0;
+
+            foreach ($requested as $itemId => $quantity) {
+                /** @var OrderItem $item */
+                $item = $items[$itemId];
+
+                if ($quantity >= (int) $item->quantity) {
+                    // volledige lijn verhuist naar de nieuwe bon
+                    $item->update([
+                        'order_id' => $split->id,
+                        'sort_order' => ++$sort,
+                        'updated_by' => $actorUserId,
+                    ]);
+
+                    continue;
+                }
+
+                // deel van de lijn: origineel verminderen, kopie op de nieuwe bon
+                $this->applyQuantityToItem($item, (int) $item->quantity - $quantity, $actorUserId);
+
+                $unitExcl = round((float) $item->unit_price_excl_vat, 2);
+                $unitIncl = round((float) $item->unit_price_incl_vat, 2);
+                $lineExcl = round($unitExcl * $quantity, 2);
+                $lineIncl = round($unitIncl * $quantity, 2);
+
+                $split->items()->create([
+                    'product_id' => $item->product_id,
+                    'name' => $item->name,
+                    'quantity' => $quantity,
+                    'unit_price_excl_vat' => $unitExcl,
+                    'unit_price_incl_vat' => $unitIncl,
+                    'vat_rate' => $item->vat_rate,
+                    'line_subtotal_excl_vat' => $lineExcl,
+                    'line_vat' => round($lineIncl - $lineExcl, 2),
+                    'line_total_incl_vat' => $lineIncl,
+                    'sort_order' => ++$sort,
+                    'source' => $item->source,
+                    'source_reference' => $item->source_reference,
+                    'legacy_category' => $item->legacy_category,
+                    'legacy_article_number' => $item->legacy_article_number,
+                    'created_by' => $actorUserId,
+                    'updated_by' => $actorUserId,
+                ]);
+            }
+
+            $this->recalculateOrderTotals($split, $actorUserId);
+
+            if ($order->items()->exists()) {
+                $this->normalizeSortOrders($order);
+                $this->recalculateOrderTotals($order, $actorUserId);
+            } else {
+                // alles afgesplitst: gekoppelde cadeaubonnen mee en leeg order opruimen
+                GiftVoucher::query()
+                    ->where('applied_order_id', $order->id)
+                    ->update(['applied_order_id' => $split->id]);
+
+                $order->delete();
+            }
+
+            return $this->checkout([
+                ...$payload,
+                'order_id' => $split->id,
+                'registration_id' => $split->registration_id,
+            ], $currentTenant);
         });
     }
 
@@ -405,7 +542,7 @@ class OrderService
             $this->recalculateOrderTotals($order, $actorUserId);
 
             $registration->update([
-                'bill_total_cents' => (int) round(((float) $order->total_incl_vat) * 100),
+                'bill_total_cents' => $this->registrationBillTotalCents($registration),
                 'updated_by' => $actorUserId,
             ]);
 
@@ -590,9 +727,23 @@ class OrderService
         }
 
         $registration->update([
-            'bill_total_cents' => (int) round(((float) $order->fresh()->total_incl_vat) * 100),
+            'bill_total_cents' => $this->registrationBillTotalCents($registration),
             'updated_by' => $actorUserId ?? $this->frontdeskUserId(),
         ]);
+    }
+
+    /**
+     * Totaal van alle (open en betaalde) bonnen van een registratie.
+     * Bij gesplitste bonnen zijn dat er meerdere.
+     */
+    protected function registrationBillTotalCents(Registration $registration): int
+    {
+        $total = (float) Order::query()
+            ->where('registration_id', $registration->id)
+            ->whereIn('status', [Order::STATUS_OPEN, Order::STATUS_PAID])
+            ->sum('total_incl_vat');
+
+        return (int) round($total * 100);
     }
 
     protected function freshOrder(Order $order): Order

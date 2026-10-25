@@ -968,5 +968,30 @@ export const usePosStore = defineStore('pos', {
         async checkoutCurrentOrder(payload) {
             return this.checkoutOrder(payload)
         },
+
+        /**
+         * Bon splitsen: lijnen afsplitsen van het huidige order en meteen afrekenen.
+         * lines: [{ item_id, quantity }]
+         */
+        async checkoutSplit(orderId, lines, payload = {}) {
+            this.checkoutProcessing = true
+            this.checkoutError = null
+
+            try {
+                const response = await axios.post(`/api/frontdesk/orders/${orderId}/split-checkout`, {
+                    ...payload,
+                    lines,
+                })
+                await this.fetchOrders()
+                await this.fetchReservations()
+                return response.data?.data ?? response.data
+            } catch (error) {
+                console.error('Split checkout failed', error)
+                this.checkoutError = error?.response?.data?.message ?? 'Bon afrekenen mislukt.'
+                throw error
+            } finally {
+                this.checkoutProcessing = false
+            }
+        },
     },
 })

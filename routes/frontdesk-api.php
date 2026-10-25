@@ -50,6 +50,8 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::post('/registrations/{registration}/check-out', [RegistrationController::class, 'checkOut']);
         Route::post('/registrations/{registration}/cancel', [RegistrationController::class, 'cancel']);
         Route::post('/registrations/{registration}/no-show', [RegistrationController::class, 'noShow']);
+        Route::post('/registrations/{registration}/early-stops', [RegistrationController::class, 'storeEarlyStop']);
+        Route::delete('/registrations/{registration}/early-stops/{earlyStop}', [RegistrationController::class, 'destroyEarlyStop']);
         Route::delete('/registrations/{registration}', [RegistrationController::class, 'destroy']);
 
         Route::get('/orders', [OrderController::class, 'index']);
@@ -57,6 +59,7 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::patch('/orders/{order}/items/{item}', [OrderController::class, 'updateItem']);
         Route::delete('/orders/{order}/items/{item}', [OrderController::class, 'deleteItem']);
         Route::post('/orders/checkout', [OrderController::class, 'checkout']);
+        Route::post('/orders/{order}/split-checkout', [OrderController::class, 'splitCheckout']);
         Route::get('/orders/{order}/receipt', [OrderController::class, 'receipt']);
         Route::post('/orders/{order}/send-receipt', [OrderController::class, 'sendReceipt']);
         Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel']);

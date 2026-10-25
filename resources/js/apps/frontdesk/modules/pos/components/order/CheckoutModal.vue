@@ -8,7 +8,7 @@
             <div class="flex h-[800px] w-full max-w-[1200px] flex-col overflow-hidden rounded-[28px] border border-slate-800 bg-[#091633] shadow-2xl">
                 <div class="flex items-start justify-between border-b border-slate-800 px-5 py-4">
                     <div>
-                        <h2 class="text-xl font-semibold text-white">Checkout</h2>
+                        <h2 class="text-xl font-semibold text-white">{{ splitLabel ? `Checkout · ${splitLabel}` : 'Checkout' }}</h2>
                         <p class="mt-1 text-sm text-slate-400">
                             {{ activeReservationLabel }}
                         </p>
@@ -27,9 +27,19 @@
                     <div class="flex min-h-0 flex-col border-r border-slate-800">
                         <div class="flex items-center justify-between px-5 py-4">
                             <h3 class="text-base font-medium text-slate-300">Bestellijnen</h3>
-                            <span class="text-xs text-slate-400">
-                                {{ itemCount }} items
-                            </span>
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs text-slate-400">
+                                    {{ itemCount }} items
+                                </span>
+                                <button
+                                    v-if="allowSplit && itemCount > 1"
+                                    type="button"
+                                    class="rounded-xl border border-slate-700 bg-slate-800/90 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700"
+                                    @click="emit('split')"
+                                >
+                                    ✂ Bon splitsen
+                                </button>
+                            </div>
                         </div>
 
                         <div class="min-h-0 flex-1 px-5 pb-4">
@@ -286,7 +296,7 @@
                                     </div>
                                 </section>
 
-                                <section class="rounded-[20px] border border-slate-800 bg-[#020b24] p-4">
+                                <section v-if="!hideVoucher" class="rounded-[20px] border border-slate-800 bg-[#020b24] p-4">
                                     <div class="text-base font-semibold text-white">Cadeaubon</div>
 
                                     <div class="mt-4 flex flex-wrap items-stretch gap-3">
@@ -459,6 +469,19 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    // Bon splitsen
+    allowSplit: {
+        type: Boolean,
+        default: false,
+    },
+    splitLabel: {
+        type: String,
+        default: '',
+    },
+    hideVoucher: {
+        type: Boolean,
+        default: false,
+    },
 })
 
 const emit = defineEmits([
@@ -472,6 +495,7 @@ const emit = defineEmits([
     'close',
     'confirm',
     'validate-voucher',
+    'split',
     'email-receipt',
 ])
 

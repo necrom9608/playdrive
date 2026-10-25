@@ -2,7 +2,7 @@
     <div class="border-t border-slate-800 bg-slate-900 p-4">
         <div class="flex gap-3">
             <div class="flex-1 space-y-3">
-                <div class="grid grid-cols-3 gap-3">
+                <div class="grid grid-cols-4 gap-3">
                     <button
                         type="button"
                         class="inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition"
@@ -23,6 +23,17 @@
                     >
                         <ArrowLeftCircleIcon class="h-5 w-5" />
                         <span>Uitchecken</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        class="inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition"
+                        :class="buttonClass(canEarlyStop, 'bg-amber-600 hover:bg-amber-700')"
+                        :disabled="!canEarlyStop"
+                        @click="$emit('early-stop')"
+                    >
+                        <PauseCircleIcon class="h-5 w-5" />
+                        <span>Iemand stopt</span>
                     </button>
 
                     <button
@@ -94,6 +105,7 @@ import { computed } from 'vue'
 import {
     ArrowRightCircleIcon,
     ArrowLeftCircleIcon,
+    PauseCircleIcon,
     PencilSquareIcon,
     NoSymbolIcon,
     UserMinusIcon,
@@ -111,6 +123,7 @@ const props = defineProps({
 defineEmits([
     'check-in',
     'check-out',
+    'early-stop',
     'edit',
     'cancel',
     'no-show',
@@ -127,6 +140,16 @@ const canCheckIn = computed(() => {
 
 const canCheckOut = computed(() => {
     return hasSelection.value && status.value === 'checked_in'
+})
+
+// Vroegtijdig stoppen: ingecheckt en nog minstens 2 spelende deelnemers
+// (of al iemand gestopt, om dat ongedaan te kunnen maken)
+const canEarlyStop = computed(() => {
+    if (!hasSelection.value || status.value !== 'checked_in') return false
+    const r = props.selectedReservation
+    const playing = Number(r.participants_children ?? 0) + Number(r.participants_adults ?? 0)
+        - Number(r.stopped_children ?? 0) - Number(r.stopped_adults ?? 0)
+    return playing > 1 || (r.early_stops?.length ?? 0) > 0
 })
 
 const canEdit = computed(() => {

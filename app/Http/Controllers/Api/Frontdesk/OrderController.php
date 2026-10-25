@@ -126,6 +126,47 @@ class OrderController extends Controller
         ]);
     }
 
+    /**
+     * Bon splitsen: gekozen lijnen afsplitsen naar een nieuwe bon en meteen afrekenen.
+     */
+    public function splitCheckout(Request $request, CurrentTenant $currentTenant, Order $order): JsonResponse
+    {
+        $validated = $request->validate([
+            'lines' => ['required', 'array', 'min:1'],
+            'lines.*.item_id' => ['required', 'integer'],
+            'lines.*.quantity' => ['required', 'integer', 'min:1'],
+            'payment_method' => ['nullable', 'string', 'max:50'],
+            'notes' => ['nullable', 'string'],
+            'invoice_requested' => ['nullable', 'boolean'],
+            'manual_discount_amount' => ['nullable', 'numeric', 'min:0'],
+            'manual_discount_label' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        try {
+            $paid = $this->orderService->checkoutSplit(
+                $order,
+                $validated['lines'],
+                collect($validated)->except('lines')->all(),
+                $currentTenant,
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'data' => $this->transformOrder($paid->fresh([
+                'items.product',
+                'creator:id,name',
+                'updater:id,name',
+                'payer:id,name',
+                'canceller:id,name',
+                'refunder:id,name',
+                'items.creator:id,name',
+                'items.updater:id,name',
+            ])),
+        ]);
+    }
+
     public function receipt(CurrentTenant $currentTenant, Order $order)
     {
         $tenant = $this->resolveTenantForOrder($currentTenant, $order);

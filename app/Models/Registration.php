@@ -158,6 +158,12 @@ class Registration extends Model
         return $this->hasMany(RegistrationSubscriber::class);
     }
 
+    /** Deelnemers die vroeger gestopt zijn (blijven op de groepsrekening). */
+    public function earlyStops(): HasMany
+    {
+        return $this->hasMany(RegistrationEarlyStop::class)->orderBy('stopped_at');
+    }
+
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class)->latest('id');

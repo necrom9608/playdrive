@@ -50,6 +50,13 @@
                         🎫 {{ registration.subscriber_count }} abonnee{{ registration.subscriber_count > 1 ? 's' : '' }}
                     </span>
 
+                    <span
+                        v-if="stoppedCount > 0"
+                        class="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 font-semibold text-amber-300 ring-1 ring-amber-500/25"
+                    >
+                        ⏸ {{ children + adults - stoppedCount }} spelen · {{ stoppedCount }} gestopt
+                    </span>
+
                     <span class="inline-flex items-center rounded-full bg-blue-500/15 px-2 py-0.5 font-medium text-blue-300 ring-1 ring-blue-500/25">
                         {{ typeEmoji }} {{ typeLabel }}
                     </span>
@@ -119,6 +126,9 @@ const props = defineProps({
 })
 
 defineEmits(['select', 'edit'])
+
+const stoppedCount = computed(() =>
+    Number(props.registration.stopped_children ?? 0) + Number(props.registration.stopped_adults ?? 0))
 
 function parseDate(value) {
     if (!value) return null

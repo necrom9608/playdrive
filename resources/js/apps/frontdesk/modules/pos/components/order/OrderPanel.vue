@@ -83,12 +83,27 @@
             </div>
         </div>
 
+        <SplitOrderModal
+            ref="splitModalRef"
+            :open="showSplitModal"
+            :items="store.currentOrderItems"
+            :registration="store.selectedReservation"
+            @close="closeSplitModal"
+            @pay-bon="openSplitBonCheckout"
+            @pay-rest="openRestCheckout"
+            @done="handleSplitDone"
+            @print="printReceipt"
+        />
+
         <CheckoutModal
             :open="showCheckoutModal"
-            :items="store.currentOrderItems"
+            :items="splitContext ? splitContext.items : store.currentOrderItems"
             :order="store.currentOrder"
+            :allow-split="!splitContext && !!store.currentOrder?.id"
+            :split-label="splitContext?.label ?? ''"
+            :hide-voucher="!!splitContext"
             :registration="store.selectedReservation"
-            :total-formatted="formatPrice(store.orderSubtotal)"
+            :total-formatted="formatPrice(splitContext ? splitContext.total : store.orderSubtotal)"
             :payment-method-model="paymentMethod"
             :manual-discount-amount-model="manualDiscountAmount"
             :manual-discount-label-model="manualDiscountLabel"
@@ -107,6 +122,7 @@
             @update:voucher-code-model="voucherCode = $event"
             @update:note-model="note = $event"
             @validate-voucher="handleValidateVoucher"
+            @split="openSplitModal"
             @confirm="handleConfirmCheckout"
             @email-receipt="openReceiptEmailModal"
         />
@@ -155,6 +171,7 @@ import { nextTick, ref, watch } from 'vue'
 import { usePosStore } from '../../stores/usePosStore.js'
 import OrderItemRow from './OrderItemRow.vue'
 import CheckoutModal from './CheckoutModal.vue'
+import SplitOrderModal from './SplitOrderModal.vue'
 
 const store = usePosStore()
 const listContainer = ref(null)
@@ -172,6 +189,12 @@ const voucherValidationLoading = ref(false)
 const voucherError = ref('')
 const voucherSuccess = ref('')
 const receiptPrintFrameId = 'receipt-print-frame'
+
+// Bon splitsen
+const showSplitModal = ref(false)
+const splitModalRef = ref(null)
+const splitContext = ref(null) // { index, label, lines, items, total } tijdens het afrekenen van een afgesplitste bon
+const lastSplitResult = ref(null)
 
 function formatPrice(value) {
     return new Intl.NumberFormat('nl-BE', {
@@ -201,6 +224,38 @@ function openCheckoutModal() {
 
 function closeCheckoutModal() {
     showCheckoutModal.value = false
+    splitContext.value = null
+}
+
+function openSplitModal() {
+    showCheckoutModal.value = false
+    splitContext.value = null
+    lastSplitResult.value = null
+    showSplitModal.value = true
+}
+
+function closeSplitModal() {
+    showSplitModal.value = false
+    splitContext.value = null
+}
+
+function openSplitBonCheckout(context) {
+    resetCheckoutState()
+    splitContext.value = {
+        ...context,
+        total: context.items.reduce((sum, item) => sum + Number(item.line_total_incl_vat ?? 0), 0),
+    }
+    showCheckoutModal.value = true
+}
+
+function openRestCheckout() {
+    showSplitModal.value = false
+    openCheckoutModal()
+}
+
+async function handleSplitDone() {
+    showSplitModal.value = false
+    await finalizeCheckoutResult(lastSplitResult.value)
 }
 
 function openReceiptEmailModal() {
@@ -280,14 +335,43 @@ function printReceipt(orderId) {
 }
 
 async function executeCheckout(extraPayload = {}) {
-    const result = await store.checkoutCurrentOrder({
+    const checkoutPayload = {
         payment_method: extraPayload.payment_method ?? paymentMethod.value,
         invoice_requested: extraPayload.invoice_requested ?? invoiceRequested.value,
         notes: extraPayload.note ?? note.value,
         voucher_code: extraPayload.voucher_code ?? voucherCode.value,
         manual_discount_amount: extraPayload.manual_discount_amount ?? manualDiscountAmount.value ?? 0,
         manual_discount_label: extraPayload.manual_discount_label ?? manualDiscountLabel.value ?? 'Manuele korting',
-    })
+    }
+
+    // Afgesplitste bon: enkel deze lijnen afrekenen, de rest blijft open
+    if (splitContext.value) {
+        const context = splitContext.value
+        const { voucher_code, ...splitPayload } = checkoutPayload
+        const result = await store.checkoutSplit(store.currentOrder?.id, context.lines, {
+            ...splitPayload,
+            manual_discount_amount: Number(splitPayload.manual_discount_amount || 0),
+        })
+
+        if (extraPayload.print_receipt && result?.id) {
+            printReceipt(result.id)
+        }
+
+        if (extraPayload.email_receipt && result?.id && extraPayload.receipt_email) {
+            await axios.post(`/api/frontdesk/orders/${result.id}/send-receipt`, {
+                email: extraPayload.receipt_email,
+            })
+        }
+
+        lastSplitResult.value = result
+        splitModalRef.value?.markPaid(context.index, result)
+        closeReceiptEmailModal()
+        closeCheckoutModal()
+        resetCheckoutState()
+        return
+    }
+
+    const result = await store.checkoutCurrentOrder(checkoutPayload)
 
     if (extraPayload.print_receipt && result?.id) {
         printReceipt(result.id)

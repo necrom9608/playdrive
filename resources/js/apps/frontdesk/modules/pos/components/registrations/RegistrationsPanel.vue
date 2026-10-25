@@ -30,11 +30,19 @@
             :selected-reservation="store.selectedReservation"
             @check-in="handleCheckIn"
             @check-out="handleCheckOut"
+            @early-stop="showEarlyStopModal = true"
             @edit="openEditRegistrationModal"
             @cancel="handleCancelReservation"
             @no-show="handleNoShowReservation"
             @delete="handleDeleteReservation"
             @clear-selection="store.clearReservationSelection"
+        />
+
+        <EarlyStopModal
+            :open="showEarlyStopModal"
+            :registration="store.selectedReservation"
+            @close="showEarlyStopModal = false"
+            @saved="store.updateReservation($event)"
         />
 
         <RegistrationModal
@@ -48,16 +56,18 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { usePosStore } from '../../stores/usePosStore.js'
 import { useRegistrationActions } from '../../composables/useRegistrationActions'
 import RegistrationModal from './RegistrationModal.vue'
+import EarlyStopModal from './EarlyStopModal.vue'
 import RegistrationToolbar from './RegistrationToolbar.vue'
 import RegistrationStats from './RegistrationStats.vue'
 import RegistrationList from './RegistrationList.vue'
 import RegistrationActions from './RegistrationActions.vue'
 
 const store = usePosStore()
+const showEarlyStopModal = ref(false)
 
 const {
     showRegistrationModal,

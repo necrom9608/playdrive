@@ -30,22 +30,29 @@ class PricingEvaluator
         $matchedRules = [];
         $lines = collect();
 
-        foreach (['children', 'adults'] as $scope) {
-            // Speeltijd: abonnees betalen niet mee
-            $count = $context->payingCountForScope($scope);
+        // Speeltijd per segment: de groep (volledige tijd) en elke vroegtijdige
+        // stop (eigen speeltijd). Abonnees betalen niet mee.
+        foreach ($context->durationSegments() as $segment) {
+            foreach (['children', 'adults'] as $scope) {
+                $count = (int) $segment[$scope];
 
-            if ($count <= 0) {
-                continue;
+                if ($count <= 0) {
+                    continue;
+                }
+
+                $rule = $this->findMatchingDurationRule($rules, $scope, (int) $segment['minutes']);
+
+                if (! $rule) {
+                    continue;
+                }
+
+                $matchedRules[] = $this->mapMatchedRule($rule, 'duration', [
+                    'participant_scope' => $scope,
+                    'minutes'           => (int) $segment['minutes'],
+                    'stopped_at'        => $segment['stopped_at'],
+                ]);
+                $lines = $lines->merge($this->expandRuleToLines($rule, $context, $count, 'duration'));
             }
-
-            $rule = $this->findMatchingDurationRule($rules, $scope, $context->playedMinutes);
-
-            if (! $rule) {
-                continue;
-            }
-
-            $matchedRules[] = $this->mapMatchedRule($rule, 'duration', ['participant_scope' => $scope]);
-            $lines = $lines->merge($this->expandRuleToLines($rule, $context, $count, 'duration'));
         }
 
         $cateringRules = $rules

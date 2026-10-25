@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Api\Frontdesk;
 
 use App\Domain\Orders\OrderService;
+use App\Domain\Pricing\PricingContext;
+use App\Domain\Pricing\PricingEvaluator;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backoffice\StoreRegistrationRequest;
 use App\Models\Account;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Registration;
+use App\Models\RegistrationEarlyStop;
 use App\Models\RegistrationSubscriber;
 use App\Models\TenantMembership;
 use App\Models\User;
@@ -38,6 +41,7 @@ class RegistrationController extends Controller
             'cateringOption:id,name,code,emoji',
             'account:id,first_name,last_name,email',
             'subscribers.tenantMembership',
+            'earlyStops.subscriber.tenantMembership',
             'createdBy:id,name',
             'updatedBy:id,name',
             'checkedInBy:id,name',
@@ -236,16 +240,211 @@ class RegistrationController extends Controller
 
         $registration->load($this->withRelations());
 
-        $order = null;
-        if (! $registration->is_member) {
+        $order    = null;
+        $autoPaid = false;
+        $hasSubscribers = $registration->is_member || $registration->subscribers->isNotEmpty();
+
+        if (! $hasSubscribers) {
             $order = $this->orderService->syncPricingForRegistration($registration, $currentTenant);
+        } else {
+            // Abonnees: speeltijd is gratis, catering en extra's niet.
+            $openOrder = Order::query()
+                ->where('tenant_id', $currentTenant->id())
+                ->where('registration_id', $registration->id)
+                ->where('status', Order::STATUS_OPEN)
+                ->latest('id')
+                ->first();
+
+            $pricingLines = app(PricingEvaluator::class)
+                ->evaluate(PricingContext::fromRegistration($registration))
+                ->lines;
+
+            if ($pricingLines->isNotEmpty() || $openOrder) {
+                $order = $this->orderService->syncPricingForRegistration($registration, $currentTenant);
+            }
+
+            // Enkel gespeeld, niets extra gekocht → meteen op betaald
+            if (! $order || $order->items->isEmpty()) {
+                DB::transaction(function () use ($order, $registration, $actorUserId) {
+                    if ($order && ! $order->items()->exists()) {
+                        $order->delete(); // leeg open order opruimen
+                    }
+
+                    $registration->update([
+                        'status'           => Registration::STATUS_PAID,
+                        'bill_total_cents' => 0,
+                        'updated_by'       => $actorUserId,
+                    ]);
+                });
+
+                $order    = null;
+                $autoPaid = true;
+                $registration->load($this->withRelations());
+            }
         }
 
         return response()->json([
-            'message' => 'Registratie uitgecheckt.',
-            'data'    => $this->transformRegistration($registration),
-            'order'   => $order ? $this->transformOrderForPos($order) : null,
+            'message'   => $autoPaid ? 'Uitgecheckt en betaald (abonnement, niets extra gekocht).' : 'Registratie uitgecheckt.',
+            'data'      => $this->transformRegistration($registration),
+            'order'     => $order ? $this->transformOrderForPos($order) : null,
+            'auto_paid' => $autoPaid,
         ]);
+    }
+
+    // ------------------------------------------------------------------
+    // Vroegtijdig stoppen
+    // ------------------------------------------------------------------
+
+    /**
+     * Eén of meer deelnemers stoppen vroeger. Ze blijven op de groepsrekening
+     * maar betalen speeltijd tot stopped_at.
+     */
+    public function storeEarlyStop(Request $request, Registration $registration, CurrentTenant $currentTenant): JsonResponse
+    {
+        abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
+
+        $data = $request->validate([
+            'participants_children'      => ['required', 'integer', 'min:0'],
+            'participants_adults'        => ['required', 'integer', 'min:0'],
+            'registration_subscriber_id' => ['nullable', 'integer'],
+            'stopped_at'                 => ['nullable', 'string', 'max:30'], // HH:MM (vandaag) of datum/tijd
+        ]);
+
+        if ($registration->status !== Registration::STATUS_CHECKED_IN || ! $registration->checked_in_at) {
+            return response()->json(['message' => 'Enkel bij een ingecheckte registratie kan iemand stoppen.'], 422);
+        }
+
+        $registration->load(['earlyStops', 'subscribers']);
+
+        $children = (int) $data['participants_children'];
+        $adults   = (int) $data['participants_adults'];
+
+        if ($children + $adults < 1) {
+            return response()->json(['message' => 'Kies wie er stopt.'], 422);
+        }
+
+        $playingChildren = (int) $registration->participants_children - (int) $registration->earlyStops->sum('participants_children');
+        $playingAdults   = (int) $registration->participants_adults - (int) $registration->earlyStops->sum('participants_adults');
+
+        if ($children > $playingChildren || $adults > $playingAdults) {
+            return response()->json(['message' => 'Er stoppen meer deelnemers dan er nog spelen.'], 422);
+        }
+
+        if (($playingChildren - $children) + ($playingAdults - $adults) < 1) {
+            return response()->json(['message' => 'Dan stopt de hele groep: gebruik Uitchecken.'], 422);
+        }
+
+        // Abonnee die stopt
+        $subscriberId = $data['registration_subscriber_id'] ?? null;
+
+        if ($subscriberId) {
+            $subscriber = $registration->subscribers->firstWhere('id', (int) $subscriberId);
+
+            if (! $subscriber) {
+                return response()->json(['message' => 'Deze abonnee hoort niet bij deze groep.'], 422);
+            }
+
+            if ($registration->earlyStops->contains('registration_subscriber_id', $subscriber->id)) {
+                return response()->json(['message' => 'Deze abonnee is al gestopt.'], 422);
+            }
+
+            $inScope = $subscriber->participant_scope === RegistrationSubscriber::SCOPE_CHILDREN ? $children : $adults;
+
+            if ($inScope < 1) {
+                return response()->json([
+                    'message' => $subscriber->participant_scope === RegistrationSubscriber::SCOPE_CHILDREN
+                        ? 'Deze abonnee telt als kind/student: zet minstens 1 kind op stoppen.'
+                        : 'Deze abonnee telt als volwassene: zet minstens 1 volwassene op stoppen.',
+                ], 422);
+            }
+        }
+
+        $stoppedAt = $this->resolveStoppedAt($data['stopped_at'] ?? null, $registration);
+
+        if ($stoppedAt->lessThan($registration->checked_in_at)) {
+            return response()->json(['message' => 'Het stoptijdstip ligt vóór het inchecken (' . $registration->checked_in_at->format('H:i') . ').'], 422);
+        }
+
+        if ($stoppedAt->greaterThan(now()->addMinute())) {
+            return response()->json(['message' => 'Het stoptijdstip ligt in de toekomst.'], 422);
+        }
+
+        $registration->earlyStops()->create([
+            'tenant_id'                  => $registration->tenant_id,
+            'participants_children'      => $children,
+            'participants_adults'        => $adults,
+            'registration_subscriber_id' => $subscriberId ? (int) $subscriberId : null,
+            'stopped_at'                 => $stoppedAt,
+            'created_by'                 => $this->frontdeskUserId($request),
+        ]);
+
+        $registration->unsetRelation('earlyStops');
+        $registration->load($this->withRelations());
+
+        return response()->json([
+            'message' => 'Gestopt geregistreerd.',
+            'data'    => $this->transformRegistration($registration),
+        ], 201);
+    }
+
+    public function destroyEarlyStop(Registration $registration, RegistrationEarlyStop $earlyStop, CurrentTenant $currentTenant): JsonResponse
+    {
+        abort_unless((int) $registration->tenant_id === (int) $currentTenant->id(), 404);
+        abort_unless((int) $earlyStop->registration_id === (int) $registration->id, 404);
+
+        if ($registration->status !== Registration::STATUS_CHECKED_IN) {
+            return response()->json(['message' => 'Ongedaan maken kan enkel zolang de groep ingecheckt is.'], 422);
+        }
+
+        $earlyStop->delete();
+        $registration->load($this->withRelations());
+
+        return response()->json([
+            'message' => 'Stop ongedaan gemaakt.',
+            'data'    => $this->transformRegistration($registration),
+        ]);
+    }
+
+    private function resolveStoppedAt(?string $value, Registration $registration): Carbon
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return now();
+        }
+
+        if (preg_match('/^\d{1,2}:\d{2}$/', $value)) {
+            $date = $registration->checked_in_at?->toDateString() ?? now()->toDateString();
+
+            return Carbon::parse("{$date} {$value}");
+        }
+
+        return Carbon::parse($value);
+    }
+
+    protected function transformEarlyStops(Registration $registration): array
+    {
+        $checkedInAt = $registration->checked_in_at;
+
+        return $registration->earlyStops
+            ->map(function (RegistrationEarlyStop $stop) use ($checkedInAt) {
+                $account = $stop->subscriber?->tenantMembership?->account;
+
+                return [
+                    'id'                         => $stop->id,
+                    'participants_children'      => (int) $stop->participants_children,
+                    'participants_adults'        => (int) $stop->participants_adults,
+                    'registration_subscriber_id' => $stop->registration_subscriber_id,
+                    'subscriber_name'            => $account ? trim($account->first_name . ' ' . $account->last_name) : null,
+                    'stopped_at'                 => $stop->stopped_at?->toIso8601String(),
+                    'stopped_time'               => $stop->stopped_at?->format('H:i'),
+                    'played_minutes'             => $checkedInAt && $stop->stopped_at
+                        ? max(0, (int) $checkedInAt->diffInMinutes($stop->stopped_at))
+                        : null,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     public function cancel(Request $request, Registration $registration, CurrentTenant $currentTenant): JsonResponse
@@ -354,6 +553,9 @@ class RegistrationController extends Controller
             'subscriber_count'      => $registration->subscribers->count(),
             'subscribers_children'  => $registration->subscribers->where('participant_scope', RegistrationSubscriber::SCOPE_CHILDREN)->count(),
             'subscribers_adults'    => $registration->subscribers->where('participant_scope', RegistrationSubscriber::SCOPE_ADULTS)->count(),
+            'early_stops'           => $this->transformEarlyStops($registration),
+            'stopped_children'      => (int) $registration->earlyStops->sum('participants_children'),
+            'stopped_adults'        => (int) $registration->earlyStops->sum('participants_adults'),
             'duration_label'        => $registration->stayOption?->name,
             'event_type'            => $registration->eventType?->name,
             'catering_option'       => $registration->cateringOption?->name,
