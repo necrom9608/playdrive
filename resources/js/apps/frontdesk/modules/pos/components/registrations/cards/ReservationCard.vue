@@ -16,7 +16,7 @@
 
                 <div>
                     <label class="mb-2 block text-xs font-medium text-slate-400">
-                        Startuur
+                        {{ model.checked_in_at ? 'Startuur (ingecheckt)' : 'Startuur' }}
                     </label>
 
                     <input
@@ -24,6 +24,10 @@
                         type="time"
                         class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-100 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-900"
                     >
+
+                    <p v-if="model.checked_in_at" class="mt-1.5 text-xs text-slate-500">
+                        De speeltijd wordt vanaf dit uur berekend.
+                    </p>
                 </div>
             </div>
 

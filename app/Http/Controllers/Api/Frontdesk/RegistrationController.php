@@ -103,7 +103,8 @@ class RegistrationController extends Controller
         }
 
         if (($data['status'] ?? null) === Registration::STATUS_CHECKED_IN && empty($data['checked_in_at'])) {
-            $data['checked_in_at'] = now();
+            // Startuur uit het formulier gebruiken als dat vandaag en niet in de toekomst ligt
+            $data['checked_in_at'] = $this->startFromForm($data['event_date'] ?? null, $data['event_time'] ?? null) ?? now();
             $data['checked_in_by'] = $actorUserId;
         }
         if (($data['status'] ?? null) === Registration::STATUS_CANCELLED && empty($data['cancelled_at'])) {
@@ -159,6 +160,36 @@ class RegistrationController extends Controller
             $data['checked_in_at'] = now();
             $data['checked_in_by'] = $registration->checked_in_by ?: $actorUserId;
         }
+
+        // Startuur aangepast bij een ingecheckte registratie → effectieve inchecktijd mee aanpassen
+        $startChanged = false;
+        if ($registration->checked_in_at && ! empty($data['event_time'])
+            && $data['event_time'] !== $registration->checked_in_at->format('H:i')) {
+            $newStart = \Illuminate\Support\Carbon::parse(
+                $registration->checked_in_at->toDateString() . ' ' . $data['event_time']
+            );
+
+            if ($newStart->greaterThan(now()->addMinute())) {
+                return response()->json([
+                    'message' => 'Het startuur ligt in de toekomst.',
+                    'errors'  => ['event_time' => ['Het startuur ligt in de toekomst.']],
+                ], 422);
+            }
+
+            if ($registration->checked_out_at && $newStart->greaterThanOrEqualTo($registration->checked_out_at)) {
+                return response()->json([
+                    'message' => 'Het startuur ligt na het uitchecken (' . $registration->checked_out_at->format('H:i') . ').',
+                    'errors'  => ['event_time' => ['Het startuur ligt na het uitchecken.']],
+                ], 422);
+            }
+
+            $data['checked_in_at'] = $newStart;
+            $startChanged = true;
+
+            if ($registration->checked_out_at) {
+                $data['played_minutes'] = max(0, (int) $newStart->diffInMinutes($registration->checked_out_at));
+            }
+        }
         if (($data['status'] ?? null) === Registration::STATUS_CHECKED_OUT && ! $registration->checked_out_at) {
             $data['checked_out_at'] = now();
             $data['checked_out_by'] = $registration->checked_out_by ?: $actorUserId;
@@ -186,6 +217,19 @@ class RegistrationController extends Controller
         });
 
         $registration->load($this->withRelations());
+
+        // Al uitgecheckt maar nog niet betaald: speeltijd opnieuw berekenen met het nieuwe startuur
+        if ($startChanged && $registration->status === Registration::STATUS_CHECKED_OUT) {
+            $hasOpenOrder = Order::query()
+                ->where('registration_id', $registration->id)
+                ->where('status', Order::STATUS_OPEN)
+                ->exists();
+
+            if ($hasOpenOrder || ! $registration->is_member) {
+                $this->orderService->syncPricingForRegistration($registration, $currentTenant);
+                $registration->refresh()->load($this->withRelations());
+            }
+        }
 
         return response()->json([
             'message' => 'Registratie bijgewerkt.',
@@ -403,6 +447,27 @@ class RegistrationController extends Controller
             'message' => 'Stop ongedaan gemaakt.',
             'data'    => $this->transformRegistration($registration),
         ]);
+    }
+
+    /**
+     * Startuur uit het formulier als inchecktijd: enkel als de datum vandaag is
+     * en het uur niet in de toekomst ligt. Anders null (→ nu).
+     */
+    private function startFromForm(mixed $date, ?string $time): ?Carbon
+    {
+        if (! $time || ! preg_match('/^\d{2}:\d{2}$/', $time)) {
+            return null;
+        }
+
+        $day = $date ? Carbon::parse($date)->toDateString() : now()->toDateString();
+
+        if ($day !== now()->toDateString()) {
+            return null;
+        }
+
+        $start = Carbon::parse("{$day} {$time}");
+
+        return $start->greaterThan(now()) ? null : $start;
     }
 
     private function resolveStoppedAt(?string $value, Registration $registration): Carbon

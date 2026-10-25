@@ -60,6 +60,11 @@ export function useRegistrationActions(store) {
             if (payload.id) {
                 response = await axios.put(`/api/frontdesk/registrations/${payload.id}`, body)
                 store.updateReservation(response.data.data)
+
+                // startuur kan de speeltijd (en dus de bon) gewijzigd hebben
+                if (typeof store.fetchOrders === 'function') {
+                    await store.fetchOrders()
+                }
             } else {
                 response = await axios.post('/api/frontdesk/registrations', body)
                 store.addReservation(response.data.data)
