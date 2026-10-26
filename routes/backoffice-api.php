@@ -20,6 +20,8 @@ use App\Http\Controllers\Api\Backoffice\StaffController;
 use App\Http\Controllers\Api\Backoffice\RosterController;
 use App\Http\Controllers\Api\Backoffice\RosterLeaveController;
 use App\Http\Controllers\Api\Backoffice\RosterRoleController;
+use App\Http\Controllers\Api\Backoffice\SetupController;
+use App\Http\Controllers\Api\Backoffice\VenueDeviceController;
 use App\Http\Controllers\Api\Backoffice\AnalyticsController;
 use App\Http\Controllers\Api\Backoffice\DayTotalsController;
 use App\Http\Controllers\Api\Backoffice\AccountingExportController;
@@ -99,6 +101,20 @@ Route::prefix('api/backoffice')->group(function () {
         Route::post('/badge-templates/media', [BadgeTemplateController::class, 'uploadMedia']);
         Route::put('/badge-templates/{badgeTemplate}', [BadgeTemplateController::class, 'update']);
         Route::delete('/badge-templates/{badgeTemplate}', [BadgeTemplateController::class, 'destroy']);
+
+        // Speelplekken (arcadekasten, LAN-PC's, couch-setups) + QR
+        Route::get('/setups', [SetupController::class, 'index']);
+        Route::post('/setups', [SetupController::class, 'store']);
+        Route::post('/setups/reorder', [SetupController::class, 'reorder']);
+        Route::put('/setups/{setup}', [SetupController::class, 'update']);
+        Route::post('/setups/{setup}/regenerate-qr', [SetupController::class, 'regenerateQr']);
+        Route::delete('/setups/{setup}', [SetupController::class, 'destroy']);
+
+        // Onbemande toestellen (kiosk, Playscope)
+        Route::get('/venue-devices', [VenueDeviceController::class, 'index']);
+        Route::post('/venue-devices/claim', [VenueDeviceController::class, 'claim']);
+        Route::put('/venue-devices/{venueDevice}', [VenueDeviceController::class, 'update']);
+        Route::delete('/venue-devices/{venueDevice}', [VenueDeviceController::class, 'destroy']);
 
         Route::get('/devices', [DeviceManagementController::class, 'index']);
         Route::post('/devices/pair', [DeviceManagementController::class, 'pair']);

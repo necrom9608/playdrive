@@ -29,5 +29,11 @@ Route::prefix('display')->group(base_path('routes/display.php'));
 require base_path('routes/admin.php');
 require base_path('routes/portal.php');
 
+// QR-code op een speelplek (arcadekast, LAN-PC, ...) — vóór de website catch-all
+Route::get('/s/{code}', [\App\Http\Controllers\Website\SetupLandingController::class, 'show'])
+    ->where('code', '[a-z0-9]{4,12}')
+    ->middleware('throttle:60,1')
+    ->name('setup.show');
+
 // Website — catch-all op / — moet als laatste staan
 Route::group([], base_path('routes/website.php'));
