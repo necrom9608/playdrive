@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Arcade\ArcadeSyncController;
 use App\Http\Controllers\Api\Public\AccountRegistrationController;
 use App\Http\Controllers\Api\Public\BookingFormSetupController;
 use App\Http\Controllers\Api\Public\PublicReservationController;
@@ -39,3 +40,7 @@ Route::get('/register/verify/{token}', [AccountRegistrationController::class, 'v
 
 // Resend webhook — geen auth, wel throttle
 Route::post('/webhooks/resend', ResendWebhookController::class)->middleware('throttle:120,1');
+
+// Arcade-scores: playdrive-sync op de rhythm-server van een venue (Bearer-token per bron)
+//   token aanmaken: php artisan arcade:source <tenant> "<naam>"
+Route::post('/arcade/v1/sync', ArcadeSyncController::class)->middleware(['arcade.source', 'throttle:120,1']);

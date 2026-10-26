@@ -77,3 +77,18 @@ export const reservationApi = {
     update: (id, data)    => api.patch(`/reservations/${id}`, data),
     cancel: (id)          => api.post(`/reservations/${id}/cancel`),
 }
+
+// Arcade-scores (Asphyxia) — altijd per venue
+const qs = (params) => {
+    const s = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')).toString()
+    return s ? `?${s}` : ''
+}
+export const arcadeApi = {
+    summary: (venue)                  => api.get('/arcade' + qs({ venue })),
+    scores:  (venue, game, sort)      => api.get('/arcade/scores' + qs({ venue, game, sort })),
+    plays:   (venue, game, page = 1)  => api.get('/arcade/plays' + qs({ venue, game, page })),
+    charts:  (venue, game)            => api.get('/arcade/ranking' + qs({ venue, game })),
+    ranking: (venue, game, song_id, chart) => api.get('/arcade/ranking' + qs({ venue, game, song_id, chart })),
+    link:    (venue, code, pin)       => api.post('/arcade/link', { venue, code, pin }),
+    unlink:  (venue, id)              => api.delete(`/arcade/players/${id}` + qs({ venue })),
+}

@@ -774,3 +774,40 @@ Geen.
 
 
 ---
+
+## V025 - 2026-10-26
+
+# PlayDrive V025 — Arcade-scores uit Asphyxia (backend)
+
+Spelers zien straks in de member-app hun scores van de rhythm-kasten (DANCERUSH, DDR, pop'n,
+SDVX, NOSTALGIA). De rhythm-server in de zaak (gameinnserver) pusht met `playdrive-sync`
+(asphyxia-repo, V002) naar Playdrive; Playdrive kan de LAN-server zelf niet bereiken.
+
+- Migratie `2026_10_28_100000_create_arcade_tables` — `arcade_sources`, `arcade_players`,
+  `arcade_cards`, `arcade_songs`, `arcade_scores`, `arcade_plays`.
+- `POST /api/arcade/v1/sync` (Bearer-token per bron, middleware `arcade.source`) →
+  `Domain/Arcade/ArcadeIngestService`: idempotent; een lagere score overschrijft nooit een hogere,
+  plays uniek op `source_key`.
+- Automatisch koppelen via de lidkaart (`ArcadeCardMatcher`): de UID uit Playdrive wordt omgezet
+  zoals cardbridge op de kast doet (MIFARE → E004 + UID, FeliCa ongewijzigd) en vergeleken met de
+  kaarten in Asphyxia. Ontkoppelt een speler zelf, dan wordt hij niet opnieuw automatisch gekoppeld.
+- Member-API (`?venue=slug`): `GET /arcade`, `/arcade/scores`, `/arcade/plays`, `/arcade/ranking`,
+  `POST /arcade/link` (kaartnummer of in-game ID + Asphyxia-PIN, max. 5/min),
+  `DELETE /arcade/players/{id}`. Rankings tonen enkel in-game namen.
+- `php artisan arcade:source <tenant> "<naam>"` — token voor een server (`--list`, `--revoke=id`).
+- `resources/js/apps/member/services/api.js` — `arcadeApi`. De Stats-pagina zelf volgt na akkoord
+  op de mockup.
+
+## Migrations
+
+`php artisan migrate` (gebeurt automatisch bij de deploy).
+
+## Handmatige stappen
+
+1. Op de Playdrive-server: `php artisan arcade:source <tenant-slug of id> "Asphyxia gameinnserver"` en de
+   getoonde `PLAYDRIVE_TOKEN` noteren.
+2. Op gameinnserver (na deploy van asphyxia V002): token in `/etc/playdrive-sync.env` zetten,
+   `sudo systemctl restart playdrive-sync`.
+
+
+---

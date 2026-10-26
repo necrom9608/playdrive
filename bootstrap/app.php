@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AuthenticateArcadeSource;
 use App\Http\Middleware\RequireBackofficeAuth;
 use App\Http\Middleware\RequirePlaydriveCentralHost;
 use App\Http\Middleware\RequireFrontdeskAuth;
@@ -54,6 +55,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'playdrive.admin.auth' => RequirePlaydriveAdminAuth::class,
             'playdrive.admin.host' => RequirePlaydriveCentralHost::class,
             'public.api'          => ValidatePublicApiKey::class,
+            'arcade.source'       => AuthenticateArcadeSource::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

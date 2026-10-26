@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Member\MemberArcadeController;
 use App\Http\Controllers\Api\Member\MemberAuthController;
 use App\Http\Controllers\Api\Member\MemberProfileController;
 use App\Http\Controllers\Api\Member\MemberReservationController;
@@ -33,5 +34,13 @@ Route::prefix('member-api/v1')->group(function () {
         Route::get('/reservations/{id}',              [MemberReservationController::class, 'show']);
         Route::patch('/reservations/{id}',            [MemberReservationController::class, 'update']);
         Route::post('/reservations/{id}/cancel',      [MemberReservationController::class, 'cancel']);
+
+        // Arcade-scores (Asphyxia) — ?venue=slug
+        Route::get('/arcade',                         [MemberArcadeController::class, 'summary']);
+        Route::get('/arcade/scores',                  [MemberArcadeController::class, 'scores']);
+        Route::get('/arcade/plays',                   [MemberArcadeController::class, 'plays']);
+        Route::get('/arcade/ranking',                 [MemberArcadeController::class, 'ranking']);
+        Route::post('/arcade/link',                   [MemberArcadeController::class, 'link'])->middleware('throttle:5,1');
+        Route::delete('/arcade/players/{id}',         [MemberArcadeController::class, 'unlink'])->whereNumber('id');
     });
 });
