@@ -57,6 +57,7 @@ class ReservationMailVars
             'time'          => $r->event_time ? substr((string) $r->event_time, 0, 5) : null,
             'duration'      => $stay?->duration_minutes,
             'event_type'    => $r->eventType?->name,
+            'formula'       => $r->birthdayFormulaLabel(), // met/zonder verjaardagsformule
             'stay_option'   => $stay?->name,
             'catering'      => $r->cateringOption?->name,
             'children'      => (int) $r->participants_children,
@@ -94,6 +95,7 @@ class ReservationMailVars
             'time'          => '14:00',
             'duration'      => 120,
             'event_type'    => 'Verjaardagsfeest',
+            'formula'       => 'met verjaardagsformule',
             'stay_option'   => '2 uur',
             'catering'      => 'Pannenkoeken',
             'children'      => 8,
@@ -139,8 +141,12 @@ class ReservationMailVars
     {
         self::$taal = self::taal($d['locale'] ?? null);
         // Namen uit PlayDrive (soort, formule, catering) in de taal van de mail
-        foreach (['event_type', 'stay_option', 'catering'] as $k) {
+        foreach (['event_type', 'stay_option', 'catering', 'formula'] as $k) {
             if (filled($d[$k] ?? null)) $d[$k] = self::t($d[$k]);
+        }
+        // Verjaardag met/zonder formule: bij de soort, zodat het bovenaan de mail staat
+        if (filled($d['formula'] ?? null) && filled($d['event_type'] ?? null)) {
+            $d['event_type'] .= ' — ' . $d['formula'];
         }
         $date  = $d['date'] instanceof CarbonInterface ? $d['date']->copy()->locale(self::$taal) : null;
         $time  = $d['time'] ?: null;
@@ -164,6 +170,7 @@ class ReservationMailVars
             'event_type'               => $d['event_type'] ?: '—',
             'stay_option'              => $d['stay_option'] ?: '—',
             'catering_option'          => $d['catering'] ?: '—',
+            'birthday_formula'         => (string) ($d['formula'] ?? ''),
             'participants_children'    => (string) $d['children'],
             'participants_adults'      => (string) $d['adults'],
             'participants_supervisors' => (string) $d['supervisors'],

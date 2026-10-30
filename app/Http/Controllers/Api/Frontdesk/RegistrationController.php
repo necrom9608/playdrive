@@ -622,7 +622,8 @@ class RegistrationController extends Controller
             'stopped_children'      => (int) $registration->earlyStops->sum('participants_children'),
             'stopped_adults'        => (int) $registration->earlyStops->sum('participants_adults'),
             'duration_label'        => $registration->stayOption?->name,
-            'event_type'            => $registration->eventType?->name,
+            'event_type'            => $registration->eventTypeLabel(), // + met/zonder verjaardagsformule
+            'birthday_formula'      => $registration->birthday_formula,
             'catering_option'       => $registration->cateringOption?->name,
             'event_type_code'       => $registration->eventType?->code,
             'catering_option_code'  => $registration->cateringOption?->code,

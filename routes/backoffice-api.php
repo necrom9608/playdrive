@@ -5,7 +5,6 @@ use App\Http\Controllers\Api\Backoffice\BadgeTemplateController;
 use App\Http\Controllers\Api\Backoffice\BookingFormConfigController;
 use App\Http\Controllers\Api\Backoffice\CateringOptionController;
 use App\Http\Controllers\Api\Backoffice\CateringOptionProductController;
-use App\Http\Controllers\Api\Backoffice\DeviceManagementController;
 use App\Http\Controllers\Api\Backoffice\EmailTemplateController as BackofficeEmailTemplateController;
 use App\Http\Controllers\Api\Backoffice\ImageProxyController;
 use App\Http\Controllers\Api\Backoffice\MailLogController;
@@ -115,15 +114,6 @@ Route::prefix('api/backoffice')->group(function () {
         Route::post('/venue-devices/claim', [VenueDeviceController::class, 'claim']);
         Route::put('/venue-devices/{venueDevice}', [VenueDeviceController::class, 'update']);
         Route::delete('/venue-devices/{venueDevice}', [VenueDeviceController::class, 'destroy']);
-
-        Route::get('/devices', [DeviceManagementController::class, 'index']);
-        Route::post('/devices/pair', [DeviceManagementController::class, 'pair']);
-        Route::post('/devices/{posDevice}/unpair', [DeviceManagementController::class, 'unpair']);
-        Route::post('/devices/pos/{posDevice}/unpair', [DeviceManagementController::class, 'unpair']);
-        Route::put('/devices/pos/{posDevice}', [DeviceManagementController::class, 'updatePos']);
-        Route::delete('/devices/pos/{posDevice}', [DeviceManagementController::class, 'destroyPos']);
-        Route::put('/devices/display/{displayDevice}', [DeviceManagementController::class, 'updateDisplay']);
-        Route::delete('/devices/display/{displayDevice}', [DeviceManagementController::class, 'destroyDisplay']);
 
         Route::get('/staff', [StaffController::class, 'index']);
         Route::post('/staff', [StaffController::class, 'store']);

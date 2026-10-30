@@ -12,7 +12,6 @@ import StayOptionsPage from '../modules/options/pages/StayOptionsPage.vue'
 import StaffPage from '../modules/staff/pages/StaffPage.vue'
 import StaffAttendancePage from '../modules/staff-attendance/pages/StaffAttendancePage.vue'
 import RostersPage from '../modules/rosters/pages/RostersPage.vue'
-import DevicesPage from '../modules/devices/pages/DevicesPage.vue'
 import SetupsPage from '../modules/setups/pages/SetupsPage.vue'
 import VoucherTemplatesPage from '../modules/voucher-templates/pages/VoucherTemplatesPage.vue'
 import CardsPage from '../modules/cards/pages/CardsPage.vue'
@@ -49,7 +48,7 @@ const routes = [
     { path: '/staff', name: 'backoffice.staff', component: StaffPage },
     { path: '/staff-attendance', name: 'backoffice.staff-attendance', component: StaffAttendancePage },
     { path: '/rosters', name: 'backoffice.rosters', component: RostersPage },
-    { path: '/devices', name: 'backoffice.devices', component: DevicesPage },
+    { path: '/devices', redirect: { name: 'backoffice.setups' } },
     { path: '/setups', name: 'backoffice.setups', component: SetupsPage },
     { path: '/mail-assistant', name: 'backoffice.mail-assistant', component: MailAssistantPage },
     { path: '/mail-logs', name: 'backoffice.mail-logs', component: MailLogsPage },

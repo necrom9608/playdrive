@@ -109,7 +109,7 @@ class StaffReservationInboxController extends Controller
             'phone'                 => $r->phone,
             'event_date'            => $r->event_date?->format('Y-m-d'),
             'event_time'            => $r->event_time ? substr((string) $r->event_time, 0, 5) : null,
-            'event_type'            => $r->eventType?->name,
+            'event_type'            => $r->eventTypeLabel(), // + met/zonder verjaardagsformule
             'event_emoji'           => $r->eventType?->emoji,
             'stay_option'           => $r->stayOption?->name,
             'participants_children' => (int) $r->participants_children,

@@ -257,7 +257,7 @@ class AgendaController extends Controller
             'comment' => $registration->comment,
             'duration_label' => $registration->stayOption?->name,
             'stay_duration_minutes' => $registration->stayOption?->duration_minutes,
-            'event_type' => $registration->eventType?->name,
+            'event_type' => $registration->eventTypeLabel(), // + met/zonder verjaardagsformule
             'event_type_code' => $registration->eventType?->code,
             'event_type_emoji' => $registration->eventType?->emoji,
             'catering_option' => $registration->cateringOption?->name,

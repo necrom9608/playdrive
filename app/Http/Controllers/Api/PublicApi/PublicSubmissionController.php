@@ -46,6 +46,7 @@ class PublicSubmissionController extends Controller
             'postal_code' => $this->nullableValue($data['postal_code'] ?? null),
             'municipality' => $this->nullableValue($data['municipality'] ?? null),
             'event_type_id' => $data['event_type_id'] ?? null,
+            'birthday_formula' => array_key_exists('birthday_formula', $data) && $data['birthday_formula'] !== null ? (bool) $data['birthday_formula'] : null,
             'event_date' => $data['event_date'] ?? null,
             'event_time' => $data['event_time'] ?? null,
             'stay_option_id' => $data['stay_option_id'] ?? null,
@@ -138,6 +139,7 @@ class PublicSubmissionController extends Controller
                 Rule::exists('event_types', 'id')->where(fn ($query) => $query->where('tenant_id', $tenantId)),
             ],
             'event_type_code' => ['nullable', 'string', 'max:100'],
+            'birthday_formula' => ['nullable', 'boolean'], // verjaardag met/zonder formule
             'stay_option_code' => ['nullable', 'string', 'max:100'],
             'catering_option_code' => ['nullable', 'string', 'max:100'],
             'event_date' => ['nullable', 'date'],
@@ -254,6 +256,7 @@ class PublicSubmissionController extends Controller
             'municipality' => $registration->municipality,
             'event_type_id' => $registration->event_type_id,
             'event_type' => $registration->eventType?->name,
+            'birthday_formula' => $registration->birthday_formula,
             'stay_option_id' => $registration->stay_option_id,
             'stay_option' => $registration->stayOption?->name,
             'catering_option_id' => $registration->catering_option_id,

@@ -29,6 +29,7 @@ class Registration extends Model
         'postal_code',
         'municipality',
         'event_type_id',
+        'birthday_formula',
         'event_date',
         'event_time',
         'stay_option_id',
@@ -69,6 +70,7 @@ class Registration extends Model
         'event_time'             => 'string',
         'stats'                  => 'array',
         'invoice_requested'      => 'boolean',
+        'birthday_formula'       => 'boolean',
         'outside_opening_hours'  => 'boolean',
         'is_member'              => 'boolean',
         'checked_in_at'          => 'datetime',
@@ -81,6 +83,23 @@ class Registration extends Model
         'played_minutes'         => 'integer',
         'bill_total_cents'       => 'integer',
     ];
+
+    /** "met verjaardagsformule" / "zonder formule", of null als het niet gevraagd werd. */
+    public function birthdayFormulaLabel(): ?string
+    {
+        if ($this->birthday_formula === null) return null;
+
+        return $this->birthday_formula ? 'met verjaardagsformule' : 'zonder formule';
+    }
+
+    /** Soort zoals het personeel ze ziet: "Verjaardag — met verjaardagsformule". */
+    public function eventTypeLabel(): ?string
+    {
+        $naam = $this->eventType?->name;
+        $f = $this->birthdayFormulaLabel();
+
+        return $naam && $f ? "{$naam} — {$f}" : $naam;
+    }
 
     public static function statusOptions(): array
     {
