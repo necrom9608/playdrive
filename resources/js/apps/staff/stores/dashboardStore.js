@@ -12,7 +12,7 @@ export const useStaffDashboardStore = defineStore('staffDashboard', {
     selectedDate: getTodayDateString(),
     inbox: [],
     inboxLoading: false,
-    inboxConfirming: null,
+    inboxBusy: null, // { id, action: 'confirm' | 'reject' | 'delete' }
     data: {
       selected_date: getTodayDateString(),
       selected_date_label: '',
@@ -74,14 +74,24 @@ export const useStaffDashboardStore = defineStore('staffDashboard', {
         this.inboxLoading = false
       }
     },
-    async confirmReservation(id) {
-      this.inboxConfirming = id
+    async _inboxAction(id, action, url, method) {
+      if (this.inboxBusy) return
+      this.inboxBusy = { id, action }
       try {
-        await apiFetch(`/api/staff/reservation-inbox/${id}/confirm`, { method: 'POST' })
+        await apiFetch(url, { method })
         this.inbox = this.inbox.filter(r => r.id !== id)
       } finally {
-        this.inboxConfirming = null
+        this.inboxBusy = null
       }
+    },
+    confirmReservation(id) {
+      return this._inboxAction(id, 'confirm', `/api/staff/reservation-inbox/${id}/confirm`, 'POST')
+    },
+    rejectReservation(id) {
+      return this._inboxAction(id, 'reject', `/api/staff/reservation-inbox/${id}/reject`, 'POST')
+    },
+    deleteReservation(id) {
+      return this._inboxAction(id, 'delete', `/api/staff/reservation-inbox/${id}`, 'DELETE')
     },
   },
 })

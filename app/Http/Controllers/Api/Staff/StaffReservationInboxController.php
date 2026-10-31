@@ -91,7 +91,52 @@ class StaffReservationInboxController extends Controller
         ]);
     }
 
+    /**
+     * Weigert een reservatie (new of pending → cancelled).
+     * Er gaat géén mail naar de klant — de zaak contacteert de klant zelf.
+     * De reservatie blijft bewaard (historiek) maar verdwijnt uit de inbox.
+     */
+    public function reject(Request $request, CurrentTenant $currentTenant, int $id): JsonResponse
+    {
+        $this->authorizeAdmin($request);
+
+        $registration = $this->findOpen($currentTenant, $id);
+        $userId = $request->attributes->get('staff_user')->id;
+
+        $registration->status       = Registration::STATUS_CANCELLED;
+        $registration->cancelled_at = now();
+        $registration->cancelled_by = $userId;
+        $registration->updated_by   = $userId;
+        $registration->save();
+
+        return response()->json(['message' => 'Reservatie geweigerd.']);
+    }
+
+    /**
+     * Verwijdert een reservatie definitief (bv. dubbel: al manueel ingegeven).
+     */
+    public function destroy(Request $request, CurrentTenant $currentTenant, int $id): JsonResponse
+    {
+        $this->authorizeAdmin($request);
+
+        $registration = $this->findOpen($currentTenant, $id);
+        $registration->delete();
+
+        return response()->json(['message' => 'Reservatie verwijderd.']);
+    }
+
     // ------------------------------------------------------------------
+
+    private function findOpen(CurrentTenant $currentTenant, int $id): Registration
+    {
+        return Registration::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->whereIn('status', [
+                Registration::STATUS_NEW,
+                Registration::STATUS_PENDING,
+            ])
+            ->findOrFail($id);
+    }
 
     private function authorizeAdmin(Request $request): void
     {

@@ -9,8 +9,10 @@
       v-if="auth.user?.is_admin"
       :items="store.inbox"
       :loading="store.inboxLoading"
-      :confirming="store.inboxConfirming"
+      :busy="store.inboxBusy"
       @confirm="store.confirmReservation($event)"
+      @reject="store.rejectReservation($event)"
+      @delete="store.deleteReservation($event)"
     />
 
     <StaffDateCard

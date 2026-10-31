@@ -87,9 +87,9 @@
           "{{ r.comment }}"
         </p>
 
-        <!-- Contactgegevens + bevestigknop -->
-        <div class="flex items-center justify-between gap-3">
-          <div class="flex items-center gap-3 text-xs text-slate-500">
+        <!-- Contactgegevens + acties -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex min-w-0 items-center gap-3 text-xs text-slate-500">
             <a v-if="r.phone" :href="`tel:${r.phone}`" class="flex items-center gap-1 hover:text-slate-300 transition-colors">
               <PhoneIcon class="h-3.5 w-3.5" />
               {{ r.phone }}
@@ -100,14 +100,56 @@
             </a>
           </div>
 
-          <button
-            class="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/25 disabled:opacity-50"
-            :disabled="confirming === r.id"
-            @click="$emit('confirm', r.id)"
-          >
-            <CheckIcon class="h-3.5 w-3.5" />
-            {{ confirming === r.id ? 'Bezig...' : 'Bevestigen' }}
-          </button>
+          <!-- Inline bevestiging voor weigeren / verwijderen -->
+          <div v-if="ask?.id === r.id" class="ml-auto flex shrink-0 items-center gap-2">
+            <span class="text-xs text-slate-300">
+              {{ ask.action === 'delete' ? 'Definitief verwijderen?' : 'Reservatie weigeren?' }}
+            </span>
+            <button
+              class="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10"
+              :disabled="isBusy(r.id)"
+              @click="ask = null"
+            >
+              Annuleer
+            </button>
+            <button
+              class="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/15 px-3 py-1.5 text-xs font-semibold text-rose-300 transition-colors hover:bg-rose-500/25 disabled:opacity-50"
+              :disabled="isBusy(r.id)"
+              @click="runAsk"
+            >
+              <TrashIcon v-if="ask.action === 'delete'" class="h-3.5 w-3.5" />
+              <XMarkIcon v-else class="h-3.5 w-3.5" />
+              {{ isBusy(r.id) ? 'Bezig...' : (ask.action === 'delete' ? 'Verwijderen' : 'Weigeren') }}
+            </button>
+          </div>
+
+          <!-- Standaard acties -->
+          <div v-else class="ml-auto flex shrink-0 items-center gap-2">
+            <button
+              class="inline-flex h-[30px] w-[30px] items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-400 transition-colors hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-50"
+              title="Verwijderen (bv. dubbel ingegeven)"
+              :disabled="!!busy"
+              @click="ask = { id: r.id, action: 'delete' }"
+            >
+              <TrashIcon class="h-3.5 w-3.5" />
+            </button>
+            <button
+              class="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/25 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-300 transition-colors hover:bg-rose-500/20 disabled:opacity-50"
+              :disabled="!!busy"
+              @click="ask = { id: r.id, action: 'reject' }"
+            >
+              <XMarkIcon class="h-3.5 w-3.5" />
+              Weigeren
+            </button>
+            <button
+              class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/25 disabled:opacity-50"
+              :disabled="!!busy"
+              @click="$emit('confirm', r.id)"
+            >
+              <CheckIcon class="h-3.5 w-3.5" />
+              {{ busy?.id === r.id && busy?.action === 'confirm' ? 'Bezig...' : 'Bevestigen' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -123,15 +165,32 @@ import {
   EnvelopeIcon,
   CheckIcon,
   ExclamationTriangleIcon,
+  XMarkIcon,
+  TrashIcon,
 } from '@heroicons/vue/24/outline'
+import { ref } from 'vue'
 
-defineProps({
-  items:      { type: Array,   default: () => [] },
-  loading:    { type: Boolean, default: false },
-  confirming: { type: Number,  default: null },
+const props = defineProps({
+  items:   { type: Array,   default: () => [] },
+  loading: { type: Boolean, default: false },
+  busy:    { type: Object,  default: null }, // { id, action }
 })
 
-defineEmits(['confirm'])
+const emit = defineEmits(['confirm', 'reject', 'delete'])
+
+// Welke kaart vraagt bevestiging, en voor welke actie
+const ask = ref(null)
+
+function isBusy(id) {
+  return props.busy?.id === id
+}
+
+function runAsk() {
+  if (!ask.value) return
+  const { id, action } = ask.value
+  emit(action, id)
+  ask.value = null
+}
 
 const MONTHS = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec']
 

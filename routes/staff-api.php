@@ -33,5 +33,7 @@ Route::prefix('api/staff')->group(function () {
         // Reservatie inbox — enkel admins
         Route::get('/reservation-inbox',              [StaffReservationInboxController::class, 'index']);
         Route::post('/reservation-inbox/{id}/confirm', [StaffReservationInboxController::class, 'confirm']);
+        Route::post('/reservation-inbox/{id}/reject',  [StaffReservationInboxController::class, 'reject']);
+        Route::delete('/reservation-inbox/{id}',       [StaffReservationInboxController::class, 'destroy']);
     });
 });
