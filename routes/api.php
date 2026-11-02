@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Arcade\ArcadeSyncController;
 use App\Http\Controllers\Api\Device\DeviceController;
+use App\Http\Controllers\Api\Device\DeviceGameController;
 use App\Http\Controllers\Api\Device\DevicePairingController;
 use App\Http\Controllers\Api\Public\AccountRegistrationController;
 use App\Http\Controllers\Api\Public\BookingFormSetupController;
@@ -60,5 +61,9 @@ Route::prefix('device/v1')->group(function () {
     Route::middleware(['venue.device', 'throttle:600,1'])->group(function () {
         Route::get('/me', [DeviceController::class, 'me']);
         Route::post('/heartbeat', [DeviceController::class, 'heartbeat']);
+
+        // Playscope: geïnstalleerde games melden en de indeling (categorieën, spelers) ophalen
+        Route::get('/games', [DeviceGameController::class, 'show']);
+        Route::post('/games', [DeviceGameController::class, 'store']);
     });
 });

@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\Backoffice\RosterLeaveController;
 use App\Http\Controllers\Api\Backoffice\RosterRoleController;
 use App\Http\Controllers\Api\Backoffice\SetupController;
 use App\Http\Controllers\Api\Backoffice\VenueDeviceController;
+use App\Http\Controllers\Api\Backoffice\GameController;
 use App\Http\Controllers\Api\Backoffice\AnalyticsController;
 use App\Http\Controllers\Api\Backoffice\DayTotalsController;
 use App\Http\Controllers\Api\Backoffice\AccountingExportController;
@@ -114,6 +115,17 @@ Route::prefix('api/backoffice')->group(function () {
         Route::post('/venue-devices/claim', [VenueDeviceController::class, 'claim']);
         Route::put('/venue-devices/{venueDevice}', [VenueDeviceController::class, 'update']);
         Route::delete('/venue-devices/{venueDevice}', [VenueDeviceController::class, 'destroy']);
+
+        // Games (catalogus gevoed door Playscope) + categorieën
+        Route::get('/games', [GameController::class, 'index']);
+        Route::get('/games/summary', [GameController::class, 'summary']);
+        Route::post('/games/mark-all-reviewed', [GameController::class, 'markAllReviewed']);
+        Route::put('/games/{game}', [GameController::class, 'update']);
+        Route::delete('/games/{game}', [GameController::class, 'destroy']);
+        Route::post('/game-categories', [GameController::class, 'storeCategory']);
+        Route::post('/game-categories/reorder', [GameController::class, 'reorderCategories']);
+        Route::put('/game-categories/{gameCategory}', [GameController::class, 'updateCategory']);
+        Route::delete('/game-categories/{gameCategory}', [GameController::class, 'destroyCategory']);
 
         Route::get('/staff', [StaffController::class, 'index']);
         Route::post('/staff', [StaffController::class, 'store']);

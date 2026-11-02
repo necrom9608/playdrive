@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * Onbemand toestel in een venue (kioskscherm, Playscope-PC).
@@ -59,6 +60,12 @@ class VenueDevice extends Model
     public function setup(): BelongsTo
     {
         return $this->belongsTo(Setup::class);
+    }
+
+    /** Games die Playscope op dit toestel als geïnstalleerd meldde. */
+    public function games(): BelongsToMany
+    {
+        return $this->belongsToMany(Game::class, 'venue_device_games')->withPivot('installed_at');
     }
 
     public function isOnline(): bool

@@ -7,7 +7,7 @@
         subtitle="Backoffice"
         logo-url="/images/logos/logo_header.png"
         :tenant-label="tenantName"
-        :navigation="navigation"
+        :navigation="navigationWithBadges"
         :status-label="statusLabel"
         searchable
         @logout="handleLogout"
@@ -15,7 +15,7 @@
 </template>
 
 <script setup>
-import { computed, markRaw, onMounted } from 'vue'
+import { computed, markRaw, onMounted, ref, watch } from 'vue'
 import {
     BanknotesIcon,
     CakeIcon,
@@ -32,6 +32,7 @@ import {
     HomeIcon,
     HomeModernIcon,
     IdentificationIcon,
+    PuzzlePieceIcon,
     QrCodeIcon,
     SparklesIcon,
     TagIcon,
@@ -41,6 +42,7 @@ import {
 import AppShell from '../../shared/layouts/AppShell.vue'
 import BackofficeLoginCard from './components/BackofficeLoginCard.vue'
 import { useBackofficeAuthStore } from './stores/authStore'
+import { fetchGamesSummary } from './modules/games/services/gameApi'
 
 const auth = useBackofficeAuthStore()
 const tenantName = window.PlayDrive?.tenantName || null
@@ -58,6 +60,7 @@ const navigation = [
     { label: 'Aanwezigheden', to: '/staff-attendance', group: 'Beheer', icon: ClipboardDocumentCheckIcon },
     { label: 'Uurroosters', to: '/rosters', group: 'Beheer', icon: CalendarDaysIcon },
     { label: 'Speelplekken', to: '/setups', group: 'Beheer', icon: QrCodeIcon },
+    { label: 'Games', to: '/games', group: 'Beheer', icon: PuzzlePieceIcon },
     { label: 'Mailassistent', to: '/mail-assistant', group: 'Beheer', icon: SparklesIcon },
     { label: 'Mailbeheer', to: '/mail-logs', group: 'Beheer', icon: EnvelopeIcon },
     { label: 'Event types', to: '/event-types', group: 'Instellingen', icon: TagIcon },
@@ -68,10 +71,28 @@ const navigation = [
     { label: 'Boekhouding', to: '/accounting', group: 'Instellingen', icon: BanknotesIcon },
 ].map(item => ({ ...item, icon: markRaw(item.icon) }))
 
+// Teller bij "Games": nieuwe games die Playscope meldde en nog niet ingedeeld zijn.
+const newGames = ref(0)
+const navigationWithBadges = computed(() => navigation.map(item =>
+    item.to === '/games' && newGames.value ? { ...item, badge: newGames.value } : item,
+))
+
+async function refreshGamesBadge() {
+    try {
+        newGames.value = (await fetchGamesSummary())?.new ?? 0
+    } catch {
+        // Niet kritisch: geen teller.
+    }
+}
+
+watch(() => auth.isAuthenticated, (ok) => { if (ok) refreshGamesBadge() })
+
 const statusLabel = computed(() => auth.user ? `${auth.user.name} · admin` : null)
 
 onMounted(() => {
     auth.initialize()
+    window.addEventListener('backoffice-games-new', (e) => { newGames.value = Number(e.detail) || 0 })
+    window.setInterval(() => { if (auth.isAuthenticated) refreshGamesBadge() }, 120000)
     window.addEventListener('backoffice-auth-required', () => {
         auth.user = null
         auth.initialized = true

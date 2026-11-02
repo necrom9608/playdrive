@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Backoffice;
 
+use App\Domain\Games\GameCatalog;
 use App\Http\Controllers\Controller;
 use App\Models\Setup;
 use App\Models\VenueDevice;
@@ -95,6 +96,9 @@ class VenueDeviceController extends Controller
             'setup_id'  => $data['setup_id'] ?? null,
             'is_active' => $data['is_active'] ?? $venueDevice->is_active,
         ])->save();
+
+        // Playscope naar een andere speelplek verplaatst: de gamelijst van die speelplek meteen bijwerken.
+        app(GameCatalog::class)->syncSetupGames($venueDevice->fresh());
 
         return response()->json($venueDevice->fresh('setup')->toPublicArray());
     }

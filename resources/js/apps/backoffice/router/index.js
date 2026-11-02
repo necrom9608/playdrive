@@ -13,6 +13,7 @@ import StaffPage from '../modules/staff/pages/StaffPage.vue'
 import StaffAttendancePage from '../modules/staff-attendance/pages/StaffAttendancePage.vue'
 import RostersPage from '../modules/rosters/pages/RostersPage.vue'
 import SetupsPage from '../modules/setups/pages/SetupsPage.vue'
+import GamesPage from '../modules/games/pages/GamesPage.vue'
 import VoucherTemplatesPage from '../modules/voucher-templates/pages/VoucherTemplatesPage.vue'
 import CardsPage from '../modules/cards/pages/CardsPage.vue'
 import MailLogsPage from '../modules/maillogs/pages/MailLogsPage.vue'
@@ -50,6 +51,7 @@ const routes = [
     { path: '/rosters', name: 'backoffice.rosters', component: RostersPage },
     { path: '/devices', redirect: { name: 'backoffice.setups' } },
     { path: '/setups', name: 'backoffice.setups', component: SetupsPage },
+    { path: '/games', name: 'backoffice.games', component: GamesPage },
     { path: '/mail-assistant', name: 'backoffice.mail-assistant', component: MailAssistantPage },
     { path: '/mail-logs', name: 'backoffice.mail-logs', component: MailLogsPage },
     { path: '/opening-hours', name: 'backoffice.opening-hours', component: OpeningHoursPage },
