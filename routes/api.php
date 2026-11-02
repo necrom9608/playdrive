@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Device\DeviceGameController;
 use App\Http\Controllers\Api\Device\DevicePairingController;
 use App\Http\Controllers\Api\Public\AccountRegistrationController;
 use App\Http\Controllers\Api\Public\BookingFormSetupController;
+use App\Http\Controllers\Api\Public\PlayscopeReleaseController;
 use App\Http\Controllers\Api\Public\PublicReservationController;
 use App\Http\Controllers\Api\PublicApi\PublicSubmissionController;
 use App\Http\Controllers\Api\ResendWebhookController;
@@ -51,6 +52,14 @@ Route::post('/arcade/v1/sync', ArcadeSyncController::class)->middleware(['arcade
 
 // Speelplek-info voor de QR-code (member-app) — publiek, enkel rate limiting
 Route::get('/public/setups/{code}', [SetupLandingController::class, 'json'])->middleware('throttle:60,1');
+
+// Playscope installeren en bijwerken (publiek, releases gebouwd via Playmix Ops)
+//   installeren op een pc: curl -fsSL <APP_URL>/api/playscope/install.sh | bash
+Route::prefix('playscope')->middleware('throttle:120,1')->group(function () {
+    Route::get('/latest.json', [PlayscopeReleaseController::class, 'latest']);
+    Route::get('/install.sh', [PlayscopeReleaseController::class, 'install']);
+    Route::get('/download/{version}', [PlayscopeReleaseController::class, 'download'])->where('version', '[0-9]+\.[0-9]+\.[0-9]+');
+});
 
 // Onbemande toestellen (kiosk, Playscope)
 //   koppelen: toestel toont code → backoffice Speelplekken → Toestellen → Toestel koppelen

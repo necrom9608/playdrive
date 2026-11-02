@@ -139,6 +139,13 @@
                 </div>
             </section>
 
+            <!-- Playscope installeren op een nieuwe pc -->
+            <section v-if="playscopeVersion" class="rounded-3xl border border-slate-800 bg-slate-900/80 px-5 py-4 text-sm text-slate-400">
+                <span class="font-semibold text-white">Playscope v{{ playscopeVersion }}</span> · nieuwe pc (Bazzite, als de gewone gebruiker):
+                <code class="mt-2 block select-all overflow-x-auto rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 font-mono text-xs text-slate-200">{{ installCommand }}</code>
+                <span class="mt-2 block text-xs text-slate-500">Gekoppelde pc's werken zichzelf bij op een rustig moment (geen game bezig).</span>
+            </section>
+
             <div v-if="!devices.length && !loading" class="rounded-3xl border border-dashed border-slate-800 px-6 py-12 text-center">
                 <ComputerDesktopIcon class="mx-auto h-10 w-10 text-slate-600" />
                 <p class="mt-3 text-slate-300">Nog geen toestellen gekoppeld.</p>
@@ -165,6 +172,9 @@
                                     <div class="min-w-0">
                                         <div class="font-semibold text-white">{{ d.name || `Toestel #${d.id}` }}</div>
                                         <div class="truncate text-xs text-slate-500">{{ [d.hostname, d.platform, d.app_version && `v${d.app_version}`].filter(Boolean).join(' · ') || '—' }}</div>
+                                        <div v-if="d.type === 'playscope' && playscopeVersion && d.app_version && d.app_version !== playscopeVersion" class="text-xs text-amber-300">
+                                            Update naar v{{ playscopeVersion }} volgt vanzelf
+                                        </div>
                                     </div>
                                 </div>
                             </td>
@@ -277,6 +287,8 @@ const statuses = ref([])
 const setupForm = reactive({ open: false, setup: null, error: '' })
 const deviceForm = reactive({ open: false, device: null, error: '' })
 const qr = reactive({ open: false, setup: null })
+const playscopeVersion = ref(null)
+const installCommand = `curl -fsSL ${window.location.origin}/api/playscope/install.sh | bash`
 const adminPin = reactive({ isSet: false, updatedAt: null, editing: false, value: '', saving: false, error: '', saved: '' })
 
 let refreshTimer = null
@@ -320,6 +332,7 @@ async function loadAll({ silent = false } = {}) {
         types.value = setupData.types ?? []
         statuses.value = setupData.statuses ?? []
         devices.value = deviceData.devices ?? []
+        playscopeVersion.value = deviceData.playscope_version ?? null
         adminPin.isSet = Boolean(deviceData.admin_pin?.is_set)
         adminPin.updatedAt = deviceData.admin_pin?.updated_at ?? null
         if (qr.setup) {

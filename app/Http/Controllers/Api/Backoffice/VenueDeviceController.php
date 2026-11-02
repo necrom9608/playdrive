@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Backoffice;
 
 use App\Domain\Games\GameCatalog;
 use App\Domain\Setups\DeviceAdminPin;
+use App\Domain\Setups\PlayscopeRelease;
 use App\Http\Controllers\Controller;
 use App\Models\Setup;
 use App\Models\VenueDevice;
@@ -44,6 +45,8 @@ class VenueDeviceController extends Controller
                 'is_set'     => (bool) $tenant?->device_admin_pin,
                 'updated_at' => $tenant?->device_admin_pin_updated_at?->toIso8601String(),
             ],
+            // Actieve Playscope-release: pc's met een andere versie werken zichzelf bij.
+            'playscope_version' => PlayscopeRelease::current()['version'] ?? null,
         ]);
     }
 

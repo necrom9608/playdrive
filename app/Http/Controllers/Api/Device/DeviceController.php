@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Device;
 
+use App\Domain\Setups\PlayscopeRelease;
 use App\Domain\Setups\SetupTypes;
 use App\Http\Controllers\Controller;
 use App\Models\Setup;
@@ -18,6 +19,8 @@ use Illuminate\Http\Request;
  *
  * Beide geven ook `admin_pin` mee: de hash van de beheerpincode van de venue (of null).
  * Playscope bewaart die en controleert de code zelf (zie App\Domain\Setups\DeviceAdminPin).
+ * De heartbeat van een Playscope-pc geeft ook `update`: de actieve Playscope-release als die
+ * verschilt van de versie op de pc (zie App\Domain\Setups\PlayscopeRelease), anders null.
  */
 class DeviceController extends Controller
 {
@@ -67,6 +70,7 @@ class DeviceController extends Controller
             'server_time' => now()->toIso8601String(),
             'setup'       => $device->setup ? $this->setupPayload($device->setup) : null,
             'admin_pin'   => $currentTenant->tenant?->device_admin_pin,
+            'update'      => $device->type === 'playscope' ? PlayscopeRelease::updateFor($device->app_version) : null,
         ]);
     }
 
