@@ -140,6 +140,31 @@ class VenueDeviceController extends Controller
         return response()->json($venueDevice->fresh('setup')->toPublicArray());
     }
 
+    /**
+     * Instellingen van een Playscope-toestel. idle_minutes: game afsluiten na zoveel minuten
+     * zonder input (0 = uit, null = standaard). Het toestel krijgt ze bij de volgende heartbeat.
+     */
+    public function updateSettings(Request $request, CurrentTenant $currentTenant, VenueDevice $venueDevice): JsonResponse
+    {
+        $this->authorizeTenant($currentTenant, $venueDevice);
+
+        $data = $request->validate([
+            'idle_minutes' => ['present', 'nullable', 'integer', 'min:0', 'max:' . VenueDevice::IDLE_MINUTES_MAX],
+        ]);
+
+        $minutes = $data['idle_minutes'];
+        if ($minutes !== null && $minutes > 0 && $minutes < VenueDevice::IDLE_MINUTES_MIN) {
+            return response()->json([
+                'message' => 'Minstens ' . VenueDevice::IDLE_MINUTES_MIN . ' minuten, of 0 om uit te zetten.',
+                'errors'  => ['idle_minutes' => ['Minstens ' . VenueDevice::IDLE_MINUTES_MIN . ' minuten, of 0 om uit te zetten.']],
+            ], 422);
+        }
+
+        $venueDevice->forceFill(['idle_minutes' => $minutes])->save();
+
+        return response()->json($venueDevice->fresh('setup')->toPublicArray());
+    }
+
     /** Verwijderen = token ongeldig. Het toestel toont daarna opnieuw een koppelcode. */
     public function destroy(CurrentTenant $currentTenant, VenueDevice $venueDevice): JsonResponse
     {

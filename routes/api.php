@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Device\DeviceCommandController;
 use App\Http\Controllers\Api\Device\DeviceController;
 use App\Http\Controllers\Api\Device\DeviceGameController;
 use App\Http\Controllers\Api\Device\DevicePairingController;
+use App\Http\Controllers\Api\Device\DeviceSessionController;
 use App\Http\Controllers\Api\Public\AccountRegistrationController;
 use App\Http\Controllers\Api\Public\BookingFormSetupController;
 use App\Http\Controllers\Api\Public\PlayscopeReleaseController;
@@ -80,5 +81,8 @@ Route::prefix('device/v1')->group(function () {
         // Bediening op afstand: opdrachten ophalen (Playscope: elke 5 s) en het resultaat melden
         Route::get('/commands', [DeviceCommandController::class, 'index']);
         Route::post('/commands/{command}', [DeviceCommandController::class, 'ack'])->whereNumber('command');
+
+        // Speelbeurten (statistieken): Playscope stuurt afgesloten beurten door
+        Route::post('/sessions', [DeviceSessionController::class, 'store']);
     });
 });

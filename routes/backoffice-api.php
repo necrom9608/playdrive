@@ -116,6 +116,7 @@ Route::prefix('api/backoffice')->group(function () {
         Route::post('/venue-devices/claim', [VenueDeviceController::class, 'claim']);
         Route::put('/venue-devices/admin-pin', [VenueDeviceController::class, 'updateAdminPin']);   // vóór {venueDevice}
         Route::put('/venue-devices/{venueDevice}', [VenueDeviceController::class, 'update']);
+        Route::put('/venue-devices/{venueDevice}/settings', [VenueDeviceController::class, 'updateSettings']);
         Route::delete('/venue-devices/{venueDevice}', [VenueDeviceController::class, 'destroy']);
         // Bediening op afstand (Playscope): game stoppen, herstarten, bericht, ...
         Route::get('/venue-devices/{venueDevice}/commands', [VenueDeviceCommandController::class, 'index']);

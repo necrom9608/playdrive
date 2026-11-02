@@ -28,6 +28,11 @@ class VenueDevice extends Model
     /** Toestel geldt als online als het binnen deze termijn nog iets stuurde. */
     public const ONLINE_SECONDS = 120;
 
+    /** Playscope: game afsluiten na zoveel minuten zonder input (idle_minutes null = dit). 0 = uit. */
+    public const IDLE_MINUTES_DEFAULT = 10;
+    public const IDLE_MINUTES_MIN = 2;
+    public const IDLE_MINUTES_MAX = 240;
+
     private const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
     protected $fillable = [
@@ -35,7 +40,7 @@ class VenueDevice extends Model
         'pairing_code', 'poll_secret_hash', 'pairing_expires_at', 'claimed_at',
         'token_hash', 'token_issued_at', 'is_active',
         'last_seen_at', 'last_ip', 'hostname', 'platform', 'app_version',
-        'state', 'state_updated_at',
+        'state', 'state_updated_at', 'idle_minutes',
     ];
 
     protected $hidden = ['token_hash', 'poll_secret_hash'];
@@ -50,6 +55,7 @@ class VenueDevice extends Model
             'last_seen_at'       => 'datetime',
             'state'              => 'array',
             'state_updated_at'   => 'datetime',
+            'idle_minutes'       => 'integer',
         ];
     }
 
@@ -67,6 +73,24 @@ class VenueDevice extends Model
     public function commands(): HasMany
     {
         return $this->hasMany(VenueDeviceCommand::class);
+    }
+
+    /** Speelbeurten (statistieken). */
+    public function gameSessions(): HasMany
+    {
+        return $this->hasMany(VenueDeviceGameSession::class);
+    }
+
+    /** Minuten zonder input voor Playscope de game afsluit (0 = uit). */
+    public function idleMinutes(): int
+    {
+        return $this->idle_minutes ?? self::IDLE_MINUTES_DEFAULT;
+    }
+
+    /** Instellingen die het toestel bij elke heartbeat krijgt. */
+    public function deviceSettings(): array
+    {
+        return ['idle_minutes' => $this->idleMinutes()];
     }
 
     /** Games die Playscope op dit toestel als geïnstalleerd meldde. */
@@ -128,6 +152,7 @@ class VenueDevice extends Model
             'platform'     => $this->platform,
             'app_version'  => $this->app_version,
             'state'        => $this->state,
+            'idle_minutes' => $this->idleMinutes(),
             'claimed_at'   => $this->claimed_at?->toIso8601String(),
         ];
     }

@@ -52,6 +52,20 @@
             <p class="text-xs text-slate-500">Zichtbaar in Playscope. Tijdens een game ligt de game erboven.</p>
         </div>
 
+        <!-- Inactiviteit: game afsluiten als niemand meer speelt -->
+        <div class="mt-5 space-y-2">
+            <span class="block text-sm font-medium text-slate-300">Game afsluiten bij inactiviteit</span>
+            <div class="flex flex-wrap items-center gap-2">
+                <select v-model.number="idleMinutes" :disabled="savingIdle" class="input w-44" @change="saveIdle">
+                    <option v-for="o in idleOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+                </select>
+                <span v-if="idleSaved" class="text-xs text-emerald-400">Bewaard · actief binnen een minuut</span>
+            </div>
+            <p class="text-xs text-slate-500">
+                Zonder controller-, toetsenbord- of muisinput eerst 60 s “Nog aan het spelen?”, daarna sluit de game.
+            </p>
+        </div>
+
         <!-- Laatste opdrachten -->
         <div v-if="commands.length" class="mt-6">
             <span class="block text-sm font-medium text-slate-300">Laatste opdrachten</span>
@@ -87,13 +101,13 @@ import {
     StopCircleIcon,
 } from '@heroicons/vue/24/outline'
 import ModalDialog from '../../../components/ModalDialog.vue'
-import { fetchDeviceCommands, sendDeviceCommand } from '../services/setupApi'
+import { fetchDeviceCommands, sendDeviceCommand, updateVenueDeviceSettings } from '../services/setupApi'
 
 const props = defineProps({
     open: { type: Boolean, default: false },
     device: { type: Object, default: null },
 })
-defineEmits(['close'])
+const emit = defineEmits(['close', 'updated'])
 
 const actions = [
     { command: 'stop_game', label: 'Game stoppen', hint: 'Terug naar het menu', icon: markRaw(StopCircleIcon) },
@@ -112,6 +126,37 @@ const error = ref('')
 const message = ref('')
 const seconds = ref(15)
 let timer = null
+
+// Inactiviteit (minuten; 0 = uit). Standaard 10.
+const idleOptions = [
+    { value: 0, label: 'Uit' },
+    { value: 5, label: 'Na 5 minuten' },
+    { value: 10, label: 'Na 10 minuten' },
+    { value: 15, label: 'Na 15 minuten' },
+    { value: 20, label: 'Na 20 minuten' },
+    { value: 30, label: 'Na 30 minuten' },
+    { value: 60, label: 'Na 1 uur' },
+]
+const idleMinutes = ref(10)
+const savingIdle = ref(false)
+const idleSaved = ref(false)
+
+async function saveIdle() {
+    savingIdle.value = true
+    idleSaved.value = false
+    error.value = ''
+    try {
+        const d = await updateVenueDeviceSettings(props.device.id, { idle_minutes: idleMinutes.value })
+        device.value = { ...device.value, ...d }
+        idleSaved.value = true
+        emit('updated', d)
+    } catch (e) {
+        error.value = e.message || 'Bewaren mislukt.'
+        idleMinutes.value = device.value?.idle_minutes ?? 10
+    } finally {
+        savingIdle.value = false
+    }
+}
 
 const statusLine = computed(() => {
     const d = device.value
@@ -173,6 +218,8 @@ watch(() => props.open, (open) => {
     window.clearInterval(timer)
     if (!open) return
     device.value = props.device
+    idleMinutes.value = props.device?.idle_minutes ?? 10
+    idleSaved.value = false
     commands.value = []
     error.value = ''
     message.value = ''

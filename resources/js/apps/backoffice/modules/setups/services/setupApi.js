@@ -35,6 +35,10 @@ export function updateVenueDevice(id, payload) {
 export function deleteVenueDevice(id) {
     return apiFetch(`${BASE}/venue-devices/${id}`, { method: 'DELETE' })
 }
+// Instellingen van een Playscope-toestel: { idle_minutes } (0 = uit, null = standaard 10)
+export function updateVenueDeviceSettings(id, payload) {
+    return apiFetch(`${BASE}/venue-devices/${id}/settings`, { method: 'PUT', body: JSON.stringify(payload) })
+}
 // Bediening op afstand (Playscope): opdrachten en hun status
 export function fetchDeviceCommands(id) {
     return apiFetch(`${BASE}/venue-devices/${id}/commands`)

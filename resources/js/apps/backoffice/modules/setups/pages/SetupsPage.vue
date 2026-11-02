@@ -232,6 +232,7 @@
             :open="control.open"
             :device="control.device"
             @close="control.open = false"
+            @updated="(d) => (devices = devices.map((x) => (x.id === d.id ? d : x)))"
         />
 
         <SetupQrModal
