@@ -35,3 +35,7 @@ export function updateVenueDevice(id, payload) {
 export function deleteVenueDevice(id) {
     return apiFetch(`${BASE}/venue-devices/${id}`, { method: 'DELETE' })
 }
+// Beheerpincode (Playscope: kioskmodus verlaten). pin = null wist de code.
+export function updateDeviceAdminPin(pin) {
+    return apiFetch(`${BASE}/venue-devices/admin-pin`, { method: 'PUT', body: JSON.stringify({ pin }) })
+}

@@ -15,6 +15,9 @@ use Illuminate\Http\Request;
  *
  *   GET  /api/device/v1/me         → toestel, venue en gekoppelde speelplek
  *   POST /api/device/v1/heartbeat  → levensteken + huidige toestand (Playscope: welk spel)
+ *
+ * Beide geven ook `admin_pin` mee: de hash van de beheerpincode van de venue (of null).
+ * Playscope bewaart die en controleert de code zelf (zie App\Domain\Setups\DeviceAdminPin).
  */
 class DeviceController extends Controller
 {
@@ -63,6 +66,7 @@ class DeviceController extends Controller
             'ok'          => true,
             'server_time' => now()->toIso8601String(),
             'setup'       => $device->setup ? $this->setupPayload($device->setup) : null,
+            'admin_pin'   => $currentTenant->tenant?->device_admin_pin,
         ]);
     }
 
@@ -78,6 +82,7 @@ class DeviceController extends Controller
                 'logo_url'     => $tenant?->logo_url,
             ],
             'setup'  => $device->setup ? $this->setupPayload($device->setup) : null,
+            'admin_pin' => $tenant?->device_admin_pin,
         ];
     }
 

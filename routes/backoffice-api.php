@@ -113,6 +113,7 @@ Route::prefix('api/backoffice')->group(function () {
         // Onbemande toestellen (kiosk, Playscope)
         Route::get('/venue-devices', [VenueDeviceController::class, 'index']);
         Route::post('/venue-devices/claim', [VenueDeviceController::class, 'claim']);
+        Route::put('/venue-devices/admin-pin', [VenueDeviceController::class, 'updateAdminPin']);   // vóór {venueDevice}
         Route::put('/venue-devices/{venueDevice}', [VenueDeviceController::class, 'update']);
         Route::delete('/venue-devices/{venueDevice}', [VenueDeviceController::class, 'destroy']);
 

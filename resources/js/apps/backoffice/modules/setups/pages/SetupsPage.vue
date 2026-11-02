@@ -99,6 +99,46 @@
 
         <!-- Toestellen -->
         <template v-else>
+            <!-- Beheerpincode: kioskmodus van Playscope verlaten (Ctrl+Alt+P of Select + Start 3 s op het toestel) -->
+            <section class="flex flex-wrap items-center gap-4 rounded-3xl border border-slate-800 bg-slate-900/80 px-5 py-4">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-700 bg-slate-950">
+                    <LockClosedIcon class="h-5 w-5 text-amber-300" />
+                </div>
+                <div class="min-w-0 flex-1">
+                    <h2 class="font-semibold text-white">Beheerpincode</h2>
+                    <p class="text-sm text-slate-400">
+                        <template v-if="adminPin.isSet">
+                            Ingesteld<span v-if="adminPin.updatedAt"> op {{ formatDate(adminPin.updatedAt) }}</span>.
+                        </template>
+                        <template v-else>Nog niet ingesteld: op gekoppelde Playscope-PC's kan de kioskmodus dan niet verlaten worden.</template>
+                        Op het toestel: <span class="font-mono text-slate-300">Ctrl+Alt+P</span> of <span class="text-slate-300">Select + Start 3 s</span>.
+                    </p>
+                    <p v-if="adminPin.error" class="mt-1 text-sm text-red-300">{{ adminPin.error }}</p>
+                    <p v-else-if="adminPin.saved" class="mt-1 text-sm text-emerald-300">{{ adminPin.saved }}</p>
+                </div>
+
+                <form v-if="adminPin.editing" class="flex flex-wrap items-center gap-2" @submit.prevent="saveAdminPin">
+                    <input
+                        v-model="adminPin.value"
+                        type="password"
+                        inputmode="numeric"
+                        autocomplete="new-password"
+                        maxlength="8"
+                        placeholder="4 tot 8 cijfers"
+                        class="w-40 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-white placeholder:font-sans placeholder:text-slate-500 focus:border-blue-500 focus:outline-none"
+                        @input="adminPin.value = adminPin.value.replace(/\D/g, '')"
+                    >
+                    <button type="submit" :disabled="adminPin.saving || adminPin.value.length < 4" class="rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:opacity-50">Opslaan</button>
+                    <button type="button" class="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 transition hover:bg-slate-800" @click="adminPin.editing = false">Annuleren</button>
+                </form>
+                <div v-else class="flex flex-wrap gap-2">
+                    <button type="button" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 transition hover:bg-slate-800" @click="editAdminPin">
+                        <PencilSquareIcon class="h-4 w-4" /> {{ adminPin.isSet ? 'Wijzigen' : 'Instellen' }}
+                    </button>
+                    <button v-if="adminPin.isSet" type="button" class="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-red-300" @click="clearAdminPin">Wissen</button>
+                </div>
+            </section>
+
             <div v-if="!devices.length && !loading" class="rounded-3xl border border-dashed border-slate-800 px-6 py-12 text-center">
                 <ComputerDesktopIcon class="mx-auto h-10 w-10 text-slate-600" />
                 <p class="mt-3 text-slate-300">Nog geen toestellen gekoppeld.</p>
@@ -190,6 +230,7 @@ import {
     ComputerDesktopIcon,
     CubeTransparentIcon,
     LinkIcon,
+    LockClosedIcon,
     PencilSquareIcon,
     PlusIcon,
     PuzzlePieceIcon,
@@ -209,6 +250,7 @@ import {
     fetchVenueDevices,
     regenerateSetupQr,
     updateSetup,
+    updateDeviceAdminPin,
     updateVenueDevice,
 } from '../services/setupApi'
 
@@ -235,6 +277,7 @@ const statuses = ref([])
 const setupForm = reactive({ open: false, setup: null, error: '' })
 const deviceForm = reactive({ open: false, device: null, error: '' })
 const qr = reactive({ open: false, setup: null })
+const adminPin = reactive({ isSet: false, updatedAt: null, editing: false, value: '', saving: false, error: '', saved: '' })
 
 let refreshTimer = null
 
@@ -277,6 +320,8 @@ async function loadAll({ silent = false } = {}) {
         types.value = setupData.types ?? []
         statuses.value = setupData.statuses ?? []
         devices.value = deviceData.devices ?? []
+        adminPin.isSet = Boolean(deviceData.admin_pin?.is_set)
+        adminPin.updatedAt = deviceData.admin_pin?.updated_at ?? null
         if (qr.setup) {
             qr.setup = setups.value.find(s => s.id === qr.setup.id) ?? qr.setup
         }
@@ -382,6 +427,44 @@ async function removeDevice() {
     } finally {
         saving.value = false
     }
+}
+
+function editAdminPin() {
+    adminPin.value = ''
+    adminPin.error = ''
+    adminPin.saved = ''
+    adminPin.editing = true
+}
+
+async function storeAdminPin(pin) {
+    adminPin.saving = true
+    adminPin.error = ''
+    adminPin.saved = ''
+    try {
+        const res = await updateDeviceAdminPin(pin)
+        adminPin.isSet = Boolean(res.is_set)
+        adminPin.updatedAt = res.updated_at ?? null
+        adminPin.editing = false
+        adminPin.value = ''
+        adminPin.saved = pin ? 'Opgeslagen. De toestellen krijgen de nieuwe code binnen een minuut.' : 'Pincode gewist.'
+    } catch (e) {
+        adminPin.error = e.message || 'Opslaan mislukt.'
+    } finally {
+        adminPin.saving = false
+    }
+}
+
+function saveAdminPin() {
+    if (!/^\d{4,8}$/.test(adminPin.value)) {
+        adminPin.error = 'De pincode bestaat uit 4 tot 8 cijfers.'
+        return
+    }
+    storeAdminPin(adminPin.value)
+}
+
+function clearAdminPin() {
+    if (!window.confirm('Beheerpincode wissen? Op gekoppelde Playscope-PC\'s kan de kioskmodus dan niet meer verlaten worden.')) return
+    storeAdminPin(null)
 }
 
 onMounted(() => {

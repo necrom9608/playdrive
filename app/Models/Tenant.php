@@ -40,6 +40,11 @@ class Tenant extends Model
         'family_max_children',
     ];
 
+    /** Hash van de beheerpincode voor toestellen: nooit mee in een JSON-antwoord. */
+    protected $hidden = [
+        'device_admin_pin',
+    ];
+
     protected $appends = [
         'logo_url',
         'hero_image_url',
@@ -55,6 +60,7 @@ class Tenant extends Model
         'target_audiences'  => 'array',
         'family_max_adults'   => 'integer',
         'family_max_children' => 'integer',
+        'device_admin_pin_updated_at' => 'datetime',
     ];
 
     // ------------------------------------------------------------------

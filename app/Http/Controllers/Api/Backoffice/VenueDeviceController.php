@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Backoffice;
 
 use App\Domain\Games\GameCatalog;
+use App\Domain\Setups\DeviceAdminPin;
 use App\Http\Controllers\Controller;
 use App\Models\Setup;
 use App\Models\VenueDevice;
@@ -34,9 +35,42 @@ class VenueDeviceController extends Controller
             ->map(fn ($label, $key) => ['key' => $key, 'label' => $label])
             ->values();
 
+        $tenant = $currentTenant->tenant;
+
         return response()->json([
-            'devices' => $devices,
-            'types'   => $types,
+            'devices'   => $devices,
+            'types'     => $types,
+            'admin_pin' => [
+                'is_set'     => (bool) $tenant?->device_admin_pin,
+                'updated_at' => $tenant?->device_admin_pin_updated_at?->toIso8601String(),
+            ],
+        ]);
+    }
+
+    /**
+     * Beheerpincode voor de toestellen van deze venue instellen (pin) of wissen (pin = null).
+     * Playscope krijgt de nieuwe hash bij de volgende heartbeat (binnen een minuut).
+     */
+    public function updateAdminPin(Request $request, CurrentTenant $currentTenant): JsonResponse
+    {
+        abort_unless($currentTenant->exists(), 404, 'Geen geldige tenant gevonden.');
+
+        $data = $request->validate([
+            'pin' => ['nullable', 'string', 'regex:/^\d{' . DeviceAdminPin::MIN_LENGTH . ',' . DeviceAdminPin::MAX_LENGTH . '}$/'],
+        ], [
+            'pin.regex' => 'De pincode bestaat uit ' . DeviceAdminPin::MIN_LENGTH . ' tot ' . DeviceAdminPin::MAX_LENGTH . ' cijfers.',
+        ]);
+
+        $pin = $data['pin'] ?? null;
+        $tenant = $currentTenant->tenant;
+        $tenant->forceFill([
+            'device_admin_pin'            => $pin === null ? null : DeviceAdminPin::hash($pin),
+            'device_admin_pin_updated_at' => now(),
+        ])->save();
+
+        return response()->json([
+            'is_set'     => $pin !== null,
+            'updated_at' => $tenant->device_admin_pin_updated_at?->toIso8601String(),
         ]);
     }
 
