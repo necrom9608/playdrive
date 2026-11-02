@@ -35,6 +35,13 @@ export function updateVenueDevice(id, payload) {
 export function deleteVenueDevice(id) {
     return apiFetch(`${BASE}/venue-devices/${id}`, { method: 'DELETE' })
 }
+// Bediening op afstand (Playscope): opdrachten en hun status
+export function fetchDeviceCommands(id) {
+    return apiFetch(`${BASE}/venue-devices/${id}/commands`)
+}
+export function sendDeviceCommand(id, payload) {
+    return apiFetch(`${BASE}/venue-devices/${id}/commands`, { method: 'POST', body: JSON.stringify(payload) })
+}
 // Beheerpincode (Playscope: kioskmodus verlaten). pin = null wist de code.
 export function updateDeviceAdminPin(pin) {
     return apiFetch(`${BASE}/venue-devices/admin-pin`, { method: 'PUT', body: JSON.stringify({ pin }) })

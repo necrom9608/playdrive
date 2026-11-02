@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Onbemand toestel in een venue (kioskscherm, Playscope-PC).
@@ -60,6 +61,12 @@ class VenueDevice extends Model
     public function setup(): BelongsTo
     {
         return $this->belongsTo(Setup::class);
+    }
+
+    /** Opdrachten vanuit de backoffice (bediening op afstand). */
+    public function commands(): HasMany
+    {
+        return $this->hasMany(VenueDeviceCommand::class);
     }
 
     /** Games die Playscope op dit toestel als geïnstalleerd meldde. */

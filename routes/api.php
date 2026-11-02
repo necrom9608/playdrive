@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Arcade\ArcadeSyncController;
+use App\Http\Controllers\Api\Device\DeviceCommandController;
 use App\Http\Controllers\Api\Device\DeviceController;
 use App\Http\Controllers\Api\Device\DeviceGameController;
 use App\Http\Controllers\Api\Device\DevicePairingController;
@@ -67,12 +68,17 @@ Route::prefix('device/v1')->group(function () {
     Route::post('/pair/start', [DevicePairingController::class, 'start'])->middleware('throttle:30,1');
     Route::post('/pair/poll', [DevicePairingController::class, 'poll'])->middleware('throttle:600,1');   // per IP: alle PC's achter één NAT
 
-    Route::middleware(['venue.device', 'throttle:600,1'])->group(function () {
+    // per IP: alle Playscope-pc's van een venue zitten achter één NAT en halen elke 5 s opdrachten op
+    Route::middleware(['venue.device', 'throttle:1500,1'])->group(function () {
         Route::get('/me', [DeviceController::class, 'me']);
         Route::post('/heartbeat', [DeviceController::class, 'heartbeat']);
 
         // Playscope: geïnstalleerde games melden en de indeling (categorieën, spelers) ophalen
         Route::get('/games', [DeviceGameController::class, 'show']);
         Route::post('/games', [DeviceGameController::class, 'store']);
+
+        // Bediening op afstand: opdrachten ophalen (Playscope: elke 5 s) en het resultaat melden
+        Route::get('/commands', [DeviceCommandController::class, 'index']);
+        Route::post('/commands/{command}', [DeviceCommandController::class, 'ack'])->whereNumber('command');
     });
 });

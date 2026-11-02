@@ -189,9 +189,14 @@
                             </td>
                             <td class="hidden px-5 py-4 text-slate-400 lg:table-cell">{{ formatDate(d.last_seen_at) }}</td>
                             <td class="px-5 py-4 text-right">
-                                <button type="button" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 transition hover:bg-slate-800" @click="openDeviceForm(d)">
-                                    <PencilSquareIcon class="h-4 w-4" /> Bewerken
-                                </button>
+                                <div class="inline-flex flex-wrap justify-end gap-2">
+                                    <button v-if="d.type === 'playscope' && d.is_active" type="button" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 transition hover:bg-slate-800" @click="openControl(d)">
+                                        <CommandLineIcon class="h-4 w-4" /> Bediening
+                                    </button>
+                                    <button type="button" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 transition hover:bg-slate-800" @click="openDeviceForm(d)">
+                                        <PencilSquareIcon class="h-4 w-4" /> Bewerken
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
@@ -223,6 +228,12 @@
             @delete="removeDevice"
         />
 
+        <DeviceControlModal
+            :open="control.open"
+            :device="control.device"
+            @close="control.open = false"
+        />
+
         <SetupQrModal
             :open="qr.open"
             :setup="qr.setup"
@@ -237,6 +248,7 @@
 import { computed, markRaw, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import {
     ArrowPathIcon,
+    CommandLineIcon,
     ComputerDesktopIcon,
     CubeTransparentIcon,
     LinkIcon,
@@ -250,6 +262,7 @@ import {
 } from '@heroicons/vue/24/outline'
 import SetupFormModal from '../components/SetupFormModal.vue'
 import DeviceFormModal from '../components/DeviceFormModal.vue'
+import DeviceControlModal from '../components/DeviceControlModal.vue'
 import SetupQrModal from '../components/SetupQrModal.vue'
 import {
     claimVenueDevice,
@@ -287,6 +300,7 @@ const statuses = ref([])
 const setupForm = reactive({ open: false, setup: null, error: '' })
 const deviceForm = reactive({ open: false, device: null, error: '' })
 const qr = reactive({ open: false, setup: null })
+const control = reactive({ open: false, device: null })
 const playscopeVersion = ref(null)
 const installCommand = `curl -fsSL ${window.location.origin}/api/playscope/install.sh | bash`
 const adminPin = reactive({ isSet: false, updatedAt: null, editing: false, value: '', saving: false, error: '', saved: '' })
@@ -401,6 +415,11 @@ async function regenerateQr() {
     }
 }
 
+function openControl(device) {
+    control.device = device
+    control.open = true
+}
+
 function openDeviceForm(device) {
     deviceForm.device = device
     deviceForm.error = ''
@@ -484,7 +503,7 @@ onMounted(() => {
     loadAll()
     // Online-status en "bezet" up-to-date houden.
     refreshTimer = window.setInterval(() => {
-        if (!setupForm.open && !deviceForm.open) loadAll({ silent: true })
+        if (!setupForm.open && !deviceForm.open && !control.open) loadAll({ silent: true })
     }, 30000)
 })
 

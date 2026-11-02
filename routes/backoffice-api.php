@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\Backoffice\RosterController;
 use App\Http\Controllers\Api\Backoffice\RosterLeaveController;
 use App\Http\Controllers\Api\Backoffice\RosterRoleController;
 use App\Http\Controllers\Api\Backoffice\SetupController;
+use App\Http\Controllers\Api\Backoffice\VenueDeviceCommandController;
 use App\Http\Controllers\Api\Backoffice\VenueDeviceController;
 use App\Http\Controllers\Api\Backoffice\GameController;
 use App\Http\Controllers\Api\Backoffice\AnalyticsController;
@@ -116,6 +117,9 @@ Route::prefix('api/backoffice')->group(function () {
         Route::put('/venue-devices/admin-pin', [VenueDeviceController::class, 'updateAdminPin']);   // vóór {venueDevice}
         Route::put('/venue-devices/{venueDevice}', [VenueDeviceController::class, 'update']);
         Route::delete('/venue-devices/{venueDevice}', [VenueDeviceController::class, 'destroy']);
+        // Bediening op afstand (Playscope): game stoppen, herstarten, bericht, ...
+        Route::get('/venue-devices/{venueDevice}/commands', [VenueDeviceCommandController::class, 'index']);
+        Route::post('/venue-devices/{venueDevice}/commands', [VenueDeviceCommandController::class, 'store']);
 
         // Games (catalogus gevoed door Playscope) + categorieën
         Route::get('/games', [GameController::class, 'index']);
