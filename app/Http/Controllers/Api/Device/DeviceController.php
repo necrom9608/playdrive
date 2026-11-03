@@ -90,6 +90,7 @@ class DeviceController extends Controller
             ],
             'setup'  => $device->setup ? $this->setupPayload($device->setup) : null,
             'admin_pin' => $tenant?->device_admin_pin,
+            'settings'  => $device->deviceSettings(),
         ];
     }
 

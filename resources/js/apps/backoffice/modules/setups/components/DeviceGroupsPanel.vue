@@ -20,7 +20,7 @@
                         <h3 class="truncate text-lg font-semibold text-white">{{ g.name }}</h3>
                         <div class="mt-1 flex flex-wrap items-center gap-2 text-xs">
                             <span class="rounded-full border px-2 py-0.5 font-semibold" :class="stateClass(g.status.state)">{{ stateLabel(g.status.state) }}</span>
-                            <span class="text-slate-400">elke {{ g.rotation_minutes }} min · {{ g.device_ids.length }} toestel{{ g.device_ids.length === 1 ? '' : 'len' }} · {{ g.game_ids.length }} games</span>
+                            <span class="text-slate-400">elke {{ g.rotation_minutes }} min · {{ g.members.length }} toestel{{ g.members.length === 1 ? '' : 'len' }} · {{ g.game_ids.length }} games</span>
                         </div>
                     </div>
                 </div>
@@ -52,6 +52,13 @@
                         <span class="shrink-0 text-xs" :class="memberClass(g, m)">{{ memberLabel(g, m) }}</span>
                     </li>
                 </ul>
+
+                <p v-if="g.screens?.length" class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+                    <span>Scherm:</span>
+                    <span v-for="s in g.screens" :key="s.id" class="inline-flex items-center gap-1.5">
+                        <span class="h-1.5 w-1.5 rounded-full" :class="s.online ? 'bg-emerald-400' : 'bg-slate-600'" />{{ s.name || `Scherm #${s.id}` }}
+                    </span>
+                </p>
 
                 <div class="mt-auto flex flex-wrap gap-2 pt-5">
                     <button type="button" :disabled="busy === g.id || !g.game_ids.length" class="btn" @click="next(g)">

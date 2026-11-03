@@ -24,6 +24,9 @@
             <p v-if="message" class="mt-4 text-sm text-amber-300">{{ message }}</p>
         </div>
 
+        <!-- Gekoppeld en in een groep (Speelplekken → Groepen): scherm boven de racers -->
+        <GroupScreen v-else-if="phase === 'ready' && display?.group" :data="display" :offline="displayOffline" :offset="clockOffset" />
+
         <!-- Gekoppeld: placeholder tot de kiosk-content (leaderboards, events, promo's) gebouwd is -->
         <div v-else-if="phase === 'ready'" class="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-8 text-center text-white">
             <img v-if="info.tenant?.logo_url" :src="info.tenant.logo_url" alt="" class="h-28 w-auto object-contain" />
@@ -44,7 +47,8 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { CheckCircleIcon, LinkIcon } from '@heroicons/vue/24/outline'
 import SplashScreen from '../../shared/components/SplashScreen.vue'
 import { useSplashScreen } from '../../shared/composables/useSplashScreen'
-import { fetchMe, getToken, pollPairing, sendHeartbeat, setToken, startPairing } from './services/deviceClient'
+import GroupScreen from './components/GroupScreen.vue'
+import { fetchGroupDisplay, fetchMe, getToken, pollPairing, sendHeartbeat, setToken, startPairing } from './services/deviceClient'
 
 const HEARTBEAT_MS = 30000
 const RETRY_MS = 5000
@@ -55,6 +59,32 @@ const phase = ref('boot') // boot | pairing | ready
 const message = ref('')
 const pairing = reactive({ code: '', secret: '', expiresAt: null, interval: 3 })
 const info = reactive({ device: null, tenant: null, setup: null })
+
+// Groepsscherm: om de DISPLAY_MS de toestand van de groep ophalen (los van de heartbeat).
+const DISPLAY_MS = 3000
+const display = ref(null)
+const displayOffline = ref(false)
+const clockOffset = ref(0)
+let displayTimer = null
+
+async function refreshDisplay() {
+    window.clearTimeout(displayTimer)
+    if (phase.value !== 'ready') return
+    try {
+        const data = await fetchGroupDisplay()
+        if (data?.server_time) clockOffset.value = Date.parse(data.server_time) - Date.now()
+        display.value = data
+        displayOffline.value = false
+    } catch (e) {
+        if (e.status === 401) {
+            setToken('')
+            display.value = null
+            return beginPairing()
+        }
+        displayOffline.value = true // laatste toestand blijft staan
+    }
+    displayTimer = window.setTimeout(refreshDisplay, DISPLAY_MS)
+}
 
 let timer = null
 
@@ -76,6 +106,7 @@ async function boot() {
         phase.value = 'ready'
         message.value = ''
         schedule(heartbeat, HEARTBEAT_MS)
+        refreshDisplay()
     } catch (e) {
         if (e.status === 401) {
             setToken('')
@@ -144,5 +175,6 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     window.clearTimeout(timer)
+    window.clearTimeout(displayTimer)
 })
 </script>

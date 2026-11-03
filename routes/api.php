@@ -93,5 +93,7 @@ Route::prefix('device/v1')->group(function () {
 
         // Rotatie (toestel in een groep): melden hoe lang geen input, horen welke game moet draaien
         Route::post('/rotation', [DeviceRotationController::class, 'poll']);
+        // Kioskscherm boven een groep: huidig spel, stoelen, programma
+        Route::get('/group-display', [DeviceRotationController::class, 'display']);
     });
 });

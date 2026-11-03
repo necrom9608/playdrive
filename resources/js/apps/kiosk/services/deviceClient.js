@@ -76,3 +76,8 @@ export function sendHeartbeat(state = null) {
         body: { app_version: import.meta.env.VITE_APP_VERSION || null, state },
     })
 }
+
+// Kioskscherm boven een groep (bv. de racers): huidig spel, stoelen, programma. { group: null } = geen groep.
+export function fetchGroupDisplay() {
+    return request('/group-display')
+}

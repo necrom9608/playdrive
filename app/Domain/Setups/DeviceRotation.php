@@ -34,6 +34,9 @@ final class DeviceRotation
     /** Playscope vraagt zo vaak (seconden); gaat mee in het antwoord. */
     public const POLL_SECONDS = 5;
 
+    /** Stoel "bezet" op het scherm zolang er minder dan zoveel seconden geen input was. */
+    public const SEAT_BUSY_SECONDS = 60;
+
     /**
      * Melding van een toestel verwerken en zeggen wat er moet draaien.
      *
@@ -159,6 +162,7 @@ final class DeviceRotation
 
         $devices = VenueDevice::query()
             ->where('device_group_id', $group->id)
+            ->where('type', 'playscope')
             ->where('is_active', true)
             ->where('rotation_reported_at', '>=', $fresh)
             ->get(['id', 'rotation_report', 'rotation_reported_at']);
@@ -224,6 +228,70 @@ final class DeviceRotation
 
     private static function gameArray(Game $g): array
     {
-        return ['game_id' => $g->id, 'source' => $g->source, 'id' => $g->external_id, 'name' => $g->name];
+        return ['game_id' => $g->id, 'source' => $g->source, 'id' => $g->external_id, 'name' => $g->name, 'cover_url' => $g->coverUrl()];
+    }
+
+    /**
+     * Voor een scherm boven de groep (kiosk, GET /api/device/v1/group-display): wat er nu draait,
+     * de stoelen (bezet/vrij/laadt/uit) en het programma (volgende games met een geschat uur).
+     */
+    public static function display(DeviceGroup $group): array
+    {
+        DB::transaction(function () use ($group) {
+            $locked = DeviceGroup::query()->lockForUpdate()->find($group->id);
+            if ($locked) {
+                self::advance($locked);
+                $group->setRawAttributes($locked->getAttributes(), true);
+            }
+        });
+
+        $status = self::payload($group);
+        $fresh = now()->subSeconds(self::REPORT_FRESH_SECONDS);
+
+        $seats = VenueDevice::query()
+            ->where('device_group_id', $group->id)
+            ->where('type', 'playscope')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->values()
+            ->map(function (VenueDevice $d, int $i) use ($fresh) {
+                $report = $d->rotation_reported_at && $d->rotation_reported_at->gte($fresh) ? $d->rotation_report : null;
+                $idle = $report ? self::idleSeconds($d) : null;
+                $state = match (true) {
+                    ! $report => 'off',
+                    in_array($report['phase'] ?? null, ['starting', 'switching'], true) => 'loading',
+                    ($report['phase'] ?? null) === 'running' && $idle !== null && $idle < self::SEAT_BUSY_SECONDS => 'busy',
+                    default => 'free',
+                };
+                // Nummer uit de naam ("Racer 3" → 3), anders de volgorde.
+                $number = preg_match('/(\d+)\s*$/', (string) $d->name, $m) ? (int) $m[1] : $i + 1;
+
+                return ['id' => $d->id, 'name' => $d->name, 'number' => $number, 'state' => $state];
+            })
+            ->sortBy('number')
+            ->values();
+
+        // Programma: de volgende games in de lijst, met een geschat uur (wisseltijd per game).
+        $programme = [];
+        $playlist = $group->games()->get(['games.id', 'games.name', 'games.source', 'games.external_id']);
+        if ($group->current_game_id && $playlist->count() > 1) {
+            $ids = $playlist->pluck('id')->map(fn ($id) => (int) $id)->all();
+            $i = array_search((int) $group->current_game_id, $ids, true);
+            $eta = $group->is_paused ? null : self::dueAt($group);
+            for ($k = 1; $k <= min(3, count($ids) - 1); $k++) {
+                $g = $playlist[($i + $k) % count($ids)];
+                $programme[] = ['name' => $g->name, 'eta' => $eta?->toIso8601String()];
+                $eta = $eta?->copy()->addMinutes($group->rotation_minutes);
+            }
+        }
+
+        return [
+            ...$status,
+            'quiet_seconds'    => $group->quiet_seconds,
+            'rotation_minutes' => $group->rotation_minutes,
+            'seats'            => $seats,
+            'programme'        => $programme,
+        ];
     }
 }

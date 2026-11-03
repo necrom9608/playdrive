@@ -33,9 +33,10 @@ class DeviceGroupController extends Controller
         // Zonder dat er een toestel vraagt, toch al wisselen als het moet (bv. alle pc's uit).
         $groups = DeviceGroup::query()->where('tenant_id', $tenantId)->orderBy('sort_order')->orderBy('name')->get();
 
+        // Playscope-pc's (spelen mee) en kioskschermen (tonen de groep, bv. de 75" boven de racers).
         $devices = VenueDevice::query()
             ->where('tenant_id', $tenantId)
-            ->where('type', 'playscope')
+            ->whereIn('type', ['playscope', 'kiosk'])
             ->with('games:games.id')
             ->orderBy('name')
             ->get();
@@ -52,6 +53,7 @@ class DeviceGroupController extends Controller
             'groups'  => $groups->map(fn (DeviceGroup $g) => $this->groupArray($g, $devices))->values(),
             'devices' => $devices->map(fn (VenueDevice $d) => [
                 'id'              => $d->id,
+                'type'            => $d->type,
                 'name'            => $d->name,
                 'online'          => $d->isOnline(),
                 'platform'        => $d->platform,
@@ -154,7 +156,7 @@ class DeviceGroupController extends Controller
             'quiet_seconds'    => ['required', 'integer', 'min:' . DeviceGroup::QUIET_SECONDS_MIN, 'max:' . DeviceGroup::QUIET_SECONDS_MAX],
             'grace_minutes'    => ['required', 'integer', 'min:0', 'max:' . DeviceGroup::GRACE_MINUTES_MAX],
             'device_ids'       => ['present', 'array'],
-            'device_ids.*'     => ['integer', Rule::exists('venue_devices', 'id')->where('tenant_id', $tenantId)->where('type', 'playscope')],
+            'device_ids.*'     => ['integer', Rule::exists('venue_devices', 'id')->where('tenant_id', $tenantId)->whereIn('type', ['playscope', 'kiosk'])],
             'game_ids'         => ['present', 'array', 'max:200'],
             'game_ids.*'       => ['integer', 'distinct', Rule::exists('games', 'id')->where('tenant_id', $tenantId)],
         ], [
@@ -190,7 +192,8 @@ class DeviceGroupController extends Controller
             }
         });
 
-        $members = $devices->where('device_group_id', $group->id)->values();
+        $members = $devices->where('device_group_id', $group->id)->where('type', 'playscope')->values();
+        $screens = $devices->where('device_group_id', $group->id)->where('type', 'kiosk')->values();
         $fresh = now()->subSeconds(DeviceRotation::REPORT_FRESH_SECONDS);
 
         return [
@@ -200,7 +203,8 @@ class DeviceGroupController extends Controller
             'quiet_seconds'    => $group->quiet_seconds,
             'grace_minutes'    => $group->grace_minutes,
             'is_paused'        => (bool) $group->is_paused,
-            'device_ids'       => $members->pluck('id')->values(),
+            'device_ids'       => $members->pluck('id')->merge($screens->pluck('id'))->values(),
+            'screens'          => $screens->map(fn (VenueDevice $d) => ['id' => $d->id, 'name' => $d->name, 'online' => $d->isOnline()])->values(),
             'game_ids'         => $group->playlistIds(),
             'status'           => DeviceRotation::payload($group),
             'members'          => $members->map(fn (VenueDevice $d) => [

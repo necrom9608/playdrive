@@ -38,12 +38,12 @@
             <!-- Toestellen -->
             <div class="space-y-2 md:col-span-3">
                 <span class="block text-sm font-medium text-slate-300">Toestellen</span>
-                <div v-if="!devices.length" class="rounded-xl border border-dashed border-slate-800 px-4 py-3 text-sm text-slate-500">
+                <div v-if="!players.length" class="rounded-xl border border-dashed border-slate-800 px-4 py-3 text-sm text-slate-500">
                     Nog geen Playscope-toestellen gekoppeld.
                 </div>
                 <div v-else class="grid gap-2 sm:grid-cols-2">
                     <label
-                        v-for="d in devices"
+                        v-for="d in players"
                         :key="d.id"
                         class="flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm transition"
                         :class="form.device_ids.includes(d.id) ? 'border-sky-500/50 bg-sky-500/10 text-white' : 'border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800'"
@@ -56,11 +56,29 @@
                 </div>
             </div>
 
+            <!-- Schermen (kiosk) die de groep tonen -->
+            <div v-if="screens.length" class="space-y-2 md:col-span-3">
+                <span class="block text-sm font-medium text-slate-300">Schermen <span class="text-slate-500">(toont wat er draait, de stoelen en het programma)</span></span>
+                <div class="grid gap-2 sm:grid-cols-2">
+                    <label
+                        v-for="d in screens"
+                        :key="d.id"
+                        class="flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm transition"
+                        :class="form.device_ids.includes(d.id) ? 'border-sky-500/50 bg-sky-500/10 text-white' : 'border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800'"
+                    >
+                        <input v-model="form.device_ids" type="checkbox" :value="d.id" class="accent-sky-500">
+                        <span class="h-2 w-2 shrink-0 rounded-full" :class="d.online ? 'bg-emerald-400' : 'bg-slate-600'" />
+                        <span class="min-w-0 flex-1 truncate">{{ d.name || `Scherm #${d.id}` }}</span>
+                        <span v-if="otherGroup(d)" class="shrink-0 text-xs text-amber-300">in {{ otherGroup(d) }}</span>
+                    </label>
+                </div>
+            </div>
+
             <!-- Afspeellijst -->
             <div class="space-y-2 md:col-span-3">
                 <div class="flex items-baseline justify-between gap-2">
                     <span class="block text-sm font-medium text-slate-300">Afspeellijst <span class="text-slate-500">({{ form.game_ids.length }})</span></span>
-                    <span class="text-xs text-slate-500">{{ form.device_ids.length ? 'Enkel games die op alle gekozen toestellen staan' : 'Kies eerst de toestellen' }}</span>
+                    <span class="text-xs text-slate-500">{{ chosenPlayers.length ? 'Enkel games die op alle gekozen toestellen staan' : 'Kies eerst de toestellen' }}</span>
                 </div>
 
                 <ol v-if="form.game_ids.length" class="divide-y divide-slate-800 rounded-2xl border border-slate-800">
@@ -86,7 +104,7 @@
                         <PlusIcon class="h-3.5 w-3.5" /> {{ g.name }}
                     </button>
                 </div>
-                <p v-else-if="form.device_ids.length && !form.game_ids.length" class="text-xs text-slate-500">
+                <p v-else-if="chosenPlayers.length && !form.game_ids.length" class="text-xs text-slate-500">
                     Geen gemeenschappelijke games. Games verschijnen hier zodra Playscope ze op de toestellen meldt.
                 </p>
             </div>
@@ -150,9 +168,13 @@ const gamesById = computed(() => new Map(props.games.map((g) => [g.id, g])))
 const gameName = (id) => gamesById.value.get(id)?.name ?? `Game #${id}`
 const gameSource = (id) => gamesById.value.get(id)?.source_label ?? ''
 
-// Games die op ALLE gekozen toestellen staan.
+const players = computed(() => props.devices.filter((d) => (d.type ?? 'playscope') === 'playscope'))
+const screens = computed(() => props.devices.filter((d) => d.type === 'kiosk'))
+const chosenPlayers = computed(() => players.value.filter((d) => form.device_ids.includes(d.id)))
+
+// Games die op ALLE gekozen Playscope-toestellen staan.
 const available = computed(() => {
-    const chosen = props.devices.filter((d) => form.device_ids.includes(d.id))
+    const chosen = chosenPlayers.value
     if (!chosen.length) return new Set()
     let set = new Set(chosen[0].game_ids)
     for (const d of chosen.slice(1)) set = new Set(d.game_ids.filter((id) => set.has(id)))
