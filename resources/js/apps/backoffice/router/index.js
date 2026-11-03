@@ -11,6 +11,7 @@ import EventTypesPage from '../modules/options/pages/EventTypesPage.vue'
 import StayOptionsPage from '../modules/options/pages/StayOptionsPage.vue'
 import StaffPage from '../modules/staff/pages/StaffPage.vue'
 import StaffAttendancePage from '../modules/staff-attendance/pages/StaffAttendancePage.vue'
+import StaffPayrollPage from '../modules/staff-payroll/pages/StaffPayrollPage.vue'
 import RostersPage from '../modules/rosters/pages/RostersPage.vue'
 import SetupsPage from '../modules/setups/pages/SetupsPage.vue'
 import GamesPage from '../modules/games/pages/GamesPage.vue'
@@ -48,6 +49,7 @@ const routes = [
     { path: '/stay-options', name: 'backoffice.stay-options', component: StayOptionsPage },
     { path: '/staff', name: 'backoffice.staff', component: StaffPage },
     { path: '/staff-attendance', name: 'backoffice.staff-attendance', component: StaffAttendancePage },
+    { path: '/staff-payroll', name: 'backoffice.staff-payroll', component: StaffPayrollPage },
     { path: '/rosters', name: 'backoffice.rosters', component: RostersPage },
     { path: '/devices', redirect: { name: 'backoffice.setups' } },
     { path: '/setups', name: 'backoffice.setups', component: SetupsPage },

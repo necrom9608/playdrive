@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\Backoffice\ProductCategoryController;
 use App\Http\Controllers\Api\Backoffice\ProductController;
 use App\Http\Controllers\Api\Backoffice\StaffAttendanceManagementController;
 use App\Http\Controllers\Api\Backoffice\StaffController;
+use App\Http\Controllers\Api\Backoffice\StaffPayrollController;
 use App\Http\Controllers\Api\Backoffice\RosterController;
 use App\Http\Controllers\Api\Backoffice\RosterLeaveController;
 use App\Http\Controllers\Api\Backoffice\RosterRoleController;
@@ -142,6 +143,12 @@ Route::prefix('api/backoffice')->group(function () {
         Route::get('/staff-attendance', [StaffAttendanceManagementController::class, 'index']);
         Route::put('/staff-attendance/{staffAttendance}', [StaffAttendanceManagementController::class, 'update']);
         Route::delete('/staff-attendance/{staffAttendance}', [StaffAttendanceManagementController::class, 'destroy']);
+
+        // Maandprestaties (overname naar sociaal secretariaat / Liantis)
+        Route::get('/staff-payroll', [StaffPayrollController::class, 'index']);
+        Route::put('/staff-payroll/absence', [StaffPayrollController::class, 'setAbsence']);
+        Route::post('/staff-payroll/checkins', [StaffPayrollController::class, 'storeCheckin']);
+        Route::post('/staff-payroll/submit', [StaffPayrollController::class, 'submit']);
 
         // Uurroosters (V017): rollen, algemeen slot-rooster, weekplanning
         Route::get('/roster-roles', [RosterRoleController::class, 'index']);
