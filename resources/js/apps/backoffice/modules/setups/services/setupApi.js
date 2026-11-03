@@ -50,3 +50,24 @@ export function sendDeviceCommand(id, payload) {
 export function updateDeviceAdminPin(pin) {
     return apiFetch(`${BASE}/venue-devices/admin-pin`, { method: 'PUT', body: JSON.stringify({ pin }) })
 }
+
+// ── Groepen met automatische rotatie (Playscope, bv. racers met TeknoParrot) ──
+export function fetchDeviceGroups() {
+    return apiFetch(`${BASE}/device-groups`)
+}
+export function createDeviceGroup(payload) {
+    return apiFetch(`${BASE}/device-groups`, { method: 'POST', body: JSON.stringify(payload) })
+}
+export function updateDeviceGroup(id, payload) {
+    return apiFetch(`${BASE}/device-groups/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+export function deleteDeviceGroup(id) {
+    return apiFetch(`${BASE}/device-groups/${id}`, { method: 'DELETE' })
+}
+// Nu wisselen: naar game_id (moet in de afspeellijst staan) of de volgende
+export function nextDeviceGroupGame(id, gameId = null) {
+    return apiFetch(`${BASE}/device-groups/${id}/next`, { method: 'POST', body: JSON.stringify({ game_id: gameId }) })
+}
+export function pauseDeviceGroup(id, paused) {
+    return apiFetch(`${BASE}/device-groups/${id}/pause`, { method: 'POST', body: JSON.stringify({ paused }) })
+}

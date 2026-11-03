@@ -22,7 +22,7 @@ use Illuminate\Http\Request;
  * De heartbeat van een Playscope-pc geeft ook `update`: de actieve Playscope-release als die
  * verschilt van de versie op de pc (zie App\Domain\Setups\PlayscopeRelease), anders null.
  * En `settings`: instellingen van dit toestel ({ idle_minutes }: game afsluiten na zoveel
- * minuten zonder input, 0 = uit).
+ * minuten zonder input, 0 = uit; group_id: in een rotatiegroep → POST /rotation).
  */
 class DeviceController extends Controller
 {
@@ -72,7 +72,7 @@ class DeviceController extends Controller
             'server_time' => now()->toIso8601String(),
             'setup'       => $device->setup ? $this->setupPayload($device->setup) : null,
             'admin_pin'   => $currentTenant->tenant?->device_admin_pin,
-            'update'      => $device->type === 'playscope' ? PlayscopeRelease::updateFor($device->app_version) : null,
+            'update'      => $device->type === 'playscope' ? PlayscopeRelease::updateFor($device->app_version, $device->platform) : null,
             'settings'    => $device->deviceSettings(),
         ]);
     }

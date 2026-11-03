@@ -34,6 +34,7 @@ class DeviceGameSessions
         'start_failed'  => 'Start mislukt',
         'start_timeout' => 'Start duurde te lang',
         'interrupted'   => 'Playscope of pc ging uit',
+        'rotation'      => 'Rotatie: volgend spel',
     ];
 
     /**
@@ -52,6 +53,7 @@ class DeviceGameSessions
             $v = Validator::make(is_array($s) ? $s : [], [
                 'id'         => ['required', 'uuid'],
                 'app_id'     => ['required', 'string', 'max:64'],
+                'source'     => ['nullable', 'string', 'in:' . implode(',', array_keys(Game::SOURCES))],
                 'name'       => ['nullable', 'string', 'max:255'],
                 'started_at' => ['required', 'date'],
                 'running_at' => ['nullable', 'date'],
@@ -78,7 +80,7 @@ class DeviceGameSessions
                     'venue_device_id'  => $device->id,
                     'device_name'      => $device->name,
                     'game_id'          => null,
-                    'source'           => 'steam',
+                    'source'           => $s['source'] ?? 'steam',
                     'external_id'      => $s['app_id'],
                     'game_name'        => $s['name'] ?? null,
                     'started_at'       => $parse($s['started_at']),
@@ -97,15 +99,16 @@ class DeviceGameSessions
         }
 
         if ($rows) {
-            // Koppelen aan de game in de catalogus van de venue (bestaat normaal: Playscope meldde hem).
+            // Koppelen (Steam-id of TeknoParrot-profiel, per bron) aan de game in de catalogus van de venue (bestaat normaal: Playscope meldde hem).
             $games = Game::query()
                 ->where('tenant_id', $device->tenant_id)
-                ->where('source', 'steam')
+                ->whereIn('source', array_unique(array_column($rows, 'source')))
                 ->whereIn('external_id', array_unique(array_column($rows, 'external_id')))
-                ->pluck('id', 'external_id');
+                ->get(['id', 'source', 'external_id'])
+                ->keyBy(fn (Game $g) => $g->source . ':' . $g->external_id);
 
             foreach ($rows as &$row) {
-                $row['game_id'] = $games[$row['external_id']] ?? null;
+                $row['game_id'] = $games->get($row['source'] . ':' . $row['external_id'])?->id;
             }
             unset($row);
 

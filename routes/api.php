@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Device\DeviceCommandController;
 use App\Http\Controllers\Api\Device\DeviceController;
 use App\Http\Controllers\Api\Device\DeviceGameController;
 use App\Http\Controllers\Api\Device\DevicePairingController;
+use App\Http\Controllers\Api\Device\DeviceRotationController;
 use App\Http\Controllers\Api\Device\DeviceSessionController;
 use App\Http\Controllers\Api\Public\AccountRegistrationController;
 use App\Http\Controllers\Api\Public\BookingFormSetupController;
@@ -57,10 +58,15 @@ Route::get('/public/setups/{code}', [SetupLandingController::class, 'json'])->mi
 
 // Playscope installeren en bijwerken (publiek, releases gebouwd via Playmix Ops)
 //   installeren op een pc: curl -fsSL <APP_URL>/api/playscope/install.sh | bash
+//   latest.json?platform=windows → de Windows-build (zip)
 Route::prefix('playscope')->middleware('throttle:120,1')->group(function () {
     Route::get('/latest.json', [PlayscopeReleaseController::class, 'latest']);
     Route::get('/install.sh', [PlayscopeReleaseController::class, 'install']);
     Route::get('/download/{version}', [PlayscopeReleaseController::class, 'download'])->where('version', '[0-9]+\.[0-9]+\.[0-9]+');
+    // Windows (racers, TeknoParrot): installeren in PowerShell: irm <APP_URL>/api/playscope/install.ps1 | iex
+    Route::get('/install.ps1', [PlayscopeReleaseController::class, 'installWindows']);
+    Route::get('/download/{version}/{platform}', [PlayscopeReleaseController::class, 'download'])
+        ->where(['version' => '[0-9]+\.[0-9]+\.[0-9]+', 'platform' => 'linux|windows']);
 });
 
 // Onbemande toestellen (kiosk, Playscope)
@@ -84,5 +90,8 @@ Route::prefix('device/v1')->group(function () {
 
         // Speelbeurten (statistieken): Playscope stuurt afgesloten beurten door
         Route::post('/sessions', [DeviceSessionController::class, 'store']);
+
+        // Rotatie (toestel in een groep): melden hoe lang geen input, horen welke game moet draaien
+        Route::post('/rotation', [DeviceRotationController::class, 'poll']);
     });
 });

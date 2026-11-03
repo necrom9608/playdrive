@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\Backoffice\StaffPayrollController;
 use App\Http\Controllers\Api\Backoffice\RosterController;
 use App\Http\Controllers\Api\Backoffice\RosterLeaveController;
 use App\Http\Controllers\Api\Backoffice\RosterRoleController;
+use App\Http\Controllers\Api\Backoffice\DeviceGroupController;
 use App\Http\Controllers\Api\Backoffice\SetupController;
 use App\Http\Controllers\Api\Backoffice\VenueDeviceCommandController;
 use App\Http\Controllers\Api\Backoffice\VenueDeviceController;
@@ -122,6 +123,13 @@ Route::prefix('api/backoffice')->group(function () {
         // Bediening op afstand (Playscope): game stoppen, herstarten, bericht, ...
         Route::get('/venue-devices/{venueDevice}/commands', [VenueDeviceCommandController::class, 'index']);
         Route::post('/venue-devices/{venueDevice}/commands', [VenueDeviceCommandController::class, 'store']);
+        // Groepen Playscope-toestellen met automatische rotatie (bv. racers met TeknoParrot)
+        Route::get('/device-groups', [DeviceGroupController::class, 'index']);
+        Route::post('/device-groups', [DeviceGroupController::class, 'store']);
+        Route::put('/device-groups/{deviceGroup}', [DeviceGroupController::class, 'update']);
+        Route::delete('/device-groups/{deviceGroup}', [DeviceGroupController::class, 'destroy']);
+        Route::post('/device-groups/{deviceGroup}/next', [DeviceGroupController::class, 'next']);
+        Route::post('/device-groups/{deviceGroup}/pause', [DeviceGroupController::class, 'pause']);
 
         // Games (catalogus gevoed door Playscope) + categorieën
         Route::get('/games', [GameController::class, 'index']);

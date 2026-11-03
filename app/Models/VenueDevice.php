@@ -36,11 +36,11 @@ class VenueDevice extends Model
     private const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
     protected $fillable = [
-        'tenant_id', 'setup_id', 'type', 'name',
+        'tenant_id', 'setup_id', 'device_group_id', 'type', 'name',
         'pairing_code', 'poll_secret_hash', 'pairing_expires_at', 'claimed_at',
         'token_hash', 'token_issued_at', 'is_active',
         'last_seen_at', 'last_ip', 'hostname', 'platform', 'app_version',
-        'state', 'state_updated_at', 'idle_minutes',
+        'state', 'state_updated_at', 'idle_minutes', 'rotation_report', 'rotation_reported_at',
     ];
 
     protected $hidden = ['token_hash', 'poll_secret_hash'];
@@ -56,6 +56,9 @@ class VenueDevice extends Model
             'state'              => 'array',
             'state_updated_at'   => 'datetime',
             'idle_minutes'       => 'integer',
+            'device_group_id'    => 'integer',
+            'rotation_report'    => 'array',
+            'rotation_reported_at' => 'datetime',
         ];
     }
 
@@ -67,6 +70,12 @@ class VenueDevice extends Model
     public function setup(): BelongsTo
     {
         return $this->belongsTo(Setup::class);
+    }
+
+    /** Groep met automatische rotatie (bv. de racers), of null. */
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(DeviceGroup::class, 'device_group_id');
     }
 
     /** Opdrachten vanuit de backoffice (bediening op afstand). */
@@ -87,10 +96,17 @@ class VenueDevice extends Model
         return $this->idle_minutes ?? self::IDLE_MINUTES_DEFAULT;
     }
 
-    /** Instellingen die het toestel bij elke heartbeat krijgt. */
+    /**
+     * Instellingen die het toestel bij elke heartbeat krijgt.
+     * group_id: in een groep met rotatie → Playscope vraagt POST /rotation wat er moet draaien
+     * (geen menu, geen afsluiten bij inactiviteit).
+     */
     public function deviceSettings(): array
     {
-        return ['idle_minutes' => $this->idleMinutes()];
+        return [
+            'idle_minutes' => $this->device_group_id ? 0 : $this->idleMinutes(),
+            'group_id'     => $this->device_group_id,
+        ];
     }
 
     /** Games die Playscope op dit toestel als geïnstalleerd meldde. */
@@ -153,6 +169,7 @@ class VenueDevice extends Model
             'app_version'  => $this->app_version,
             'state'        => $this->state,
             'idle_minutes' => $this->idleMinutes(),
+            'device_group_id' => $this->device_group_id,
             'claimed_at'   => $this->claimed_at?->toIso8601String(),
         ];
     }

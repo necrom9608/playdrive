@@ -9,11 +9,14 @@
             </div>
 
             <div class="flex flex-wrap gap-3">
-                <button type="button" class="inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-800" @click="loadAll">
+                <button type="button" class="inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-800" @click="loadAll(); groupsPanel?.load()">
                     <ArrowPathIcon class="h-5 w-5" /> Vernieuwen
                 </button>
                 <button v-if="tab === 'setups'" type="button" class="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500" @click="openSetupForm(null)">
                     <PlusIcon class="h-5 w-5" /> Speelplek
+                </button>
+                <button v-else-if="tab === 'groups'" type="button" class="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500" @click="groupsPanel?.openForm(null)">
+                    <PlusIcon class="h-5 w-5" /> Groep
                 </button>
                 <button v-else type="button" class="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500" @click="openDeviceForm(null)">
                     <LinkIcon class="h-5 w-5" /> Toestel koppelen
@@ -97,6 +100,9 @@
             </section>
         </template>
 
+        <!-- Groepen (rotatie) -->
+        <DeviceGroupsPanel v-else-if="tab === 'groups'" ref="groupsPanel" @count="(n) => (groupCount = n)" />
+
         <!-- Toestellen -->
         <template v-else>
             <!-- Beheerpincode: kioskmodus van Playscope verlaten (Ctrl+Alt+P of Select + Start 3 s op het toestel) -->
@@ -143,6 +149,8 @@
             <section v-if="playscopeVersion" class="rounded-3xl border border-slate-800 bg-slate-900/80 px-5 py-4 text-sm text-slate-400">
                 <span class="font-semibold text-white">Playscope v{{ playscopeVersion }}</span> · nieuwe pc (Bazzite, als de gewone gebruiker):
                 <code class="mt-2 block select-all overflow-x-auto rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 font-mono text-xs text-slate-200">{{ installCommand }}</code>
+                <span class="mt-3 block">Windows (bv. racers met TeknoParrot), in PowerShell als de gewone gebruiker:</span>
+                <code class="mt-2 block select-all overflow-x-auto rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 font-mono text-xs text-slate-200">{{ installCommandWindows }}</code>
                 <span class="mt-2 block text-xs text-slate-500">Gekoppelde pc's werken zichzelf bij op een rustig moment (geen game bezig).</span>
             </section>
 
@@ -170,7 +178,7 @@
                                 <div class="flex items-center gap-3">
                                     <span class="h-2.5 w-2.5 shrink-0 rounded-full" :class="d.online ? 'bg-emerald-400' : 'bg-slate-600'" :title="d.online ? 'Online' : 'Offline'" />
                                     <div class="min-w-0">
-                                        <div class="font-semibold text-white">{{ d.name || `Toestel #${d.id}` }}</div>
+                                        <div class="font-semibold text-white">{{ d.name || `Toestel #${d.id}` }}<span v-if="d.device_group_id" class="ml-2 rounded-full border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-xs font-semibold text-sky-200">rotatie</span></div>
                                         <div class="truncate text-xs text-slate-500">{{ [d.hostname, d.platform, d.app_version && `v${d.app_version}`].filter(Boolean).join(' · ') || '—' }}</div>
                                         <div v-if="d.type === 'playscope' && playscopeVersion && d.app_version && d.app_version !== playscopeVersion" class="text-xs text-amber-300">
                                             Update naar v{{ playscopeVersion }} volgt vanzelf
@@ -265,6 +273,7 @@ import SetupFormModal from '../components/SetupFormModal.vue'
 import DeviceFormModal from '../components/DeviceFormModal.vue'
 import DeviceControlModal from '../components/DeviceControlModal.vue'
 import SetupQrModal from '../components/SetupQrModal.vue'
+import DeviceGroupsPanel from '../components/DeviceGroupsPanel.vue'
 import {
     claimVenueDevice,
     createSetup,
@@ -303,7 +312,10 @@ const deviceForm = reactive({ open: false, device: null, error: '' })
 const qr = reactive({ open: false, setup: null })
 const control = reactive({ open: false, device: null })
 const playscopeVersion = ref(null)
+const groupsPanel = ref(null)
+const groupCount = ref(null)
 const installCommand = `curl -fsSL ${window.location.origin}/api/playscope/install.sh | bash`
+const installCommandWindows = `irm ${window.location.origin}/api/playscope/install.ps1 | iex`
 const adminPin = reactive({ isSet: false, updatedAt: null, editing: false, value: '', saving: false, error: '', saved: '' })
 
 let refreshTimer = null
@@ -311,6 +323,7 @@ let refreshTimer = null
 const tabs = computed(() => [
     { key: 'setups', label: 'Speelplekken', count: setups.value.filter(s => s.status !== 'archived').length },
     { key: 'devices', label: 'Toestellen', count: devices.value.length },
+    { key: 'groups', label: 'Groepen', count: groupCount.value ?? '' },
 ])
 
 const zones = computed(() => [...new Set(setups.value.map(s => s.zone).filter(Boolean))].sort())

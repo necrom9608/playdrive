@@ -7,15 +7,25 @@ namespace App\Domain\Setups;
  *
  * Gebouwd en gepubliceerd door deploy/release-playscope.sh in de Playscope-repo
  * (Playmix Ops → Playscope → Uitrollen), in storage/app/playscope:
- *   releases/<versie>/Playscope.AppImage + manifest.json
+ *   releases/<versie>/Playscope.AppImage     Linux (Bazzite)
+ *   releases/<versie>/Playscope-win.zip      Windows (racers met TeknoParrot), uitgepakt = Playscope.exe + co.
+ *   releases/<versie>/manifest.json          versie, commit, sha256/size (Linux, oud formaat) + files.{linux,windows}
  *   current.json   manifest van de actieve release (rollback = andere release actief)
- *   install.sh     installatiescript met het adres van deze PlayDrive
+ *   install.sh     installatiescript (Linux) met het adres van deze PlayDrive
+ *   install.ps1    idem voor Windows
  *
- * De pc's krijgen de actieve versie mee met de heartbeat (`update`) zodra die verschilt
- * van wat ze draaien, en werken zichzelf bij (electron/updater.js in Playscope).
+ * De pc's krijgen de actieve versie voor hun platform mee met de heartbeat (`update`) zodra
+ * die verschilt van wat ze draaien, en werken zichzelf bij (electron/updater.js in Playscope).
  */
 final class PlayscopeRelease
 {
+    public const PLATFORMS = ['linux', 'windows'];
+
+    private const FILES = [
+        'linux'   => 'Playscope.AppImage',
+        'windows' => 'Playscope-win.zip',
+    ];
+
     public static function dir(): string
     {
         return storage_path('app/playscope');
@@ -38,40 +48,72 @@ final class PlayscopeRelease
         return (bool) preg_match('/^\d+\.\d+\.\d+$/', $version);
     }
 
-    /** Pad naar de AppImage van een bewaarde release, of null. */
-    public static function file(string $version): ?string
+    public static function platform(?string $platform): string
+    {
+        return in_array($platform, self::PLATFORMS, true) ? $platform : 'linux';
+    }
+
+    /** Pad naar het bestand van een bewaarde release voor dat platform, of null. */
+    public static function file(string $version, string $platform = 'linux'): ?string
     {
         if (! self::isVersion($version)) {
             return null;
         }
-        $file = self::dir() . "/releases/{$version}/Playscope.AppImage";
+        $file = self::dir() . "/releases/{$version}/" . self::FILES[self::platform($platform)];
 
         return is_file($file) ? $file : null;
     }
 
-    public static function downloadUrl(string $version): string
+    public static function fileName(string $version, string $platform = 'linux'): string
     {
-        return url("/api/playscope/download/{$version}");
+        return self::platform($platform) === 'windows' ? "Playscope-{$version}-win.zip" : "Playscope-{$version}.AppImage";
+    }
+
+    public static function downloadUrl(string $version, string $platform = 'linux'): string
+    {
+        // Linux zonder platform in de url: zo blijven oudere Playscope-versies werken.
+        return self::platform($platform) === 'windows'
+            ? url("/api/playscope/download/{$version}/windows")
+            : url("/api/playscope/download/{$version}");
+    }
+
+    /** sha256/size van het bestand voor dat platform uit het manifest, of null (niet gebouwd). */
+    public static function fileInfo(array $m, string $platform): ?array
+    {
+        $platform = self::platform($platform);
+        $f = $m['files'][$platform] ?? null;
+        if (is_array($f) && isset($f['sha256'])) {
+            return ['sha256' => $f['sha256'], 'size' => (int) ($f['size'] ?? 0)];
+        }
+
+        return $platform === 'linux' ? ['sha256' => $m['sha256'], 'size' => (int) ($m['size'] ?? 0)] : null;
     }
 
     /** Wat de pc te zien krijgt: de actieve release, enkel als die verschilt van wat hij draait. */
-    public static function updateFor(?string $installed): ?array
+    public static function updateFor(?string $installed, ?string $platform = 'linux'): ?array
     {
+        $platform = self::platform($platform);
         $current = self::current();
-        if (! $current || $installed === $current['version'] || ! self::file($current['version'])) {
+        if (! $current || $installed === $current['version'] || ! self::file($current['version'], $platform)) {
             return null;
         }
 
-        return self::publicArray($current);
+        return self::publicArray($current, $platform);
     }
 
-    public static function publicArray(array $m): array
+    public static function publicArray(array $m, string $platform = 'linux'): ?array
     {
+        $info = self::fileInfo($m, $platform);
+        if (! $info) {
+            return null;
+        }
+
         return [
             'version'  => $m['version'],
-            'url'      => self::downloadUrl($m['version']),
-            'sha256'   => $m['sha256'],
-            'size'     => (int) ($m['size'] ?? 0),
+            'platform' => self::platform($platform),
+            'url'      => self::downloadUrl($m['version'], $platform),
+            'sha256'   => $info['sha256'],
+            'size'     => $info['size'],
             'built_at' => $m['built_at'] ?? null,
         ];
     }
