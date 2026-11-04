@@ -26,10 +26,10 @@
                         <button type="button" class="head-btn" :disabled="!power.canControl || power.sequenceRunning" :title="powerHint" @click="openSequence('close')">
                             <PowerIcon class="h-5 w-5 text-slate-400" /> Zaal sluiten
                         </button>
-                        <button type="button" class="head-btn" title="Hubs koppelen" @click="hubsOpen = true">
-                            <Cog6ToothIcon class="h-5 w-5" />
-                        </button>
                     </template>
+                    <button type="button" class="head-btn" title="Stroom: hubs koppelen" @click="hubsOpen = true">
+                        <Cog6ToothIcon class="h-5 w-5" />
+                    </button>
                     <button type="button" class="head-btn" title="Vernieuwen" @click="refresh">
                         <ArrowPathIcon class="h-5 w-5" :class="floor.loading ? 'animate-spin' : ''" />
                     </button>

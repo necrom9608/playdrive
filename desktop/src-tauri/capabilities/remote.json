@@ -1,0 +1,12 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "remote-playdrive",
+  "description": "De frontdesk draait vanaf playdrive.be: die pagina mag de opdrachten van de kassa-app gebruiken (RFID, stekkers, updates)",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["https://playdrive.be/*", "https://*.playdrive.be/*", "http://playdrive.test/*"]
+  },
+  "permissions": [
+    "core:default"
+  ]
+}

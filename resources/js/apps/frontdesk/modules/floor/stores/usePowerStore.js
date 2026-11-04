@@ -111,8 +111,20 @@ export const usePowerStore = defineStore('frontdeskPower', {
             }
         },
 
+        /** Kan deze kassa-app de stekkers aansturen? (oudere app, of opdrachten geblokkeerd) */
+        async probe() {
+            if (!this.available || this.appOutdated) return
+            try {
+                const { invoke } = await import('@tauri-apps/api/core')
+                await invoke('desktop_update_status')
+            } catch (e) {
+                if (isMissingCommand(e)) this.appOutdated = true
+            }
+        },
+
         start() {
             this.stop()
+            this.probe()
             this.load().then(() => this.poll())
             pollTimer = window.setInterval(() => {
                 if (!document.hidden && !this.sequenceRunning) this.poll()
