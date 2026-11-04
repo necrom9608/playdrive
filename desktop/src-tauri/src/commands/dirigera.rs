@@ -236,15 +236,36 @@ pub async fn dirigera_list_outlets(host: String, token: String) -> Result<Vec<Ou
     Ok(parse_outlets(&body))
 }
 
+/// Resultaat van schakelen: wat de hub antwoordde en (met verify) de toestand kort daarna.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetResult {
+    pub status: u16,
+    /// antwoord van de hub (ingekort), voor foutzoeken
+    pub body: String,
+    /// enkel met verify: toestand ±1,5 s na het schakelen
+    pub is_on: Option<bool>,
+    pub reachable: Option<bool>,
+    /// enkel met verify: het toestel zoals de hub het nu geeft (ingekort), voor foutzoeken
+    pub device: Option<String>,
+}
+
+fn short(text: &str) -> String {
+    let t = text.trim();
+    if t.chars().count() > 300 { format!("{}…", t.chars().take(300).collect::<String>()) } else { t.to_string() }
+}
+
 #[tauri::command]
-pub async fn dirigera_set_outlet(host: String, token: String, id: String, on: bool) -> Result<(), String> {
+pub async fn dirigera_set_outlet(host: String, token: String, id: String, on: bool, verify: Option<bool>) -> Result<SetResult, String> {
     let base = base_url(&host)?;
-    if id.trim().is_empty() || id.contains('/') {
+    let id = id.trim().to_string();
+    if id.is_empty() || id.contains('/') {
         return Err("Ongeldige stekker.".into());
     }
+    let http = client()?;
 
-    let response = client()?
-        .patch(format!("{base}/devices/{}", id.trim()))
+    let response = http
+        .patch(format!("{base}/devices/{id}"))
         .bearer_auth(token.trim())
         .json(&serde_json::json!([{ "attributes": { "isOn": on } }]))
         .send()
@@ -252,14 +273,29 @@ pub async fn dirigera_set_outlet(host: String, token: String, id: String, on: bo
         .map_err(|e| network_error(&host, e))?;
 
     let status = response.status();
+    let body = short(&response.text().await.unwrap_or_default());
     if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN {
         return Err(format!("Hub {host} kent de kassa niet meer. Koppel de hub opnieuw."));
     }
     if !status.is_success() {
-        return Err(format!("Stekker schakelen mislukt ({status})."));
+        return Err(format!("Stekker schakelen mislukt ({status}){}", if body.is_empty() { String::new() } else { format!(": {body}") }));
     }
 
-    Ok(())
+    let mut result = SetResult { status: status.as_u16(), body, is_on: None, reachable: None, device: None };
+
+    // Nakijken of de stekker ook echt omging (de hub antwoordt 202 ook als hij de stekker niet bereikt).
+    if verify.unwrap_or(false) {
+        tokio::time::sleep(Duration::from_millis(1500)).await;
+        if let Ok(r) = http.get(format!("{base}/devices/{id}")).bearer_auth(token.trim()).send().await {
+            if let Ok(device) = r.json::<Value>().await {
+                result.is_on = device.get("attributes").and_then(|a| a.get("isOn")).and_then(Value::as_bool);
+                result.reachable = device.get("isReachable").and_then(Value::as_bool);
+                result.device = Some(short(&device.to_string()));
+            }
+        }
+    }
+
+    Ok(result)
 }
 
 #[cfg(test)]

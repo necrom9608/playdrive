@@ -39,6 +39,7 @@ export function listOutlets(host, token) {
     return invoke('dirigera_list_outlets', { host, token })
 }
 
-export function setOutlet(host, token, id, on) {
-    return invoke('dirigera_set_outlet', { host, token, id, on })
+/** → { status, body, isOn, reachable } (isOn/reachable enkel met verify; oudere app: null) */
+export function setOutlet(host, token, id, on, verify = false) {
+    return invoke('dirigera_set_outlet', { host, token, id, on, verify })
 }

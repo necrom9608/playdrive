@@ -100,7 +100,7 @@ export const useFloorStore = defineStore('frontdeskFloor', {
             this.toasts.push({ id, text, tone })
             window.setTimeout(() => {
                 this.toasts = this.toasts.filter(t => t.id !== id)
-            }, tone === 'error' ? 6000 : 3500)
+            }, tone === 'error' ? Math.min(20000, Math.max(6000, text.length * 60)) : 3500)
         },
 
         async loadGames(deviceId, { force = false } = {}) {

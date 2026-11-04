@@ -281,7 +281,7 @@ async function togglePlug(plug) {
         return
     }
     try {
-        await power.setPlug(plug, !info.on)
+        await power.setPlug(plug, !info.on, { verify: true })
         floor.toast(`${plug.name}: stroom ${info.on ? 'uit' : 'aan'}`)
     } catch (e) {
         floor.toast(e.message, 'error')
@@ -291,7 +291,7 @@ async function togglePlug(plug) {
 async function plugOff(plug) {
     offConfirm.value = null
     try {
-        await power.setPlug(plug, false)
+        await power.setPlug(plug, false, { verify: true })
         floor.toast(`${plug.name}: stroom uit`)
     } catch (e) {
         floor.toast(e.message, 'error')

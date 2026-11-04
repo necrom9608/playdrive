@@ -187,15 +187,31 @@ export const usePowerStore = defineStore('frontdeskPower', {
         },
 
         /** Eén stekker schakelen. Gooit een fout met leesbare tekst. */
-        async setPlug(plug, on) {
+        /**
+         * @param {boolean} verify na het schakelen nakijken of de stekker echt omging (± 1,5 s extra);
+         *        de hub antwoordt ook "ok" als hij de stekker zelf niet bereikt
+         */
+        async setPlug(plug, on, { verify = false } = {}) {
             const hub = this.hub(plug.hub_id)
             if (!hub?.paired || !hub.token) throw new Error(`Hub van ${plug.name} is niet gekoppeld.`)
             const k = key(plug.hub_id, plug.external_id)
             this.pending[k] = true
             try {
-                await setOutlet(hub.host, hub.token, plug.external_id, on)
+                const res = await setOutlet(hub.host, hub.token, plug.external_id, on, verify)
                 const outlet = this.live[hub.id]?.outlets?.[plug.external_id]
-                if (outlet) outlet.isOn = on
+                if (verify && res && typeof res.isOn === 'boolean') {
+                    if (outlet) {
+                        outlet.isOn = res.isOn
+                        if (typeof res.reachable === 'boolean') outlet.reachable = res.reachable
+                    }
+                    if (res.isOn !== on) {
+                        const why = res.reachable === false ? ' De hub bereikt de stekker niet.' : ''
+                        console.warn('[stroom] stekker ging niet om', plug.name, res)
+                        throw new Error(`${plug.name}: de hub nam de opdracht aan (${res.status}), maar de stekker staat nog ${res.isOn ? 'aan' : 'uit'}.${why}${res.body ? ` Antwoord hub: ${res.body}` : ''}${res.device ? ` Toestel: ${res.device}` : ''}`)
+                    }
+                } else if (outlet) {
+                    outlet.isOn = on
+                }
             } catch (e) {
                 if (isMissingCommand(e)) this.appOutdated = true
                 throw new Error(errorText(e))
