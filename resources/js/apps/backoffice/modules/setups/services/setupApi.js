@@ -97,6 +97,10 @@ export function deletePowerHub(id) {
 export function createSetupsForPlugs(plugIds = null) {
     return apiFetch(`${BASE}/power/plugs/create-setups`, { method: 'POST', body: JSON.stringify(plugIds ? { plug_ids: plugIds } : {}) })
 }
+/** Stekkers over 3 golven verdelen volgens type speelplek → {counts: [pc, kasten, rest], waves} */
+export function autoAssignPowerWaves() {
+    return apiFetch(`${BASE}/power/plugs/auto-waves`, { method: 'POST' })
+}
 // { setup_id, power_wave_id, wave_order }
 export function updatePowerPlug(id, payload) {
     return apiFetch(`${BASE}/power/plugs/${id}`, { method: 'PUT', body: JSON.stringify(payload) })

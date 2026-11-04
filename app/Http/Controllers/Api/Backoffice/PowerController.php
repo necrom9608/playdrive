@@ -7,6 +7,7 @@ use App\Models\PowerHub;
 use App\Models\PowerPlug;
 use App\Models\PowerWave;
 use App\Models\Setup;
+use App\Models\VenueDevice;
 use App\Support\CurrentTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -187,6 +188,68 @@ class PowerController extends Controller
         });
 
         return response()->json($result);
+    }
+
+    /**
+     * Stekkers automatisch over drie golven verdelen op basis van hun speelplek:
+     *   golf 1  pc's: speelplek van het type PC of met een Playscope-pc (starten het traagst op)
+     *   golf 2  kasten: arcadekasten, VR en flipperkasten (grootste piekstroom)
+     *   golf 3  de rest: consoles/tv's, andere en stekkers zonder speelplek
+     * Ontbrekende golven worden aangemaakt; golven die nog "Golf N" heten krijgen een naam en tijden.
+     */
+    public function autoWaves(CurrentTenant $currentTenant): JsonResponse
+    {
+        abort_unless($currentTenant->exists(), 404, 'Geen geldige tenant gevonden.');
+        $tenantId = $currentTenant->id();
+
+        $plan = [
+            ['name' => "PC's", 'stagger_seconds' => 2, 'delay_after_seconds' => 15],
+            ['name' => 'Kasten', 'stagger_seconds' => 2, 'delay_after_seconds' => 15],
+            ['name' => 'Rest', 'stagger_seconds' => 1, 'delay_after_seconds' => 0],
+        ];
+
+        $result = DB::transaction(function () use ($tenantId, $plan) {
+            $waves = PowerWave::query()->where('tenant_id', $tenantId)->orderBy('position')->orderBy('id')->get()->values();
+            $position = (int) $waves->max('position');
+
+            foreach ($plan as $i => $def) {
+                $wave = $waves->get($i);
+                if (! $wave) {
+                    $wave = PowerWave::query()->create([...$def, 'tenant_id' => $tenantId, 'position' => ++$position]);
+                    $waves->put($i, $wave);
+                } elseif (preg_match('/^golf\s*\d+$/i', trim((string) $wave->name))) {
+                    $wave->update($def);
+                }
+            }
+
+            $playscopeSetups = VenueDevice::query()->where('tenant_id', $tenantId)
+                ->where('type', 'playscope')->whereNotNull('setup_id')->pluck('setup_id')->flip();
+
+            $plugs = PowerPlug::query()->where('tenant_id', $tenantId)->whereNull('missing_since')
+                ->with('setup:id,type,zone,name')->get()
+                ->sortBy(fn (PowerPlug $p) => mb_strtolower(($p->setup?->zone ?? $p->room ?? '').' '.($p->setup?->name ?? $p->name)))
+                ->values();
+
+            $order = [0, 0, 0];
+            $counts = [0, 0, 0];
+            foreach ($plugs as $plug) {
+                $setup = $plug->setup;
+                $index = match (true) {
+                    $setup && ($setup->type === 'pc' || $playscopeSetups->has($setup->id)) => 0,
+                    $setup && in_array($setup->type, ['arcade', 'vr', 'pinball'], true)  => 1,
+                    default                                                             => 2,
+                };
+                $plug->update(['power_wave_id' => $waves[$index]->id, 'wave_order' => $order[$index]++]);
+                $counts[$index]++;
+            }
+
+            return $counts;
+        });
+
+        return response()->json([
+            'counts' => $result,
+            'waves'  => $this->waves($tenantId),
+        ]);
     }
 
     /** Soort speelplek raden uit naam + kamer van de stekker; aanpasbaar in Speelplekken. */

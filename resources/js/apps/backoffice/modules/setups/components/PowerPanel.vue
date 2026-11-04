@@ -87,6 +87,16 @@
                         <PlusIcon class="h-4 w-4" />
                         {{ creatingSetups ? 'Bezig…' : `Speelplek voor ${unassignedCount} stekker${unassignedCount === 1 ? '' : 's'}` }}
                     </button>
+                    <button
+                        v-if="plugs.length"
+                        type="button"
+                        :disabled="autoWaving"
+                        class="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
+                        @click="autoWaves"
+                    >
+                        <BoltIcon class="h-4 w-4" />
+                        {{ autoWaving ? 'Bezig…' : 'Golven automatisch indelen' }}
+                    </button>
                     <label class="flex items-center gap-2 text-sm text-slate-400">
                         <input v-model="onlyUnassigned" type="checkbox" class="h-4 w-4 rounded border-slate-600 bg-slate-950">
                         Enkel zonder speelplek
@@ -183,6 +193,7 @@ import ModalDialog from '../../../components/ModalDialog.vue'
 import {
     createPowerHub,
     createSetupsForPlugs,
+    autoAssignPowerWaves,
     createPowerWave,
     deletePowerHub,
     deletePowerPlug,
@@ -210,6 +221,26 @@ const hubForm = reactive({ open: false, hub: null, name: '', host: '', error: ''
 const creatingSetups = ref(false)
 const notice = ref('')
 const unassignedCount = computed(() => plugs.value.filter(p => !p.setup_id && !p.missing).length)
+
+const autoWaving = ref(false)
+
+async function autoWaves() {
+    const without = unassignedCount.value
+    const warn = without ? `\n\nLet op: ${without} stekker${without === 1 ? '' : 's'} zonder speelplek ${without === 1 ? 'komt' : 'komen'} in golf 3. Maak eerst speelplekken aan als je dat niet wil.` : ''
+    if (!window.confirm(`Alle stekkers opnieuw over de golven verdelen?\n\nGolf 1: pc's (type PC of met Playscope)\nGolf 2: arcadekasten, VR en flipperkasten\nGolf 3: de rest\n\nGolven die nog "Golf 1/2/3" heten krijgen een naam en 2 s / 15 s, 2 s / 15 s en 1 s / 0 s.${warn}`)) return
+    autoWaving.value = true
+    try {
+        const res = await autoAssignPowerWaves()
+        await load({ silent: true })
+        const [pc, kasten, rest] = res.counts ?? [0, 0, 0]
+        notice.value = `Ingedeeld: ${pc} in golf 1, ${kasten} in golf 2, ${rest} in golf 3. Kasten met een Windows-pc zonder Playscope (bv. Harley) zet je best op "Niet in sequentie" of in golf 1.`
+        window.setTimeout(() => { notice.value = '' }, 12000)
+    } catch (e) {
+        error.value = e.message || 'Golven indelen mislukt.'
+    } finally {
+        autoWaving.value = false
+    }
+}
 
 async function createMissingSetups() {
     const n = unassignedCount.value

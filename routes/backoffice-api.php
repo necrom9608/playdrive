@@ -141,6 +141,7 @@ Route::prefix('api/backoffice')->group(function () {
         Route::post('/power/hubs/{powerHub}/unpair', [PowerController::class, 'unpairHub']);
         Route::delete('/power/hubs/{powerHub}', [PowerController::class, 'destroyHub']);
         Route::post('/power/plugs/create-setups', [PowerController::class, 'createSetupsForPlugs']);
+        Route::post('/power/plugs/auto-waves', [PowerController::class, 'autoWaves']);
         Route::put('/power/plugs/{powerPlug}', [PowerController::class, 'updatePlug']);
         Route::delete('/power/plugs/{powerPlug}', [PowerController::class, 'destroyPlug']);
         Route::post('/power/waves/reorder', [PowerController::class, 'reorderWaves']);   // vóór {powerWave}
