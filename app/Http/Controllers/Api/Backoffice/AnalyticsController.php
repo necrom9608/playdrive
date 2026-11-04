@@ -3,11 +3,16 @@
 namespace App\Http\Controllers\Api\Backoffice;
 
 use App\Http\Controllers\Controller;
+use App\Domain\Display\OpeningHoursToday;
+use App\Models\OpeningHour;
 use App\Models\Order;
+use App\Models\RegionSeason;
 use App\Models\Registration;
+use App\Models\StaffCheckin;
 use App\Support\CurrentTenant;
 use App\Support\SchoolHolidayCalendar;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,43 +20,393 @@ use Illuminate\Support\Facades\DB;
 
 class AnalyticsController extends Controller
 {
-    public function dashboard(CurrentTenant $currentTenant): JsonResponse
+    /**
+     * Backoffice-dashboard.
+     *
+     * Query-parameters (allemaal optioneel):
+     *   period      today | week | month (standaard) | custom
+     *   start_date  Y-m-d (enkel bij custom)
+     *   end_date    Y-m-d (enkel bij custom)
+     *   compare     previous_year (standaard) | previous_period
+     *
+     * Een periode die vandaag eindigt wordt vergeleken tot hetzelfde uur
+     * in de vergelijkingsperiode, zodat een halve dag niet tegen een volle dag staat.
+     */
+    public function dashboard(Request $request, CurrentTenant $currentTenant): JsonResponse
     {
         abort_if(! $currentTenant->exists(), 422, 'Geen tenant gevonden voor rapportering.');
 
-        $today = now()->startOfDay();
-        $monthStart = $today->copy()->startOfMonth();
-        $yearStart = $today->copy()->startOfYear();
+        $validated = $request->validate([
+            'period' => ['nullable', 'in:today,week,month,custom'],
+            'start_date' => ['nullable', 'date_format:Y-m-d'],
+            'end_date' => ['nullable', 'date_format:Y-m-d'],
+            'compare' => ['nullable', 'in:previous_period,previous_year'],
+        ]);
 
-        $summary = [
-            'today' => $this->buildPeriodSummary($currentTenant->id(), $today, $today->copy()->endOfDay()),
-            'month' => $this->buildPeriodSummary($currentTenant->id(), $monthStart, $today->copy()->endOfDay()),
-            'year' => $this->buildPeriodSummary($currentTenant->id(), $yearStart, $today->copy()->endOfDay()),
-        ];
+        $tenantId = $currentTenant->id();
+        $period = $validated['period'] ?? 'month';
+        $compare = $validated['compare'] ?? 'previous_year';
+
+        [$start, $end] = $this->resolveDashboardPeriod($period, $validated);
+        [$compareStart, $compareEnd] = $this->shiftDashboardRange($period, $compare, $start, $end);
+
+        $primary = $this->buildPeriodSummary($tenantId, $start, $end);
+        $comparison = $this->buildPeriodSummary($tenantId, $compareStart, $compareEnd);
+        $visitors = $this->visitorCount($tenantId, $start, $end);
+        $compareVisitors = $this->visitorCount($tenantId, $compareStart, $compareEnd);
+
+        $perVisitor = $visitors > 0 ? round($primary['revenue'] / $visitors, 2) : null;
+        $comparePerVisitor = $compareVisitors > 0 ? round($comparison['revenue'] / $compareVisitors, 2) : null;
+
+        // Trend: de gekozen periode, maar minstens 30 dagen zodat er iets te zien is.
+        $trendStart = $start->copy();
+        $trendEnd = $end->copy();
+        if ($trendStart->diffInDays($trendEnd) < 13) {
+            $trendEnd = $end->copy()->endOfDay();
+            $trendStart = $trendEnd->copy()->subDays(29)->startOfDay();
+        }
+        // Vorig jaar: 52 weken terug, zodat weekdagen in de grafiek op elkaar vallen.
+        [$trendCompareStart] = $this->shiftDashboardRange($compare === 'previous_year' ? 'week' : 'custom', $compare, $trendStart, $trendEnd);
 
         return response()->json([
             'data' => [
-                'summary' => $summary,
-                'revenue_trend' => $this->buildOrderSeries(
-                    $currentTenant->id(),
-                    now()->subDays(29)->startOfDay(),
-                    now()->endOfDay(),
-                    'revenue'
+                'period' => [
+                    'key' => $period,
+                    'compare' => $compare,
+                    'start' => $start->toDateString(),
+                    'end' => $end->toDateString(),
+                    'compare_start' => $compareStart->toDateString(),
+                    'compare_end' => $compareEnd->toDateString(),
+                ],
+                'kpis' => [
+                    'revenue' => $this->kpi($primary['revenue'], $comparison['revenue']),
+                    'orders' => $this->kpi($primary['order_count'], $comparison['order_count']) + [
+                        'avg_order_value' => $primary['avg_order_value'],
+                    ],
+                    'visitors' => $this->kpi($visitors, $compareVisitors),
+                    'revenue_per_visitor' => $this->kpi($perVisitor, $comparePerVisitor),
+                ],
+                'trend' => $this->dashboardTrend(
+                    $currentTenant,
+                    $trendStart,
+                    $trendEnd,
+                    $trendCompareStart
                 ),
-                'previous_revenue_trend' => $this->buildOrderSeries(
-                    $currentTenant->id(),
-                    now()->subDays(59)->startOfDay(),
-                    now()->subDays(30)->endOfDay(),
-                    'revenue'
-                ),
-                'payment_breakdown' => $this->paymentBreakdown($currentTenant->id(), $monthStart, now()->endOfDay()),
-                'category_breakdown' => $this->categoryBreakdown($currentTenant->id(), $monthStart, now()->endOfDay(), 8),
-                'top_products' => $this->topProducts($currentTenant->id(), $monthStart, now()->endOfDay(), 8),
-                'reservation_overview' => $this->reservationOverview($currentTenant->id(), $monthStart, now()->endOfDay()),
-                'source_breakdown' => $this->sourceBreakdown($currentTenant->id(), $monthStart, now()->endOfDay()),
-                'holiday_comparisons' => $this->holidayComparisons($currentTenant->id()),
+                'payment_breakdown' => $this->paymentBreakdown($tenantId, $start, $end),
+                'category_breakdown' => $this->categoryBreakdown($tenantId, $start, $end, 6),
+                'source_breakdown' => $this->sourceBreakdown($tenantId, $start, $end),
+                'top_products' => $this->topProducts($tenantId, $start, $end, 6),
+                'today' => $this->dashboardToday($tenantId),
+                'holiday_comparisons' => $this->holidayComparisons($tenantId),
+                'generated_at' => now()->toIso8601String(),
             ],
         ]);
+    }
+
+    /** @return array{0: Carbon, 1: Carbon} */
+    protected function resolveDashboardPeriod(string $period, array $validated): array
+    {
+        $today = now()->startOfDay();
+
+        return match ($period) {
+            'today' => [$today->copy(), $today->copy()->endOfDay()],
+            'week' => [$today->copy()->startOfWeek(Carbon::MONDAY), $today->copy()->endOfDay()],
+            'custom' => (function () use ($validated, $today) {
+                $start = isset($validated['start_date'])
+                    ? Carbon::createFromFormat('Y-m-d', $validated['start_date'])->startOfDay()
+                    : $today->copy()->startOfMonth();
+                $end = isset($validated['end_date'])
+                    ? Carbon::createFromFormat('Y-m-d', $validated['end_date'])->endOfDay()
+                    : $today->copy()->endOfDay();
+
+                if ($end->lt($start)) {
+                    [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
+                }
+
+                // Max. 2 jaar, zodat één klik de server niet vastzet.
+                if ($start->diffInDays($end) > 731) {
+                    $start = $end->copy()->subDays(731)->startOfDay();
+                }
+
+                return [$start, $end];
+            })(),
+            default => [$today->copy()->startOfMonth(), $today->copy()->endOfDay()],
+        };
+    }
+
+    /**
+     * Vergelijkingsperiode met dezelfde lengte.
+     * Dag- en weekvergelijkingen met vorig jaar schuiven 52 weken op, zodat
+     * een woensdag met een woensdag vergeleken wordt.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    protected function shiftDashboardRange(string $period, string $compare, Carbon $start, Carbon $end): array
+    {
+        $days = (int) $start->copy()->startOfDay()->diffInDays($end->copy()->startOfDay()) + 1;
+
+        if ($compare === 'previous_year') {
+            $compareStart = in_array($period, ['today', 'week'], true)
+                ? $start->copy()->subWeeks(52)
+                : $start->copy()->subYearNoOverflow();
+        } else {
+            $compareStart = match ($period) {
+                'today', 'week' => $start->copy()->subWeek(),
+                'month' => $start->copy()->subMonthNoOverflow()->startOfMonth(),
+                default => $start->copy()->subDays($days),
+            };
+        }
+
+        $compareStart = $compareStart->startOfDay();
+        $compareEnd = $compareStart->copy()->addDays($days - 1)->endOfDay();
+
+        // Loopt de periode tot vandaag: vergelijk tot hetzelfde uur.
+        if ($end->isToday()) {
+            $compareEnd = $compareEnd->copy()->setTimeFrom(now());
+        }
+
+        return [$compareStart, $compareEnd];
+    }
+
+    protected function kpi(int|float|null $value, int|float|null $compare): array
+    {
+        $delta = null;
+        if ($value !== null && $compare !== null && (float) $compare != 0.0) {
+            $delta = round((($value - $compare) / abs($compare)) * 100, 1);
+        }
+
+        return [
+            'value' => $value,
+            'compare' => $compare,
+            'delta_percentage' => $delta,
+        ];
+    }
+
+    /** Aantal bezoekers = deelnemers van reservaties die effectief kwamen. */
+    protected function visitorCount(int $tenantId, Carbon $start, Carbon $end): int
+    {
+        return (int) Registration::query()
+            ->where('tenant_id', $tenantId)
+            ->whereBetween('event_date', [$start->toDateString(), $end->toDateString()])
+            ->whereIn('status', [
+                Registration::STATUS_CHECKED_IN,
+                Registration::STATUS_CHECKED_OUT,
+                Registration::STATUS_PAID,
+            ])
+            ->selectRaw('COALESCE(SUM(COALESCE(participants_children,0) + COALESCE(participants_adults,0) + COALESCE(participants_supervisors,0)), 0) as total')
+            ->value('total');
+    }
+
+    /** Netto-omzet per dag (of per week bij lange periodes) in één query. */
+    protected function revenueByDay(int $tenantId, Carbon $start, Carbon $end): array
+    {
+        return DB::table('orders')
+            ->where('tenant_id', $tenantId)
+            ->where('status', Order::STATUS_PAID)
+            ->whereNull('cancelled_at')
+            ->whereBetween('paid_at', [$start, $end])
+            ->selectRaw('DATE(paid_at) as day_key')
+            ->selectRaw('SUM(CASE WHEN COALESCE(refund_amount,0) > 0 AND total_incl_vat >= 0 THEN total_incl_vat - refund_amount ELSE total_incl_vat END) as revenue')
+            ->selectRaw('COUNT(*) as order_count')
+            ->groupByRaw('DATE(paid_at)')
+            ->get()
+            ->keyBy('day_key')
+            ->map(fn ($row) => ['revenue' => round((float) $row->revenue, 2), 'orders' => (int) $row->order_count])
+            ->all();
+    }
+
+    protected function dashboardTrend(CurrentTenant $currentTenant, Carbon $start, Carbon $end, Carbon $compareStart): array
+    {
+        $tenantId = $currentTenant->id();
+        $dayCount = (int) $start->copy()->startOfDay()->diffInDays($end->copy()->startOfDay()) + 1;
+        $compareEnd = $compareStart->copy()->addDays($dayCount - 1)->endOfDay();
+
+        $revenue = $this->revenueByDay($tenantId, $start, $end);
+        $compareRevenue = $this->revenueByDay($tenantId, $compareStart, $compareEnd);
+        $holidays = $this->holidayRanges($currentTenant, $start, $end);
+
+        // Openingsuren enkel per dag opvragen bij korte reeksen (3 queries/dag).
+        $openingHours = null;
+        if ($dayCount <= 62 && $currentTenant->tenant && OpeningHour::query()->where('tenant_id', $tenantId)->exists()) {
+            $openingHours = new OpeningHoursToday($currentTenant->tenant);
+        }
+
+        $days = [];
+        for ($i = 0; $i < $dayCount; $i++) {
+            $day = $start->copy()->startOfDay()->addDays($i);
+            $compareDay = $compareStart->copy()->startOfDay()->addDays($i);
+            $key = $day->toDateString();
+            $value = $revenue[$key]['revenue'] ?? 0.0;
+
+            $isOpen = $value != 0.0;
+            if (! $isOpen && $openingHours) {
+                $isOpen = (bool) ($openingHours->forDate(CarbonImmutable::parse($key))['is_open'] ?? false);
+            }
+
+            $holiday = null;
+            foreach ($holidays as $range) {
+                if ($key >= $range['start'] && $key <= $range['end']) {
+                    $holiday = $range['label'];
+                    break;
+                }
+            }
+
+            $days[] = [
+                'date' => $key,
+                'value' => $value,
+                'orders' => $revenue[$key]['orders'] ?? 0,
+                'compare_date' => $compareDay->toDateString(),
+                'compare_value' => $compareRevenue[$compareDay->toDateString()]['revenue'] ?? 0.0,
+                'is_weekend' => $day->isWeekend(),
+                'is_open' => $isOpen,
+                'is_today' => $day->isToday(),
+                'holiday' => $holiday,
+            ];
+        }
+
+        $bucket = 'day';
+        if ($dayCount > 120) {
+            $bucket = 'week';
+            $days = collect($days)
+                ->groupBy(fn ($d) => Carbon::parse($d['date'])->startOfWeek(Carbon::MONDAY)->toDateString())
+                ->map(fn ($group, $weekStart) => [
+                    'date' => $weekStart,
+                    'value' => round($group->sum('value'), 2),
+                    'orders' => $group->sum('orders'),
+                    'compare_date' => $group->first()['compare_date'],
+                    'compare_value' => round($group->sum('compare_value'), 2),
+                    'is_weekend' => false,
+                    'is_open' => $group->contains(fn ($d) => $d['is_open']),
+                    'is_today' => $group->contains(fn ($d) => $d['is_today']),
+                    'holiday' => $group->pluck('holiday')->filter()->first(),
+                ])
+                ->values()
+                ->all();
+        }
+
+        $values = collect($days)->pluck('value');
+        $openDays = collect($days)->filter(fn ($d) => $d['is_open'] || $d['value'] != 0.0)->count();
+        $best = collect($days)->sortByDesc('value')->first();
+
+        return [
+            'bucket' => $bucket,
+            'start' => $start->toDateString(),
+            'end' => $end->toDateString(),
+            'compare_start' => $compareStart->toDateString(),
+            'compare_end' => $compareEnd->toDateString(),
+            'total' => round($values->sum(), 2),
+            'compare_total' => round(collect($days)->sum('compare_value'), 2),
+            'average_per_open_day' => $openDays > 0 ? round($values->sum() / $openDays, 2) : 0,
+            'best' => $best && $best['value'] > 0 ? ['date' => $best['date'], 'value' => $best['value']] : null,
+            'holidays' => $holidays,
+            'points' => $days,
+        ];
+    }
+
+    /**
+     * Vakantieperiodes in een bereik: eerst de regiokalender van de tenant
+     * (Admin → Regio's), anders de vaste Vlaamse schoolkalender.
+     */
+    protected function holidayRanges(CurrentTenant $currentTenant, Carbon $start, Carbon $end): array
+    {
+        $from = $start->toDateString();
+        $until = $end->toDateString();
+        $regionCode = $currentTenant->tenant?->region_code;
+
+        if ($regionCode) {
+            $seasons = RegionSeason::query()
+                ->where('region_code', $regionCode)
+                ->where('season_key', '!=', 'regular')
+                ->whereDate('date_from', '<=', $until)
+                ->whereDate('date_until', '>=', $from)
+                ->orderBy('date_from')
+                ->get();
+
+            if ($seasons->isNotEmpty()) {
+                return $seasons->map(fn (RegionSeason $season) => [
+                    'label' => $season->season_name ?: $season->season_key,
+                    'start' => $season->date_from->toDateString(),
+                    'end' => $season->date_until->toDateString(),
+                ])->values()->all();
+            }
+        }
+
+        $ranges = [];
+        foreach (SchoolHolidayCalendar::all() as $holidays) {
+            foreach ($holidays as $holiday) {
+                if ($holiday['start'] <= $until && $holiday['end'] >= $from) {
+                    $ranges[] = ['label' => $holiday['label'], 'start' => $holiday['start'], 'end' => $holiday['end']];
+                }
+            }
+        }
+
+        usort($ranges, fn ($a, $b) => strcmp($a['start'], $b['start']));
+
+        return $ranges;
+    }
+
+    /** Live-blok "Vandaag": omzet, reservaties en personeel. */
+    protected function dashboardToday(int $tenantId): array
+    {
+        $now = now();
+        $todayStart = $now->copy()->startOfDay();
+
+        $revenue = $this->buildPeriodSummary($tenantId, $todayStart, $now->copy()->endOfDay());
+        $lastWeek = $this->buildPeriodSummary($tenantId, $todayStart->copy()->subWeek(), $now->copy()->subWeek());
+
+        $reservations = Registration::query()
+            ->where('tenant_id', $tenantId)
+            ->whereDate('event_date', $todayStart->toDateString())
+            ->whereNotIn('status', [Registration::STATUS_CANCELLED])
+            ->with(['eventType:id,name', 'stayOption:id,name'])
+            ->orderByRaw('event_time IS NULL, event_time')
+            ->get();
+
+        $tomorrow = Registration::query()
+            ->where('tenant_id', $tenantId)
+            ->whereDate('event_date', $todayStart->copy()->addDay()->toDateString())
+            ->whereNotIn('status', [Registration::STATUS_CANCELLED, Registration::STATUS_NO_SHOW])
+            ->get(['participants_children', 'participants_adults', 'participants_supervisors']);
+
+        $sessions = StaffCheckin::query()
+            ->where('tenant_id', $tenantId)
+            ->where('checked_in_at', '<=', $now)
+            ->where(fn ($q) => $q->whereNull('checked_out_at')->orWhere('checked_out_at', '>=', $todayStart))
+            ->get(['user_id', 'checked_in_at', 'checked_out_at']);
+
+        $staffMinutes = $sessions->sum(function (StaffCheckin $session) use ($todayStart, $now) {
+            $from = $session->checked_in_at->greaterThan($todayStart) ? $session->checked_in_at : $todayStart;
+            $until = $session->checked_out_at && $session->checked_out_at->lessThan($now) ? $session->checked_out_at : $now;
+
+            return max(0, (int) $from->diffInMinutes($until));
+        });
+        $staffHours = round($staffMinutes / 60, 2);
+
+        return [
+            'revenue' => $this->kpi($revenue['revenue'], $lastWeek['revenue']) + [
+                'order_count' => $revenue['order_count'],
+                'compare_date' => $todayStart->copy()->subWeek()->toDateString(),
+            ],
+            'reservations' => $reservations->map(fn (Registration $registration) => [
+                'id' => $registration->id,
+                'name' => $registration->name,
+                'time' => $registration->event_time ? substr((string) $registration->event_time, 0, 5) : null,
+                'participants' => $registration->total_participants,
+                'event_type' => $registration->eventTypeLabel(),
+                'stay_option' => $registration->stayOption?->name,
+                'status' => $registration->status,
+                'status_label' => $registration->status_label,
+            ])->values()->all(),
+            'tomorrow' => [
+                'reservation_count' => $tomorrow->count(),
+                'participants' => $tomorrow->sum(fn (Registration $registration) => $registration->total_participants),
+            ],
+            'staff' => [
+                'active_count' => $sessions->whereNull('checked_out_at')->pluck('user_id')->unique()->count(),
+                'hours' => $staffHours,
+                'revenue_per_hour' => $staffHours > 0 ? round($revenue['revenue'] / $staffHours, 2) : null,
+            ],
+        ];
     }
 
     public function reporting(Request $request, CurrentTenant $currentTenant): JsonResponse

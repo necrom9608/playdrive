@@ -1,7 +1,7 @@
 import axios from '@/lib/http'
 
-export async function fetchDashboard() {
-    const { data } = await axios.get('/api/backoffice/analytics/dashboard')
+export async function fetchDashboard(params = {}) {
+    const { data } = await axios.get('/api/backoffice/analytics/dashboard', { params })
     return data?.data || {}
 }
 
