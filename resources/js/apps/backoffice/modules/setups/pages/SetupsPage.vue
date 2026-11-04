@@ -51,7 +51,33 @@
             </div>
 
             <section v-for="group in groupedSetups" :key="group.zone" class="space-y-3">
-                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-500">{{ group.zone }}</h2>
+                <form v-if="zoneEdit.zone === group.zone" class="flex flex-wrap items-center gap-2" @submit.prevent="saveZoneName">
+                    <input
+                        ref="zoneInput"
+                        v-model="zoneEdit.value"
+                        maxlength="100"
+                        list="setup-zone-names"
+                        class="w-64 rounded-xl border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-white outline-none focus:border-blue-500"
+                        placeholder="Naam van de zone"
+                        @keydown.esc="zoneEdit.zone = null"
+                    >
+                    <datalist id="setup-zone-names"><option v-for="z in zones" :key="z" :value="z" /></datalist>
+                    <button type="submit" :disabled="zoneEdit.saving" class="rounded-xl bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:opacity-50">Opslaan</button>
+                    <button type="button" class="rounded-xl border border-slate-700 bg-slate-950 px-3 py-1.5 text-sm text-slate-300 transition hover:bg-slate-800" @click="zoneEdit.zone = null">Annuleren</button>
+                    <span class="text-xs text-slate-500">Bestaande zone kiezen = samenvoegen</span>
+                </form>
+                <div v-else class="group/zone flex items-center gap-2">
+                    <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-500">{{ group.zone }}</h2>
+                    <button
+                        v-if="group.zone !== 'Zonder zone'"
+                        type="button"
+                        class="rounded-lg p-1 text-slate-600 transition hover:bg-slate-800 hover:text-slate-200"
+                        title="Zone hernoemen"
+                        @click="startZoneEdit(group.zone)"
+                    >
+                        <PencilSquareIcon class="h-4 w-4" />
+                    </button>
+                </div>
 
                 <div class="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
                     <article
@@ -289,6 +315,7 @@ import {
     fetchSetups,
     fetchVenueDevices,
     regenerateSetupQr,
+    renameSetupZone,
     updateSetup,
     updateDeviceAdminPin,
     updateVenueDevice,
@@ -335,6 +362,38 @@ const tabs = computed(() => [
     { key: 'groups', label: 'Groepen', count: groupCount.value ?? '' },
     { key: 'power', label: 'Stroom', count: powerCount.value ?? '' },
 ])
+
+const zoneEdit = reactive({ zone: null, value: '', saving: false })
+const zoneInput = ref(null)
+
+function startZoneEdit(zone) {
+    zoneEdit.zone = zone
+    zoneEdit.value = zone
+    window.setTimeout(() => {
+        const el = Array.isArray(zoneInput.value) ? zoneInput.value[0] : zoneInput.value
+        el?.focus()
+        el?.select()
+    }, 0)
+}
+
+async function saveZoneName() {
+    const from = zoneEdit.zone
+    const to = zoneEdit.value.trim()
+    if (!from || to === from) {
+        zoneEdit.zone = null
+        return
+    }
+    zoneEdit.saving = true
+    try {
+        await renameSetupZone(from, to)
+        zoneEdit.zone = null
+        await loadAll({ silent: true })
+    } catch (e) {
+        error.value = e.message || 'Zone hernoemen mislukt.'
+    } finally {
+        zoneEdit.saving = false
+    }
+}
 
 const zones = computed(() => [...new Set(setups.value.map(s => s.zone).filter(Boolean))].sort())
 

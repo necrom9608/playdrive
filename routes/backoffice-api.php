@@ -111,6 +111,7 @@ Route::prefix('api/backoffice')->group(function () {
         Route::get('/setups', [SetupController::class, 'index']);
         Route::post('/setups', [SetupController::class, 'store']);
         Route::post('/setups/reorder', [SetupController::class, 'reorder']);
+        Route::post('/setups/zones/rename', [SetupController::class, 'renameZone']);
         Route::put('/setups/{setup}', [SetupController::class, 'update']);
         Route::post('/setups/{setup}/regenerate-qr', [SetupController::class, 'regenerateQr']);
         Route::delete('/setups/{setup}', [SetupController::class, 'destroy']);

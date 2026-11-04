@@ -12,6 +12,10 @@ export function createSetup(payload) {
 export function updateSetup(id, payload) {
     return apiFetch(`${BASE}/setups/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
 }
+/** Zone hernoemen voor alle speelplekken erin; bestaande naam = samenvoegen. Lege naam = zonder zone. */
+export function renameSetupZone(from, to) {
+    return apiFetch(`${BASE}/setups/zones/rename`, { method: 'POST', body: JSON.stringify({ from, to }) })
+}
 export function reorderSetups(items) {
     return apiFetch(`${BASE}/setups/reorder`, { method: 'POST', body: JSON.stringify({ items }) })
 }

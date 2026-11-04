@@ -101,6 +101,37 @@ class SetupController extends Controller
         return response()->json($this->map($setup->fresh('devices')));
     }
 
+    /**
+     * Zone hernoemen voor alle speelplekken in die zone (hoofdletters negeren).
+     * Bestaat de nieuwe naam al, dan worden beide zones samengevoegd.
+     */
+    public function renameZone(Request $request, CurrentTenant $currentTenant): JsonResponse
+    {
+        abort_unless($currentTenant->exists(), 404, 'Geen geldige tenant gevonden.');
+
+        $data = $request->validate([
+            'from' => ['required', 'string', 'max:100'],
+            'to'   => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $from = mb_strtolower(trim($data['from']));
+        $to = trim((string) ($data['to'] ?? ''));
+
+        // Bestaande schrijfwijze van de doelzone overnemen (samenvoegen zonder dubbele varianten).
+        if ($to !== '') {
+            $to = Setup::query()->where('tenant_id', $currentTenant->id())
+                ->whereRaw('LOWER(TRIM(zone)) = ?', [mb_strtolower($to)])
+                ->whereRaw('LOWER(TRIM(zone)) <> ?', [$from])
+                ->value('zone') ?? $to;
+        }
+
+        $count = Setup::query()->where('tenant_id', $currentTenant->id())
+            ->whereRaw('LOWER(TRIM(zone)) = ?', [$from])
+            ->update(['zone' => $to === '' ? null : $to]);
+
+        return response()->json(['updated' => $count, 'zone' => $to === '' ? null : $to]);
+    }
+
     public function destroy(CurrentTenant $currentTenant, Setup $setup): JsonResponse
     {
         $this->authorizeTenant($currentTenant, $setup);
