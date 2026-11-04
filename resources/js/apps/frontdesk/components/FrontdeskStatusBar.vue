@@ -38,6 +38,21 @@
                 <span class="rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-slate-300">
                     Runtime: <span class="font-semibold text-white">{{ runtimeLabel }}</span>
                 </span>
+
+                <!-- Kassa-app: nieuwe versie gedownload (src-tauri/src/commands/updater.rs) -->
+                <button
+                    v-if="desktopUpdate?.available"
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-xl border px-3 py-2 font-semibold transition"
+                    :class="confirmRestart
+                        ? 'border-amber-400 bg-amber-500 text-slate-950'
+                        : 'border-amber-500/40 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'"
+                    :title="desktopUpdate.notes || ''"
+                    @click="installDesktopUpdate"
+                >
+                    <ArrowPathIcon class="h-4 w-4" />
+                    {{ confirmRestart ? 'Nu herstarten?' : `Kassa-app ${desktopUpdate.available} klaar · Herstarten` }}
+                </button>
             </div>
 
             <button
@@ -55,11 +70,12 @@
 
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { ArrowRightOnRectangleIcon } from '@heroicons/vue/24/outline'
+import { ArrowPathIcon, ArrowRightOnRectangleIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '../stores/authStore'
 import { usePosStore } from '../modules/pos/stores/usePosStore'
 import { frontdeskConfig } from '../config/frontdeskConfig'
 import { getDeviceRuntimeSummary } from '../services/deviceService'
+import { isTauriRuntime } from '../../../shared/runtime/environment'
 
 const appVersion = import.meta.env.VITE_APP_VERSION || '?'
 
@@ -72,7 +88,46 @@ const deviceName = computed(() => posStore.posDevice?.name || posStore.configure
 const displayLabel = computed(() => posStore.posDevice?.display_name || 'Geen externe display')
 const deviceDotClass = computed(() => posStore.posDevice?.device_token ? 'bg-emerald-400' : 'bg-slate-500')
 const displayDotClass = computed(() => posStore.posDevice?.display_device_id ? 'bg-emerald-400' : 'bg-amber-400')
-const runtimeLabel = computed(() => runtimeSummary.environment === 'tauri' ? 'Lokale app' : 'Web')
+const runtimeLabel = computed(() => {
+    if (runtimeSummary.environment !== 'tauri') return 'Web'
+    return desktopUpdate.value?.current ? `Lokale app ${desktopUpdate.value.current}` : 'Lokale app'
+})
+
+// Automatische updates van de kassa-app: { current, available, notes, phase, error }
+const desktopUpdate = ref(null)
+const confirmRestart = ref(false)
+let updateTimer = null
+let confirmTimer = null
+
+async function tauriInvoke(command) {
+    const { invoke } = await import('@tauri-apps/api/core')
+    return invoke(command)
+}
+
+async function refreshDesktopUpdate() {
+    if (!isTauriRuntime()) return
+    try {
+        desktopUpdate.value = await tauriInvoke('desktop_update_status')
+    } catch {
+        desktopUpdate.value = null // oudere kassa-app zonder updater
+    }
+}
+
+async function installDesktopUpdate() {
+    if (!confirmRestart.value) {
+        confirmRestart.value = true
+        window.clearTimeout(confirmTimer)
+        confirmTimer = window.setTimeout(() => { confirmRestart.value = false }, 5000)
+        return
+    }
+    try {
+        await tauriInvoke('desktop_update_install')
+    } catch (error) {
+        console.error('Kassa-app bijwerken mislukt', error)
+        confirmRestart.value = false
+        refreshDesktopUpdate()
+    }
+}
 
 const now = ref(new Date())
 let interval = null
@@ -81,10 +136,14 @@ onMounted(() => {
     interval = setInterval(() => {
         now.value = new Date()
     }, 1000)
+    refreshDesktopUpdate()
+    updateTimer = setInterval(refreshDesktopUpdate, 60000)
 })
 
 onUnmounted(() => {
     clearInterval(interval)
+    clearInterval(updateTimer)
+    window.clearTimeout(confirmTimer)
 })
 
 const formattedDateTime = computed(() => {
