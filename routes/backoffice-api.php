@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\Backoffice\DayTotalsController;
 use App\Http\Controllers\Api\Backoffice\DisplaySkinController;
 use App\Http\Controllers\Api\Backoffice\AccountingExportController;
 use App\Http\Controllers\Api\Backoffice\MailAssistantController;
+use App\Http\Controllers\Api\Backoffice\PrivatePurchaseController;
 use App\Http\Controllers\Api\Backoffice\VoucherTemplateController;
 use Illuminate\Support\Facades\Route;
 
@@ -247,6 +248,23 @@ Route::prefix('api/backoffice')->group(function () {
         Route::post('/booking-form-config', [BookingFormConfigController::class, 'save']);
         Route::post('/opening-hours/exceptions', [OpeningHoursController::class, 'storeException']);
         Route::delete('/opening-hours/exceptions/{exception}', [OpeningHoursController::class, 'destroyException']);
+
+        // Aankopen van particulieren (aankoopborderel met digitale handtekening)
+        Route::get('/purchases', [PrivatePurchaseController::class, 'index']);
+        Route::get('/purchases/defaults', [PrivatePurchaseController::class, 'defaults']);
+        Route::post('/purchases', [PrivatePurchaseController::class, 'store']);
+        Route::get('/purchases/{purchase}', [PrivatePurchaseController::class, 'show'])->whereNumber('purchase');
+        Route::put('/purchases/{purchase}', [PrivatePurchaseController::class, 'update'])->whereNumber('purchase');
+        Route::delete('/purchases/{purchase}', [PrivatePurchaseController::class, 'destroy'])->whereNumber('purchase');
+        Route::post('/purchases/{purchase}/share', [PrivatePurchaseController::class, 'share'])->whereNumber('purchase');
+        Route::post('/purchases/{purchase}/paid', [PrivatePurchaseController::class, 'markPaid'])->whereNumber('purchase');
+        Route::post('/purchases/{purchase}/unpaid', [PrivatePurchaseController::class, 'markUnpaid'])->whereNumber('purchase');
+        Route::post('/purchases/{purchase}/cancel', [PrivatePurchaseController::class, 'cancel'])->whereNumber('purchase');
+        Route::post('/purchases/{purchase}/resend-pdf', [PrivatePurchaseController::class, 'resendPdf'])->whereNumber('purchase');
+        Route::get('/purchases/{purchase}/pdf', [PrivatePurchaseController::class, 'pdf'])->whereNumber('purchase');
+        Route::post('/purchases/{purchase}/photos', [PrivatePurchaseController::class, 'uploadPhoto'])->whereNumber('purchase');
+        Route::get('/purchases/{purchase}/photos/{index}', [PrivatePurchaseController::class, 'photo'])->whereNumber(['purchase', 'index']);
+        Route::delete('/purchases/{purchase}/photos/{index}', [PrivatePurchaseController::class, 'deletePhoto'])->whereNumber(['purchase', 'index']);
 
         // Klantenscherm (skin + filmpjes)
         Route::get('/display-skin', [DisplaySkinController::class, 'show']);

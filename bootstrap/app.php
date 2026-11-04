@@ -48,6 +48,12 @@ return Application::configure(basePath: dirname(__DIR__))
             RequireValidTenantForApp::class,
         ]);
 
+        // Publieke ondertekenpagina: de token in de URL is de toegang; zo geeft een lang
+        // openstaande pagina (verlopen sessie) geen 419 bij het ondertekenen.
+        $middleware->validateCsrfTokens(except: [
+            'borderel/*',
+        ]);
+
         $middleware->alias([
             'frontdesk.auth'      => RequireFrontdeskAuth::class,
             'backoffice.auth'     => RequireBackofficeAuth::class,

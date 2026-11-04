@@ -23,6 +23,8 @@ import OpeningHoursPage from '../modules/opening-hours/pages/OpeningHoursPage.vu
 import DisplaySkinPage from '../modules/display-skin/pages/DisplaySkinPage.vue'
 import BookingFormConfigPage from '../modules/booking-form/pages/BookingFormConfigPage.vue'
 import EmailTemplatesPage from '../modules/email-templates/pages/EmailTemplatesPage.vue'
+import PurchasesPage from '../modules/purchases/pages/PurchasesPage.vue'
+import PurchaseEditPage from '../modules/purchases/pages/PurchaseEditPage.vue'
 
 const routes = [
     { path: '/', name: 'backoffice.dashboard', component: DashboardPage },
@@ -54,6 +56,9 @@ const routes = [
     { path: '/rosters', name: 'backoffice.rosters', component: RostersPage },
     { path: '/devices', redirect: { name: 'backoffice.setups' } },
     { path: '/setups', name: 'backoffice.setups', component: SetupsPage },
+    { path: '/purchases', name: 'backoffice.purchases', component: PurchasesPage },
+    { path: '/purchases/new', name: 'backoffice.purchases.new', component: PurchaseEditPage },
+    { path: '/purchases/:id(\\d+)', name: 'backoffice.purchases.edit', component: PurchaseEditPage },
     { path: '/games', name: 'backoffice.games', component: GamesPage },
     { path: '/mail-assistant', name: 'backoffice.mail-assistant', component: MailAssistantPage },
     { path: '/mail-logs', name: 'backoffice.mail-logs', component: MailLogsPage },
