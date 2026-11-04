@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-scan-rfid-once"
+description = "Enables the scan_rfid_once command without any pre-configured scope."
+commands.allow = ["scan_rfid_once"]
+
+[[permission]]
+identifier = "deny-scan-rfid-once"
+description = "Denies the scan_rfid_once command without any pre-configured scope."
+commands.deny = ["scan_rfid_once"]

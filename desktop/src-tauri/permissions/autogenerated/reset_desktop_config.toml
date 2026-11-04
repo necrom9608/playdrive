@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-reset-desktop-config"
+description = "Enables the reset_desktop_config command without any pre-configured scope."
+commands.allow = ["reset_desktop_config"]
+
+[[permission]]
+identifier = "deny-reset-desktop-config"
+description = "Denies the reset_desktop_config command without any pre-configured scope."
+commands.deny = ["reset_desktop_config"]

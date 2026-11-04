@@ -1,12 +1,21 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "remote-playdrive",
-  "description": "De frontdesk draait vanaf playdrive.be: die pagina mag de opdrachten van de kassa-app gebruiken (RFID, stekkers, updates)",
-  "windows": ["main"],
+  "description": "De frontdesk draait vanaf playdrive.be: die pagina mag deze opdrachten van de kassa-app gebruiken (toestelnaam, RFID, stekkers, updates)",
+  "windows": ["main", "display"],
   "remote": {
     "urls": ["https://playdrive.be/*", "https://*.playdrive.be/*", "http://playdrive.test/*"]
   },
   "permissions": [
-    "core:default"
+    "core:default",
+    "allow-load-desktop-config",
+    "allow-scan-rfid-once",
+    "allow-cancel-rfid-scan",
+    "allow-dirigera-pair-start",
+    "allow-dirigera-pair-finish",
+    "allow-dirigera-list-outlets",
+    "allow-dirigera-set-outlet",
+    "allow-desktop-update-status",
+    "allow-desktop-update-install"
   ]
 }

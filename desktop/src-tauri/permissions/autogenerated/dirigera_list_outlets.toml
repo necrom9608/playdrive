@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-dirigera-list-outlets"
+description = "Enables the dirigera_list_outlets command without any pre-configured scope."
+commands.allow = ["dirigera_list_outlets"]
+
+[[permission]]
+identifier = "deny-dirigera-list-outlets"
+description = "Denies the dirigera_list_outlets command without any pre-configured scope."
+commands.deny = ["dirigera_list_outlets"]

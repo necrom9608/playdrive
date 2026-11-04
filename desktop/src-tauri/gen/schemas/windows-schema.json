@@ -177,6 +177,162 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Enables the cancel_rfid_scan command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-cancel-rfid-scan",
+          "markdownDescription": "Enables the cancel_rfid_scan command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the desktop_update_install command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-desktop-update-install",
+          "markdownDescription": "Enables the desktop_update_install command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the desktop_update_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-desktop-update-status",
+          "markdownDescription": "Enables the desktop_update_status command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the dirigera_list_outlets command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-dirigera-list-outlets",
+          "markdownDescription": "Enables the dirigera_list_outlets command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the dirigera_pair_finish command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-dirigera-pair-finish",
+          "markdownDescription": "Enables the dirigera_pair_finish command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the dirigera_pair_start command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-dirigera-pair-start",
+          "markdownDescription": "Enables the dirigera_pair_start command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the dirigera_set_outlet command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-dirigera-set-outlet",
+          "markdownDescription": "Enables the dirigera_set_outlet command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_monitor_count command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-monitor-count",
+          "markdownDescription": "Enables the get_monitor_count command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the load_desktop_config command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-load-desktop-config",
+          "markdownDescription": "Enables the load_desktop_config command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the open_configured_profile command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-open-configured-profile",
+          "markdownDescription": "Enables the open_configured_profile command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the reset_desktop_config command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-reset-desktop-config",
+          "markdownDescription": "Enables the reset_desktop_config command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the save_desktop_config command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-save-desktop-config",
+          "markdownDescription": "Enables the save_desktop_config command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the scan_rfid_once command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-scan-rfid-once",
+          "markdownDescription": "Enables the scan_rfid_once command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the cancel_rfid_scan command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-cancel-rfid-scan",
+          "markdownDescription": "Denies the cancel_rfid_scan command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the desktop_update_install command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-desktop-update-install",
+          "markdownDescription": "Denies the desktop_update_install command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the desktop_update_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-desktop-update-status",
+          "markdownDescription": "Denies the desktop_update_status command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the dirigera_list_outlets command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-dirigera-list-outlets",
+          "markdownDescription": "Denies the dirigera_list_outlets command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the dirigera_pair_finish command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-dirigera-pair-finish",
+          "markdownDescription": "Denies the dirigera_pair_finish command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the dirigera_pair_start command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-dirigera-pair-start",
+          "markdownDescription": "Denies the dirigera_pair_start command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the dirigera_set_outlet command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-dirigera-set-outlet",
+          "markdownDescription": "Denies the dirigera_set_outlet command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_monitor_count command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-monitor-count",
+          "markdownDescription": "Denies the get_monitor_count command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the load_desktop_config command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-load-desktop-config",
+          "markdownDescription": "Denies the load_desktop_config command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the open_configured_profile command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-open-configured-profile",
+          "markdownDescription": "Denies the open_configured_profile command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the reset_desktop_config command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-reset-desktop-config",
+          "markdownDescription": "Denies the reset_desktop_config command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the save_desktop_config command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-save-desktop-config",
+          "markdownDescription": "Denies the save_desktop_config command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the scan_rfid_once command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-scan-rfid-once",
+          "markdownDescription": "Denies the scan_rfid_once command without any pre-configured scope."
+        },
+        {
           "description": "Default core plugins set.\n#### This default permission set includes:\n\n- `core:path:default`\n- `core:event:default`\n- `core:window:default`\n- `core:webview:default`\n- `core:app:default`\n- `core:image:default`\n- `core:resources:default`\n- `core:menu:default`\n- `core:tray:default`",
           "type": "string",
           "const": "core:default",

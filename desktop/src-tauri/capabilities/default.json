@@ -1,9 +1,17 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capability for Playdrive Desktop",
+  "description": "Default capability for Playdrive Desktop (eigen pagina's: instellen, bijwerken)",
+  "local": true,
   "windows": ["main", "profile", "display"],
   "permissions": [
-    "core:default"
+    "core:default",
+    "allow-load-desktop-config",
+    "allow-save-desktop-config",
+    "allow-reset-desktop-config",
+    "allow-open-configured-profile",
+    "allow-get-monitor-count",
+    "allow-desktop-update-status",
+    "allow-desktop-update-install"
   ]
 }

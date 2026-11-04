@@ -1,11 +1,11 @@
 {
-    "version":  "0.3.1",
-    "notes":  "Playdrive Desktop 0.3.1",
-    "pub_date":  "2026-11-04T11:49:02Z",
+    "version":  "0.3.2",
+    "notes":  "Playdrive Desktop 0.3.2",
+    "pub_date":  "2026-11-04T12:11:23Z",
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVjh0cnA3d0FYTDFwS01Sc0tqR09JQWcvOUgxZEsvWmRoU00vTTVRRWxHdFg5aUNxR2lwY082K3BvKzRDM2ZveFBqMEh4UHZrZTExOThreVI2aWpkY2ltNFhBbllialFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNzkyOTQyCWZpbGU6UGxheWRyaXZlIERlc2t0b3BfMC4zLjFfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMy4xCmJKWjEyU0pkMnZDQUtWdVJQeEkwc0lweU9LQ0djWEtwVjl0SlZYM3haMEptWGRkRGprZm1tWWZaTmMxZXN5SjI4Sk9HL0htK1dnVDBWR1JnbTVMMURRPT0K",
-                                             "url":  "https://playdrive.be/desktop/Playdrive-Desktop-0.3.1-x64-setup.exe"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVjh0cnA3d0FYTDE0TS9UekFiNEM2cm1taVZRVmhiYjZBSlpSWTZKWG1zR1JzMWtuenM3d2NhZ055WmxHYmNIa3czRytCOS82K210VnRJRmhVbHBWcmhNNXFoblVzVVFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNzk0MjgzCWZpbGU6UGxheWRyaXZlIERlc2t0b3BfMC4zLjJfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMy4yCnVyMkVjZ2hkRkJZeVNDa2xiZEtyK1prS1cvZGN2cWVIdjhYcWdPa3lzRmlDZkwxNURhRWxUZThkVWNaR2wxTmlXdjdDTkRVd0ZySVV1eW9uTUJTcEJnPT0K",
+                                             "url":  "https://playdrive.be/desktop/Playdrive-Desktop-0.3.2-x64-setup.exe"
                                          }
                   }
 }

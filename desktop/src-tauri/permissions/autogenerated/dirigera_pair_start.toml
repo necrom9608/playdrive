@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-dirigera-pair-start"
+description = "Enables the dirigera_pair_start command without any pre-configured scope."
+commands.allow = ["dirigera_pair_start"]
+
+[[permission]]
+identifier = "deny-dirigera-pair-start"
+description = "Denies the dirigera_pair_start command without any pre-configured scope."
+commands.deny = ["dirigera_pair_start"]
