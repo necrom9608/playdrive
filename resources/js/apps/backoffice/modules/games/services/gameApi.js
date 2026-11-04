@@ -15,6 +15,10 @@ export function updateGame(id, payload) {
 export function markAllGamesReviewed() {
     return apiFetch(`${BASE}/games/mark-all-reviewed`, { method: 'POST' })
 }
+/** Categorieën + spelers ophalen (Steam/SteamSpy/PCGamingWiki) voor een stukje games → {processed, remaining, last_id, games, categories} */
+export function fetchGameMetadata(payload = {}) {
+    return apiFetch(`${BASE}/games/fetch-metadata`, { method: 'POST', body: JSON.stringify(payload) })
+}
 export function deleteGame(id) {
     return apiFetch(`${BASE}/games/${id}`, { method: 'DELETE' })
 }

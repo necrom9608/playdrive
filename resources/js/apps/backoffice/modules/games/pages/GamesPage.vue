@@ -9,6 +9,20 @@
             </div>
 
             <div class="flex flex-wrap gap-3">
+                <button
+                    v-if="steamCount"
+                    type="button"
+                    :disabled="meta.busy"
+                    :title="pendingMeta ? 'Categorieën en spelers ophalen via Steam, SteamSpy en PCGamingWiki. Enkel lege velden worden ingevuld.' : 'Alles opnieuw ophalen; enkel lege velden worden ingevuld.'"
+                    class="inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition disabled:opacity-70"
+                    :class="pendingMeta ? 'border-orange-500/50 bg-orange-500/15 text-orange-100 hover:bg-orange-500/25' : 'border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800'"
+                    @click="fetchMeta(!pendingMeta)"
+                >
+                    <SparklesIcon class="h-5 w-5" :class="{ 'animate-pulse': meta.busy }" />
+                    <template v-if="meta.busy">Ophalen… {{ meta.done }}/{{ meta.total }}</template>
+                    <template v-else-if="pendingMeta">Gegevens ophalen ({{ pendingMeta }})</template>
+                    <template v-else>Opnieuw ophalen</template>
+                </button>
                 <button type="button" class="inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-800" @click="load">
                     <ArrowPathIcon class="h-5 w-5" /> Vernieuwen
                 </button>
@@ -97,7 +111,7 @@
                             <span v-if="g.is_new" class="rounded-full border border-amber-500/50 px-2 py-0.5 text-[10px] font-bold tracking-wider text-amber-300">NIEUW</span>
                         </div>
                         <div class="mt-0.5 text-xs text-slate-500">
-                            {{ g.source_label }} · {{ g.external_id }}<template v-if="g.is_new && g.first_seen_at"> · {{ relativeDate(g.first_seen_at) }}</template><template v-if="g.is_hidden"> · verborgen</template>
+                            {{ g.source_label }} · {{ g.external_id }}<template v-if="g.is_new && g.first_seen_at"> · {{ relativeDate(g.first_seen_at) }}</template><template v-if="g.is_hidden"> · verborgen</template><span v-if="g.metadata_source" class="text-orange-300/80" :title="g.metadata_source"> · automatisch ingevuld</span><span v-else-if="g.metadata_status === 'not_found'" class="text-slate-600"> · geen gegevens gevonden</span>
                         </div>
                     </div>
 
@@ -252,6 +266,7 @@ import {
     MagnifyingGlassIcon,
     PlusIcon,
     PuzzlePieceIcon,
+    SparklesIcon,
     StarIcon,
     TrashIcon,
 } from '@heroicons/vue/24/outline'
@@ -261,6 +276,7 @@ import {
     createGameCategory,
     deleteGame,
     deleteGameCategory,
+    fetchGameMetadata,
     fetchGames,
     markAllGamesReviewed,
     reorderGameCategories,
@@ -323,6 +339,38 @@ function recount() {
         c.games_count = games.value.filter(g => g.categories.includes(c.id)).length
     }
     announceNewGamesCount(counts.value.new)
+}
+
+// ── Automatisch ophalen (Steam / SteamSpy / PCGamingWiki) ─────────────
+const meta = reactive({ busy: false, done: 0, total: 0 })
+const steamCount = computed(() => games.value.filter(g => g.source === 'steam').length)
+const pendingMeta = computed(() => games.value.filter(g => g.source === 'steam' && !g.metadata_status).length)
+
+async function fetchMeta(force = false) {
+    if (force && !window.confirm('Gegevens van alle Steam-games opnieuw ophalen?\n\nEnkel lege velden worden ingevuld: wat je zelf al aanduidde, blijft staan.')) return
+    meta.busy = true
+    meta.done = 0
+    meta.total = force ? steamCount.value : pendingMeta.value
+    let afterId = 0
+    error.value = ''
+    try {
+        for (;;) {
+            const res = await fetchGameMetadata({ force, after_id: afterId })
+            const fresh = new Map((res.games ?? []).map(g => [g.id, g]))
+            games.value = games.value.map(g => fresh.get(g.id) ?? g)
+            categories.value = res.categories ?? categories.value
+            meta.done += res.processed ?? 0
+            meta.total = Math.max(meta.total, meta.done + (res.remaining ?? 0))
+            afterId = res.last_id ?? afterId
+            recount()
+            if (!res.remaining || !res.processed) break
+        }
+    } catch (e) {
+        error.value = e.message || 'Gegevens ophalen mislukt.'
+    } finally {
+        meta.busy = false
+        await load({ silent: true })
+    }
 }
 
 async function load({ silent = false } = {}) {

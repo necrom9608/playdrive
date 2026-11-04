@@ -153,6 +153,7 @@ Route::prefix('api/backoffice')->group(function () {
         Route::get('/games', [GameController::class, 'index']);
         Route::get('/games/summary', [GameController::class, 'summary']);
         Route::post('/games/mark-all-reviewed', [GameController::class, 'markAllReviewed']);
+        Route::post('/games/fetch-metadata', [GameController::class, 'fetchMetadata']);
         Route::put('/games/{game}', [GameController::class, 'update']);
         Route::delete('/games/{game}', [GameController::class, 'destroy']);
         Route::post('/game-categories', [GameController::class, 'storeCategory']);

@@ -35,6 +35,8 @@ class Game extends Model
             'is_featured'       => 'boolean',
             'first_seen_at'     => 'datetime',
             'reviewed_at'       => 'datetime',
+            'metadata'            => 'array',
+            'metadata_fetched_at' => 'datetime',
         ];
     }
 

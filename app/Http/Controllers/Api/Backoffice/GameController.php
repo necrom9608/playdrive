@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Backoffice;
 
 use App\Domain\Games\GameCatalog;
+use App\Domain\Games\GameMetadata;
 use App\Http\Controllers\Controller;
 use App\Models\Game;
 use App\Models\GameCategory;
@@ -107,6 +108,73 @@ class GameController extends Controller
         return response()->json($this->map($game->fresh(['categories:id', 'devices.setup:id,name'])));
     }
 
+    /**
+     * Gegevens ophalen (Steam, SteamSpy, PCGamingWiki) voor een stukje games; de backoffice roept
+     * dit herhaaldelijk aan tot remaining = 0. Vult enkel lege velden in.
+     *   {force: false} → enkel games die nog nooit opgehaald werden
+     *   {force: true, after_id} → alle Steam-games opnieuw, vanaf after_id
+     *   {ids: [...]} → enkel deze games (opnieuw)
+     */
+    public function fetchMetadata(Request $request, CurrentTenant $currentTenant, GameMetadata $metadata): JsonResponse
+    {
+        abort_unless($currentTenant->exists(), 404, 'Geen geldige tenant gevonden.');
+        $tenantId = $currentTenant->id();
+        @set_time_limit(120);
+
+        $data = $request->validate([
+            'force'    => ['sometimes', 'boolean'],
+            'after_id' => ['sometimes', 'integer', 'min:0'],
+            'limit'    => ['sometimes', 'integer', 'min:1', 'max:10'],
+            'ids'      => ['sometimes', 'array', 'max:10'],
+            'ids.*'    => ['integer'],
+        ]);
+
+        $force = (bool) ($data['force'] ?? false);
+        $afterId = (int) ($data['after_id'] ?? 0);
+        $base = fn () => Game::query()
+            ->where('tenant_id', $tenantId)
+            ->where('source', 'steam')
+            ->when(! empty($data['ids']), fn ($q) => $q->whereIn('id', $data['ids']))
+            ->when(empty($data['ids']) && ! $force, fn ($q) => $q->whereNull('metadata_fetched_at'))
+            ->when(empty($data['ids']) && $force, fn ($q) => $q->where('id', '>', $afterId));
+
+        $batch = $base()->orderBy('id')->limit((int) ($data['limit'] ?? 6))->get();
+
+        $changed = 0;
+        $statuses = [];
+        foreach ($batch as $game) {
+            $result = $metadata->enrich($game);
+            $changed += $result['changed'] ? 1 : 0;
+            $statuses[$result['status']] = ($statuses[$result['status']] ?? 0) + 1;
+            usleep(250_000);
+        }
+
+        $lastId = (int) ($batch->last()?->id ?? $afterId);
+        $remaining = empty($data['ids'])
+            ? ($force ? $base()->where('id', '>', $lastId)->count() : $base()->count())
+            : 0;
+
+        if ($changed) {
+            $this->catalog->resyncSetupsFor($batch->pluck('id'));
+        }
+
+        $fresh = Game::query()->whereIn('id', $batch->pluck('id'))
+            ->with(['categories:id', 'devices' => fn ($q) => $q->select('venue_devices.id', 'venue_devices.name', 'venue_devices.setup_id')->with('setup:id,name')])
+            ->get();
+
+        return response()->json([
+            'processed'  => $batch->count(),
+            'changed'    => $changed,
+            'statuses'   => $statuses,
+            'remaining'  => $remaining,
+            'last_id'    => $lastId,
+            'games'      => $fresh->map(fn (Game $g) => $this->map($g))->values(),
+            'categories' => GameCategory::query()->where('tenant_id', $tenantId)->withCount('games')
+                ->orderBy('sort_order')->orderBy('name')->get()
+                ->map(fn (GameCategory $c) => [...$c->toPublicArray(), 'games_count' => (int) $c->games_count])->values(),
+        ]);
+    }
+
     /** Alle nieuwe games in één keer als bekeken markeren. */
     public function markAllReviewed(CurrentTenant $currentTenant): JsonResponse
     {
@@ -204,6 +272,25 @@ class GameController extends Controller
         ]);
     }
 
+    /** Korte uitleg waar de automatische gegevens vandaan komen (voor de tooltip in de backoffice). */
+    private function metadataSource(Game $game): ?string
+    {
+        $meta = $game->metadata;
+        if (! is_array($meta) || $game->metadata_status !== 'ok') {
+            return null;
+        }
+        $parts = [];
+        if (! empty($meta['pcgw']['page'])) {
+            $p = $meta['pcgw'];
+            $parts[] = 'PCGamingWiki: lokaal '.($p['local'] ?? '?').(! empty($p['local_players']) ? " ({$p['local_players']})" : '').', LAN '.($p['lan'] ?? '?').', online '.($p['online'] ?? '?');
+        }
+        if (! empty($meta['tags'])) {
+            $parts[] = 'Tags: '.implode(', ', array_slice(array_keys($meta['tags']), 0, 6));
+        }
+
+        return $parts ? implode(' · ', $parts) : 'Steam';
+    }
+
     private function map(Game $game): array
     {
         // Waar staat hij: naam van de speelplek, anders van het toestel.
@@ -226,6 +313,8 @@ class GameController extends Controller
             'is_hidden'         => (bool) $game->is_hidden,
             'is_featured'       => (bool) $game->is_featured,
             'is_new'            => $game->isNew(),
+            'metadata_status'   => $game->metadata_status,
+            'metadata_source'   => $this->metadataSource($game),
             'first_seen_at'     => $game->first_seen_at?->toIso8601String(),
             'installed_on'      => $where,
         ];

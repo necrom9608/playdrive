@@ -2,6 +2,7 @@
 
 namespace App\Domain\Games;
 
+use App\Jobs\FetchGameMetadata;
 use App\Models\Game;
 use App\Models\GameCategory;
 use App\Models\VenueDevice;
@@ -80,6 +81,11 @@ class GameCatalog
 
             $this->syncSetupGames($device);
         });
+
+        // Nieuwe Steam-games: categorieën en spelers automatisch ophalen (na het antwoord).
+        if ($created > 0 && $source === 'steam') {
+            FetchGameMetadata::dispatchAfterResponse($tenantId);
+        }
 
         return [
             'received' => $reported->count(),
