@@ -52,6 +52,7 @@ export const usePowerStore = defineStore('frontdeskPower', {
     state: () => ({
         available: dirigeraAvailable(),
         appOutdated: false,
+        appError: '',      // foutmelding van de kassa-app (bv. opdracht geblokkeerd)
         loaded: false,
         error: '',
         hubs: [],
@@ -118,6 +119,7 @@ export const usePowerStore = defineStore('frontdeskPower', {
                 const { invoke } = await import('@tauri-apps/api/core')
                 await invoke('desktop_update_status')
             } catch (e) {
+                this.appError = errorText(e)
                 if (isMissingCommand(e)) this.appOutdated = true
             }
         },

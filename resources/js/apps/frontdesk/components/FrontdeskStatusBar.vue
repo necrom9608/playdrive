@@ -35,8 +35,9 @@
                     <span>Display: <span class="font-semibold text-white">{{ displayLabel }}</span></span>
                 </span>
 
-                <span class="rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-slate-300">
+                <span class="rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-slate-300" :title="desktopError || ''">
                     Runtime: <span class="font-semibold text-white">{{ runtimeLabel }}</span>
+                    <span v-if="desktopError" class="ml-1 text-amber-300">· app niet bereikbaar: {{ desktopError }}</span>
                 </span>
 
                 <!-- Kassa-app: nieuwe versie gedownload (src-tauri/src/commands/updater.rs) -->
@@ -95,6 +96,7 @@ const runtimeLabel = computed(() => {
 
 // Automatische updates van de kassa-app: { current, available, notes, phase, error }
 const desktopUpdate = ref(null)
+const desktopError = ref('')
 const confirmRestart = ref(false)
 let updateTimer = null
 let confirmTimer = null
@@ -108,8 +110,11 @@ async function refreshDesktopUpdate() {
     if (!isTauriRuntime()) return
     try {
         desktopUpdate.value = await tauriInvoke('desktop_update_status')
-    } catch {
-        desktopUpdate.value = null // oudere kassa-app zonder updater
+        desktopError.value = ''
+    } catch (error) {
+        desktopUpdate.value = null // oudere kassa-app zonder updater, of opdracht geblokkeerd
+        desktopError.value = (typeof error === 'string' ? error : error?.message || String(error)).slice(0, 160)
+        console.warn('Kassa-app niet bereikbaar', error)
     }
 }
 

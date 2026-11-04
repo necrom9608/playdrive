@@ -19,6 +19,7 @@
                     </p>
                     <p v-else-if="power.appOutdated" class="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
                         Deze versie van de kassa-app kent de stekkers nog niet. Installeer de nieuwe versie.
+                        <span v-if="power.appError" class="mt-1 block font-mono text-xs opacity-80">{{ power.appError }}</span>
                     </p>
                     <p v-if="!power.hubs.length" class="rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-400">
                         Nog geen hubs. Voeg ze toe in de backoffice (Speelplekken → Stroom) met hun IP-adres.
