@@ -13,7 +13,7 @@
                     v-if="steamCount"
                     type="button"
                     :disabled="meta.busy"
-                    :title="pendingMeta ? 'Categorieën en spelers ophalen via Steam, SteamSpy en PCGamingWiki. Enkel lege velden worden ingevuld.' : 'Alles opnieuw ophalen; enkel lege velden worden ingevuld.'"
+                    :title="pendingMeta ? 'Categorieën en spelers ophalen via Steam, SteamSpy en PCGamingWiki. Enkel lege velden worden ingevuld.' : 'Alles opnieuw ophalen. Automatisch ingevulde waarden worden bijgewerkt, wat je zelf aanduidde blijft staan.'"
                     class="inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition disabled:opacity-70"
                     :class="pendingMeta ? 'border-orange-500/50 bg-orange-500/15 text-orange-100 hover:bg-orange-500/25' : 'border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800'"
                     @click="fetchMeta(!pendingMeta)"
@@ -134,7 +134,11 @@
 
                     <!-- Spelers -->
                     <div class="space-y-1.5">
-                        <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-600">Op één scherm (max)</div>
+                        <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                            Op één scherm (max)
+                            <span v-if="g.auto_fields?.local_players_max === 'steam'" class="ml-1 normal-case tracking-normal text-amber-400" title="Steam zegt enkel 'split screen' zonder aantal: nakijken">· gok</span>
+                            <span v-else-if="g.auto_fields?.local_players_max" class="ml-1 normal-case tracking-normal text-slate-500">· {{ g.auto_fields.local_players_max === 'igdb' ? 'IGDB' : 'PCGamingWiki' }}</span>
+                        </div>
                         <div class="inline-flex overflow-hidden rounded-lg border border-slate-700">
                             <button
                                 v-for="(n, i) in playerOptions"
@@ -347,7 +351,7 @@ const steamCount = computed(() => games.value.filter(g => g.source === 'steam').
 const pendingMeta = computed(() => games.value.filter(g => g.source === 'steam' && !g.metadata_status).length)
 
 async function fetchMeta(force = false) {
-    if (force && !window.confirm('Gegevens van alle Steam-games opnieuw ophalen?\n\nEnkel lege velden worden ingevuld: wat je zelf al aanduidde, blijft staan.')) return
+    if (force && !window.confirm('Gegevens van alle Steam-games opnieuw ophalen?\n\nAutomatisch ingevulde waarden worden bijgewerkt; wat je zelf aanduidde, blijft staan.')) return
     meta.busy = true
     meta.done = 0
     meta.total = force ? steamCount.value : pendingMeta.value

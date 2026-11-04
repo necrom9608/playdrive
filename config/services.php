@@ -40,6 +40,17 @@ return [
         'public_api_key' => env('PLAYDRIVE_PUBLIC_API_KEY'),
     ],
 
+    // Gamecatalogus: aantal spelers via IGDB (gratis Twitch-app: https://dev.twitch.tv/console/apps)
+    'igdb' => [
+        'client_id' => env('IGDB_CLIENT_ID'),
+        'client_secret' => env('IGDB_CLIENT_SECRET'),
+    ],
+
+    // Klantenscherm: filmpjes verkleinen
+    'ffmpeg' => [
+        'path' => env('FFMPEG_PATH'),
+    ],
+
     // Mailassistent (concept-antwoorden op klantmails)
     'anthropic' => [
         'key' => env('ANTHROPIC_API_KEY'),

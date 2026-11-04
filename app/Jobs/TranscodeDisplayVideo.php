@@ -116,7 +116,7 @@ class TranscodeDisplayVideo implements ShouldQueue
 
     private function ffmpeg(): ?string
     {
-        $candidates = array_filter([env('FFMPEG_PATH'), 'ffmpeg', '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg']);
+        $candidates = array_filter([config('services.ffmpeg.path'), 'ffmpeg', '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg']);
         foreach ($candidates as $bin) {
             try {
                 if (Process::timeout(10)->run([$bin, '-version'])->successful()) {

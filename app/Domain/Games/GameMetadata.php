@@ -4,6 +4,7 @@ namespace App\Domain\Games;
 
 use App\Models\Game;
 use App\Models\GameCategory;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Throwable;
@@ -11,12 +12,13 @@ use Throwable;
 /**
  * Gegevens van Steam-games automatisch ophalen en invullen:
  *
- *   PCGamingWiki  aantal spelers op één scherm (Local_players), LAN en online   → spelers
+ *   IGDB          max. spelers offline / online / LAN (als IGDB_CLIENT_ID ingesteld is) → spelers
+ *   PCGamingWiki  aantal spelers op één scherm (Local_players), LAN en online   → spelers (reserve)
  *   SteamSpy      user tags van Steam (Racing, Party Game, Fighting, …)          → categorieën
  *   Steam Store   genres + categorieën (Shared/Split Screen, LAN PvP, …)         → reserve als de rest ontbreekt
  *
- * Er wordt enkel ingevuld wat nog leeg is: een game met al categorieën of een aantal spelers
- * houdt die. De ruwe gegevens worden bewaard in games.metadata.
+ * Er wordt enkel ingevuld wat leeg is of eerder automatisch ingevuld werd (games.auto_fields);
+ * wat iemand zelf aanduidde, blijft staan. De ruwe gegevens staan in games.metadata.
  */
 class GameMetadata
 {
@@ -49,6 +51,11 @@ class GameMetadata
     private const MAX_CATEGORIES = 3;
     private const UA = 'PlayDrive/1.0 (+https://playdrive.be; gamecatalogus)';
 
+    /** Fouten per bron bij het laatste ophalen (komt mee in games.metadata.errors). */
+    private array $errors = [];
+
+    private ?string $igdbToken = null;
+
     /** Gegevens ophalen en invullen. → ['status' => ok|not_found|error|skipped, 'changed' => bool] */
     public function enrich(Game $game): array
     {
@@ -58,56 +65,81 @@ class GameMetadata
             return ['status' => 'skipped', 'changed' => false];
         }
 
+        $this->errors = [];
         $appId = (string) $game->external_id;
         $steam = $this->steam($appId);
+        $igdb = $this->igdb($appId);
         $pcgw = $this->pcgw($appId);
         $tags = $this->steamSpyTags($appId);
 
-        $found = is_array($steam) || is_array($pcgw) || $tags;
+        $found = is_array($steam) || is_array($pcgw) || is_array($igdb) || $tags;
         $meta = [
-            'steam' => is_array($steam) ? $steam : null,
-            'pcgw'  => is_array($pcgw) ? $pcgw : null,
-            'tags'  => array_slice($tags, 0, 20, true),
+            'steam'  => is_array($steam) ? $steam : null,
+            'igdb'   => is_array($igdb) ? $igdb : null,
+            'pcgw'   => is_array($pcgw) ? $pcgw : null,
+            'tags'   => array_slice($tags, 0, 20, true),
+            'errors' => $this->errors,
         ];
 
         $changed = $found ? $this->apply($game, $meta) : false;
 
         $game->forceFill([
             'metadata'            => $meta,
-            'metadata_status'     => $found ? 'ok' : (($steam === false || $pcgw === false) ? 'error' : 'not_found'),
+            'metadata_status'     => $found ? 'ok' : ($this->errors ? 'error' : 'not_found'),
             'metadata_fetched_at' => now(),
         ])->save();
 
         return ['status' => $game->metadata_status, 'changed' => $changed];
     }
 
-    /** Lege velden invullen op basis van de opgehaalde gegevens. */
+    /**
+     * Velden invullen. Een veld wordt enkel overschreven als het leeg is of eerder automatisch
+     * ingevuld werd (games.auto_fields); wat iemand zelf aanduidde, blijft altijd staan.
+     */
     public function apply(Game $game, array $meta): bool
     {
-        $changed = false;
+        $auto = is_array($game->auto_fields) ? $game->auto_fields : [];
+        $mayWrite = fn (string $field, $current) => $current === null || array_key_exists($field, $auto);
         $fill = [];
 
-        if ($game->local_players_max === null && ($players = $this->localPlayers($meta)) !== null) {
-            $fill['local_players_max'] = $players;
-        }
-        if ($game->lan_multiplayer === null && ($lan = $this->network($meta)) !== null) {
-            $fill['lan_multiplayer'] = $lan;
-        }
-
-        DB::transaction(function () use ($game, $meta, $fill, &$changed) {
-            if ($fill) {
-                $game->forceFill($fill)->save();
-                $changed = true;
+        // Eerder automatisch ingevuld en nu geen gegevens meer: terug leegmaken (beter leeg dan fout).
+        $set = function (string $field, $value, ?string $source) use ($game, $mayWrite, &$fill, &$auto) {
+            if ($value !== null && $mayWrite($field, $game->{$field})) {
+                $fill[$field] = $value;
+                $auto[$field] = $source;
+            } elseif ($value === null && array_key_exists($field, $auto)) {
+                $fill[$field] = null;
+                unset($auto[$field]);
             }
+        };
 
-            if (! $game->categories()->exists()) {
+        [$players, $playersSource] = $this->localPlayers($meta);
+        $set('local_players_max', $players, $playersSource);
+
+        [$lan, $lanSource] = $this->network($meta);
+        $set('lan_multiplayer', $lan, $lanSource);
+
+        $changed = false;
+        DB::transaction(function () use ($game, $meta, &$fill, &$auto, &$changed) {
+            $hasCategories = $game->categories()->exists();
+            if (! $hasCategories || array_key_exists('categories', $auto)) {
                 $names = $this->categoryNames($meta);
                 if ($names) {
                     $ids = $this->ensureCategories((int) $game->tenant_id, $names);
+                    $before = $game->categories()->pluck('game_categories.id')->sort()->values()->all();
                     $game->categories()->sync($ids);
+                    $auto['categories'] = $meta['tags'] ? 'tags' : 'steam';
+                    $changed = $changed || $before !== collect($ids)->sort()->values()->all();
+                }
+            }
+
+            foreach ($fill as $field => $value) {
+                if ($game->{$field} !== $value) {
                     $changed = true;
                 }
             }
+
+            $game->forceFill([...$fill, 'auto_fields' => $auto ?: null])->save();
         });
 
         return $changed;
@@ -122,6 +154,7 @@ class GameMetadata
             $res = Http::withHeaders(['User-Agent' => self::UA])->timeout(10)->retry(2, 1500, throw: false)
                 ->get('https://store.steampowered.com/api/appdetails', ['appids' => $appId, 'l' => 'english', 'cc' => 'be']);
             if (! $res->successful()) {
+                $this->errors['steam'] = 'HTTP '.$res->status();
                 return false;
             }
             $entry = $res->json($appId);
@@ -135,7 +168,8 @@ class GameMetadata
                 'genres'     => collect($data['genres'] ?? [])->map(fn ($g) => ['id' => (int) $g['id'], 'name' => (string) ($g['description'] ?? '')])->values()->all(),
                 'categories' => collect($data['categories'] ?? [])->map(fn ($c) => ['id' => (int) $c['id'], 'name' => (string) ($c['description'] ?? '')])->values()->all(),
             ];
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            $this->errors['steam'] = mb_substr($e->getMessage(), 0, 160);
             return false;
         }
     }
@@ -156,6 +190,11 @@ class GameMetadata
                     'limit'   => 1,
                 ]);
             if (! $res->successful()) {
+                $this->errors['pcgw'] = 'HTTP '.$res->status();
+                return false;
+            }
+            if ($res->json('error')) {
+                $this->errors['pcgw'] = mb_substr((string) ($res->json('error.info') ?? 'Cargo-fout'), 0, 160);
                 return false;
             }
             $row = $res->json('cargoquery.0.title');
@@ -178,7 +217,74 @@ class GameMetadata
                 'online'         => $norm['online'] ?? null,
                 'online_players' => $this->int($norm['online_players'] ?? null),
             ];
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            $this->errors['pcgw'] = mb_substr($e->getMessage(), 0, 160);
+            return false;
+        }
+    }
+
+    /**
+     * IGDB (Twitch): multiplayer-modi met het maximum aantal spelers offline (zelfde scherm/toestel),
+     * online en LAN. Enkel als IGDB_CLIENT_ID/IGDB_CLIENT_SECRET ingesteld zijn.
+     */
+    private function igdb(string $appId): array|false|null
+    {
+        $id = config('services.igdb.client_id');
+        $secret = config('services.igdb.client_secret');
+        if (! $id || ! $secret) {
+            return null;
+        }
+
+        try {
+            $token = $this->igdbToken ??= Cache::remember('igdb-token', now()->addDays(30), function () use ($id, $secret) {
+                $res = Http::asForm()->timeout(10)->post('https://id.twitch.tv/oauth2/token', [
+                    'client_id' => $id, 'client_secret' => $secret, 'grant_type' => 'client_credentials',
+                ]);
+                if (! $res->successful() || ! $res->json('access_token')) {
+                    throw new \RuntimeException('Twitch-token: HTTP '.$res->status());
+                }
+
+                return (string) $res->json('access_token');
+            });
+
+            $call = fn (string $endpoint, string $body) => Http::withHeaders(['Client-ID' => $id, 'Authorization' => 'Bearer '.$token])
+                ->withBody($body, 'text/plain')->timeout(10)->retry(2, 1000, throw: false)
+                ->post("https://api.igdb.com/v4/{$endpoint}");
+
+            // Steam-ID → IGDB-game (bron 1 = Steam; oudere velden heetten "category").
+            $res = $call('external_games', 'fields game, uid, category, external_game_source; where uid = "'.$appId.'"; limit 20;');
+            if ($res->status() === 401) {
+                Cache::forget('igdb-token');
+            }
+            if (! $res->successful()) {
+                $this->errors['igdb'] = 'HTTP '.$res->status();
+                return false;
+            }
+            $match = collect($res->json() ?? [])->first(fn ($row) => (int) ($row['external_game_source'] ?? $row['category'] ?? 0) === 1);
+            if (! $match || empty($match['game'])) {
+                return null;
+            }
+
+            $res = $call('multiplayer_modes', 'fields platform, offlinemax, offlinecoopmax, onlinemax, onlinecoopmax, lancoop, splitscreen, offlinecoop, onlinecoop; where game = '.(int) $match['game'].'; limit 50;');
+            if (! $res->successful()) {
+                $this->errors['igdb'] = 'HTTP '.$res->status();
+                return false;
+            }
+            $modes = collect($res->json() ?? []);
+            // Pc (platform 6) als die er is, anders alle platformen.
+            $pc = $modes->where('platform', 6);
+            $use = $pc->isNotEmpty() ? $pc : $modes;
+
+            return [
+                'game'       => (int) $match['game'],
+                'offlinemax' => (int) $use->max(fn ($m) => max((int) ($m['offlinemax'] ?? 0), (int) ($m['offlinecoopmax'] ?? 0))) ?: null,
+                'onlinemax'  => (int) $use->max(fn ($m) => max((int) ($m['onlinemax'] ?? 0), (int) ($m['onlinecoopmax'] ?? 0))) ?: null,
+                'lan'        => $use->contains(fn ($m) => ! empty($m['lancoop'])),
+                'splitscreen'=> $use->contains(fn ($m) => ! empty($m['splitscreen'])),
+                'modes'      => $use->count(),
+            ];
+        } catch (Throwable $e) {
+            $this->errors['igdb'] = mb_substr($e->getMessage(), 0, 160);
             return false;
         }
     }
@@ -189,6 +295,9 @@ class GameMetadata
         try {
             $res = Http::withHeaders(['User-Agent' => self::UA])->timeout(10)->retry(1, 1500, throw: false)
                 ->get('https://steamspy.com/api.php', ['request' => 'appdetails', 'appid' => $appId]);
+            if (! $res->successful()) {
+                $this->errors['steamspy'] = 'HTTP '.$res->status();
+            }
             $tags = $res->successful() ? $res->json('tags') : null;
             if (! is_array($tags) || ! $tags) {
                 return [];
@@ -196,74 +305,77 @@ class GameMetadata
             arsort($tags);
 
             return array_map('intval', $tags);
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            $this->errors['steamspy'] = mb_substr($e->getMessage(), 0, 160);
             return [];
         }
     }
 
     // ── Afleiden ────────────────────────────────────────────────────────
 
-    /** Spelers op één scherm, afgerond naar beneden op de keuzes in de backoffice (1/2/4/8). */
-    private function localPlayers(array $meta): ?int
+    /**
+     * Spelers op één scherm → [aantal, bron]. Volgorde: IGDB, PCGamingWiki, Steam (gok).
+     * Afgerond naar beneden op de keuzes in de backoffice (1/2/4/8).
+     */
+    private function localPlayers(array $meta): array
     {
+        $igdb = $meta['igdb'] ?? null;
         $pcgw = $meta['pcgw'] ?? null;
         $steamCats = $this->steamCategoryIds($meta);
 
-        $n = null;
-        if (is_array($pcgw)) {
-            if (($pcgw['local'] ?? null) === 'true' && $pcgw['local_players']) {
-                $n = $pcgw['local_players'];
-            } elseif (($pcgw['local'] ?? null) === 'true') {
-                $n = 2;
-            } elseif (($pcgw['local'] ?? null) === 'false') {
-                $n = 1;
-            }
-        }
+        [$n, $source] = [null, null];
 
-        if ($n === null && $steamCats) {
-            if (array_intersect($steamCats, self::STEAM_SHARED_SCREEN)) {
-                $n = 2;                                       // Steam zegt niet hoeveel: minstens 2
-            } elseif (array_intersect($steamCats, self::STEAM_SINGLE)) {
-                $n = 1;
-            }
+        if (is_array($igdb) && ($igdb['offlinemax'] ?? 0) > 0) {
+            [$n, $source] = [(int) $igdb['offlinemax'], 'igdb'];
+        } elseif (is_array($pcgw) && in_array($pcgw['local'] ?? null, ['true', 'limited'], true) && ! empty($pcgw['local_players'])) {
+            [$n, $source] = [(int) $pcgw['local_players'], 'pcgw'];
+        } elseif (is_array($pcgw) && ($pcgw['local'] ?? null) === 'false') {
+            [$n, $source] = [1, 'pcgw'];
+        } elseif ($steamCats && array_intersect($steamCats, self::STEAM_SHARED_SCREEN)) {
+            [$n, $source] = [2, 'steam'];             // Steam zegt niet hoeveel: minstens 2 (gok)
+        } elseif (is_array($pcgw) && ($pcgw['local'] ?? null) === 'true') {
+            [$n, $source] = [2, 'steam'];
+        } elseif ($steamCats && array_intersect($steamCats, self::STEAM_SINGLE) && ! array_intersect($steamCats, [...self::STEAM_MULTI, ...self::STEAM_NETWORK, 44])) {
+            [$n, $source] = [1, 'steam'];             // enkel single-player
         }
 
         if ($n === null) {
-            return null;
+            return [null, null];
         }
 
-        $options = array_reverse(Game::LOCAL_PLAYER_OPTIONS);  // 8, 4, 2, 1
-        foreach ($options as $option) {
+        foreach (array_reverse(Game::LOCAL_PLAYER_OPTIONS) as $option) {   // 8, 4, 2, 1
             if ($n >= $option) {
-                return $option;
+                return [$option, $source];
             }
         }
 
-        return 1;
+        return [1, $source];
     }
 
-    /** Samen spelen over LAN/online? */
-    private function network(array $meta): ?bool
+    /** Samen spelen over LAN/online → [ja/nee, bron]. */
+    private function network(array $meta): array
     {
+        $igdb = $meta['igdb'] ?? null;
         $pcgw = $meta['pcgw'] ?? null;
-        if (is_array($pcgw) && (($pcgw['lan'] ?? null) === 'true' || ($pcgw['online'] ?? null) === 'true')) {
-            return true;
-        }
-
         $steamCats = $this->steamCategoryIds($meta);
+
+        if (is_array($igdb) && ($igdb['lan'] || ($igdb['onlinemax'] ?? 0) > 1)) {
+            return [true, 'igdb'];
+        }
+        if (is_array($pcgw) && (($pcgw['lan'] ?? null) === 'true' || ($pcgw['online'] ?? null) === 'true')) {
+            return [true, 'pcgw'];
+        }
         if ($steamCats && array_intersect($steamCats, self::STEAM_NETWORK)) {
-            return true;
+            return [true, 'steam'];
         }
-
         if (is_array($pcgw) && ($pcgw['lan'] ?? null) === 'false' && ($pcgw['online'] ?? null) === 'false') {
-            return false;
+            return [false, 'pcgw'];
         }
-
         if ($steamCats && ! array_intersect($steamCats, [...self::STEAM_MULTI, ...self::STEAM_NETWORK])) {
-            return false;                                     // geen enkele multiplayer-categorie
+            return [false, 'steam'];
         }
 
-        return null;
+        return [null, null];
     }
 
     /** Tot 3 categorieën uit de meest gestemde tags (reserve: Steam-genres), plus Co-op bij lokale co-op. */

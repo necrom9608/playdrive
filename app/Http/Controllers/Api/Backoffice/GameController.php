@@ -95,6 +95,15 @@ class GameController extends Controller
             }
 
             $fill = collect($data)->only(['local_players_max', 'lan_multiplayer', 'is_hidden', 'is_featured'])->all();
+
+            // Zelf aangepast = niet meer automatisch: opnieuw ophalen laat dit veld voortaan staan.
+            $auto = is_array($game->auto_fields) ? $game->auto_fields : [];
+            foreach (['local_players_max', 'lan_multiplayer', 'categories'] as $field) {
+                if (array_key_exists($field, $data)) {
+                    unset($auto[$field]);
+                }
+            }
+            $fill['auto_fields'] = $auto ?: null;
             $fill['reviewed_at'] = ($data['reviewed'] ?? true) ? ($game->reviewed_at ?? now()) : null;
 
             $game->forceFill($fill)->save();
@@ -276,16 +285,30 @@ class GameController extends Controller
     private function metadataSource(Game $game): ?string
     {
         $meta = $game->metadata;
-        if (! is_array($meta) || $game->metadata_status !== 'ok') {
+        if (! is_array($meta) || ! in_array($game->metadata_status, ['ok', 'error'], true)) {
             return null;
         }
+        $labels = ['igdb' => 'IGDB', 'pcgw' => 'PCGamingWiki', 'steam' => 'Steam (gok)', 'tags' => 'Steam-tags'];
+        $auto = is_array($game->auto_fields) ? $game->auto_fields : [];
         $parts = [];
+        if (isset($auto['local_players_max'])) {
+            $parts[] = 'Spelers: '.($labels[$auto['local_players_max']] ?? $auto['local_players_max']);
+        }
+        if (! empty($meta['igdb'])) {
+            $i = $meta['igdb'];
+            $parts[] = 'IGDB: offline '.($i['offlinemax'] ?? '?').', online '.($i['onlinemax'] ?? '?').(! empty($i['lan']) ? ', LAN' : '');
+        }
         if (! empty($meta['pcgw']['page'])) {
             $p = $meta['pcgw'];
             $parts[] = 'PCGamingWiki: lokaal '.($p['local'] ?? '?').(! empty($p['local_players']) ? " ({$p['local_players']})" : '').', LAN '.($p['lan'] ?? '?').', online '.($p['online'] ?? '?');
+        } elseif (! isset($meta['errors']['pcgw'])) {
+            $parts[] = 'PCGamingWiki: niet gevonden';
         }
         if (! empty($meta['tags'])) {
             $parts[] = 'Tags: '.implode(', ', array_slice(array_keys($meta['tags']), 0, 6));
+        }
+        foreach (($meta['errors'] ?? []) as $source => $error) {
+            $parts[] = ($labels[$source] ?? $source).' fout: '.$error;
         }
 
         return $parts ? implode(' · ', $parts) : 'Steam';
@@ -315,6 +338,7 @@ class GameController extends Controller
             'is_new'            => $game->isNew(),
             'metadata_status'   => $game->metadata_status,
             'metadata_source'   => $this->metadataSource($game),
+            'auto_fields'       => $game->auto_fields ?: (object) [],
             'first_seen_at'     => $game->first_seen_at?->toIso8601String(),
             'installed_on'      => $where,
         ];

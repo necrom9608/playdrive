@@ -37,6 +37,7 @@ class Game extends Model
             'reviewed_at'       => 'datetime',
             'metadata'            => 'array',
             'metadata_fetched_at' => 'datetime',
+            'auto_fields'         => 'array',
         ];
     }
 
