@@ -107,7 +107,7 @@
         <DeviceGroupsPanel v-else-if="tab === 'groups'" ref="groupsPanel" @count="(n) => (groupCount = n)" />
 
         <!-- Stroom (slimme stekkers, IKEA DIRIGERA) -->
-        <PowerPanel v-else-if="tab === 'power'" ref="powerPanel" @count="(n) => (powerCount = n)" />
+        <PowerPanel v-else-if="tab === 'power'" ref="powerPanel" @count="(n) => (powerCount = n)" @setups-changed="loadAll({ silent: true })" />
 
         <!-- Toestellen -->
         <template v-else>

@@ -126,6 +126,83 @@ class PowerController extends Controller
         return response()->json([...$powerPlug->toPublicArray(), 'hub_name' => $powerPlug->hub?->name]);
     }
 
+    /**
+     * Elke stekker zonder speelplek krijgt er één: bestaat er al een speelplek met dezelfde naam,
+     * dan wordt die gekoppeld; anders wordt ze aangemaakt (naam = stekker, zone = kamer op de hub).
+     * Body (optioneel): {plug_ids: [...]} om het tot bepaalde stekkers te beperken.
+     */
+    public function createSetupsForPlugs(Request $request, CurrentTenant $currentTenant): JsonResponse
+    {
+        abort_unless($currentTenant->exists(), 404, 'Geen geldige tenant gevonden.');
+        $tenantId = $currentTenant->id();
+        $data = $request->validate(['plug_ids' => ['nullable', 'array'], 'plug_ids.*' => ['integer']]);
+
+        $result = DB::transaction(function () use ($tenantId, $data) {
+            $plugs = PowerPlug::query()
+                ->where('tenant_id', $tenantId)
+                ->whereNull('setup_id')
+                ->whereNull('missing_since')
+                ->when(! empty($data['plug_ids']), fn ($q) => $q->whereIn('id', $data['plug_ids']))
+                ->orderBy('power_hub_id')->orderBy('name')
+                ->get();
+
+            $existing = Setup::query()->where('tenant_id', $tenantId)->where('status', '!=', Setup::STATUS_ARCHIVED)->get();
+            $byName = $existing->keyBy(fn (Setup $s) => mb_strtolower(trim($s->name)));
+            $zones = $existing->pluck('zone')->filter()->unique()->keyBy(fn ($z) => mb_strtolower(trim($z)));
+            $sort = (int) Setup::query()->where('tenant_id', $tenantId)->max('sort_order');
+            $linked = 0;
+            $created = 0;
+
+            foreach ($plugs as $plug) {
+                $name = trim((string) $plug->name) ?: 'Stekker '.$plug->id;
+                $key = mb_strtolower($name);
+                $setup = $byName->get($key);
+
+                if (! $setup) {
+                    $room = trim((string) $plug->room);
+                    $zone = $room === '' ? null : ($zones->get(mb_strtolower($room)) ?? $room);
+                    if ($zone) {
+                        $zones->put(mb_strtolower($zone), $zone);
+                    }
+
+                    $setup = Setup::query()->create([
+                        'tenant_id'  => $tenantId,
+                        'name'       => mb_substr($name, 0, 255),
+                        'type'       => $this->guessSetupType($name.' '.$room),
+                        'zone'       => $zone ? mb_substr($zone, 0, 100) : null,
+                        'status'     => Setup::STATUS_ACTIVE,
+                        'qr_code'    => Setup::generateQrCode(),
+                        'sort_order' => ++$sort,
+                    ]);
+                    $byName->put($key, $setup);
+                    $created++;
+                } else {
+                    $linked++;
+                }
+
+                $plug->update(['setup_id' => $setup->id]);
+            }
+
+            return ['created' => $created, 'linked' => $linked];
+        });
+
+        return response()->json($result);
+    }
+
+    /** Soort speelplek raden uit naam + kamer van de stekker; aanpasbaar in Speelplekken. */
+    private function guessSetupType(string $text): string
+    {
+        $t = mb_strtolower($text);
+
+        return match (true) {
+            (bool) preg_match('/\b(pc|lan|computer|gaming ?pc)\s*\d*\b/u', $t) => 'pc',
+            (bool) preg_match('/\bvr\b|virtual|oculus|quest|vive/u', $t)       => 'vr',
+            (bool) preg_match('/flipper|pinball/u', $t)                         => 'pinball',
+            (bool) preg_match('/\b(ps[1-5]?|playstation|xbox|switch|nintendo|wii|couch|console|sega saturn|dreamcast|gamecube|n64|snes|nes|tv)\b/u', $t) => 'console',
+            default                                                             => 'arcade',
+        };
+    }
+
     public function destroyPlug(CurrentTenant $currentTenant, PowerPlug $powerPlug): JsonResponse
     {
         $this->authorizeTenant($currentTenant, $powerPlug->tenant_id);

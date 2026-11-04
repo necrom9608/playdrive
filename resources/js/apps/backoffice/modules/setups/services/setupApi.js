@@ -89,6 +89,10 @@ export function unpairPowerHub(id) {
 export function deletePowerHub(id) {
     return apiFetch(`${BASE}/power/hubs/${id}`, { method: 'DELETE' })
 }
+/** Speelplek aanmaken (of op naam koppelen) voor elke stekker zonder speelplek → {created, linked} */
+export function createSetupsForPlugs(plugIds = null) {
+    return apiFetch(`${BASE}/power/plugs/create-setups`, { method: 'POST', body: JSON.stringify(plugIds ? { plug_ids: plugIds } : {}) })
+}
 // { setup_id, power_wave_id, wave_order }
 export function updatePowerPlug(id, payload) {
     return apiFetch(`${BASE}/power/plugs/${id}`, { method: 'PUT', body: JSON.stringify(payload) })

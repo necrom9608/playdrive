@@ -1,6 +1,7 @@
 <template>
     <div class="space-y-6">
         <div v-if="error" class="rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-sm text-red-200">{{ error }}</div>
+        <div v-if="notice" class="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-200">{{ notice }}</div>
 
         <!-- Hubs -->
         <section class="space-y-3">
@@ -75,10 +76,22 @@
         <section class="space-y-3">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-500">Stekkers</h2>
-                <label class="flex items-center gap-2 text-sm text-slate-400">
-                    <input v-model="onlyUnassigned" type="checkbox" class="h-4 w-4 rounded border-slate-600 bg-slate-950">
-                    Enkel zonder speelplek
-                </label>
+                <div class="flex flex-wrap items-center gap-4">
+                    <button
+                        v-if="unassignedCount"
+                        type="button"
+                        :disabled="creatingSetups"
+                        class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:opacity-50"
+                        @click="createMissingSetups"
+                    >
+                        <PlusIcon class="h-4 w-4" />
+                        {{ creatingSetups ? 'Bezig…' : `Speelplek voor ${unassignedCount} stekker${unassignedCount === 1 ? '' : 's'}` }}
+                    </button>
+                    <label class="flex items-center gap-2 text-sm text-slate-400">
+                        <input v-model="onlyUnassigned" type="checkbox" class="h-4 w-4 rounded border-slate-600 bg-slate-950">
+                        Enkel zonder speelplek
+                    </label>
+                </div>
             </div>
             <div v-if="!plugs.length && !loading" class="rounded-3xl border border-dashed border-slate-800 px-6 py-10 text-center text-sm text-slate-500">
                 Nog geen stekkers. Koppel een hub aan de kassa; de stekkers verschijnen hier binnen een minuut.
@@ -169,6 +182,7 @@ import {
 import ModalDialog from '../../../components/ModalDialog.vue'
 import {
     createPowerHub,
+    createSetupsForPlugs,
     createPowerWave,
     deletePowerHub,
     deletePowerPlug,
@@ -181,7 +195,7 @@ import {
     updatePowerWave,
 } from '../services/setupApi'
 
-const emit = defineEmits(['count'])
+const emit = defineEmits(['count', 'setups-changed'])
 
 const loading = ref(false)
 const saving = ref(false)
@@ -192,6 +206,30 @@ const plugs = ref([])
 const setups = ref([])
 const onlyUnassigned = ref(false)
 const hubForm = reactive({ open: false, hub: null, name: '', host: '', error: '' })
+
+const creatingSetups = ref(false)
+const notice = ref('')
+const unassignedCount = computed(() => plugs.value.filter(p => !p.setup_id && !p.missing).length)
+
+async function createMissingSetups() {
+    const n = unassignedCount.value
+    if (!window.confirm(`Voor ${n} stekker${n === 1 ? '' : 's'} zonder speelplek een speelplek aanmaken?\n\nNaam = naam van de stekker, zone = kamer op de hub. Bestaat er al een speelplek met die naam, dan wordt die gekoppeld.`)) return
+    creatingSetups.value = true
+    try {
+        const res = await createSetupsForPlugs()
+        await load({ silent: true })
+        emit('setups-changed')
+        const parts = []
+        if (res.created) parts.push(`${res.created} speelplek${res.created === 1 ? '' : 'ken'} aangemaakt`)
+        if (res.linked) parts.push(`${res.linked} gekoppeld aan een bestaande`)
+        notice.value = parts.join(', ') || 'Niets te doen.'
+        window.setTimeout(() => { notice.value = '' }, 6000)
+    } catch (e) {
+        error.value = e.message || 'Speelplekken aanmaken mislukt.'
+    } finally {
+        creatingSetups.value = false
+    }
+}
 
 const visiblePlugs = computed(() => (onlyUnassigned.value ? plugs.value.filter(p => !p.setup_id) : plugs.value))
 
