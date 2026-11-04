@@ -2,6 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import GameInnOrbit from './GameInnOrbit.vue'
 import { ZONE_LABELS } from './icons.js'
+import logoUrl from './assets/logo.webp'
+import emblemUrl from './assets/emblem.webp'
 
 /**
  * Klantenscherm met de Game-INN-skin (zoals game-inn.be).
@@ -36,7 +38,8 @@ function fit() {
 
 // ── Instellingen ─────────────────────────────────────────────────────
 const settings = computed(() => props.skin?.settings ?? {})
-const assets = computed(() => props.skin?.assets ?? {})
+// Logo en embleem zitten in de build (Vite), zodat ze altijd mee met de code naar de server gaan.
+const assets = { logo: logoUrl, emblem: emblemUrl }
 const videos = computed(() => Array.isArray(props.skin?.videos) ? props.skin.videos : [])
 const crt = computed(() => settings.value.crt || 'zacht')
 const isOrder = computed(() => props.mode === 'order')
