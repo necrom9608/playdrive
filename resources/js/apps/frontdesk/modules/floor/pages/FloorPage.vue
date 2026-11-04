@@ -86,6 +86,7 @@
                             :power="tilePower(setup)"
                             :selected="floor.selectedSetupId === setup.id"
                             @select="floor.select(setup.id)"
+                            @toggle-power="togglePower(setup)"
                         />
                     </div>
                 </section>
@@ -177,7 +178,7 @@ const powerHint = computed(() => {
     return ''
 })
 
-/** Bliksem op de tegel: { on, watts, title } of null. */
+/** Stroomknop op de tegel: { on, watts, title, pending, unreachable, controllable } of null. */
 function tilePower(setup) {
     if (!power.available || power.appOutdated) return null
     const plugs = power.plugsForSetup(setup.id)
@@ -186,10 +187,30 @@ function tilePower(setup) {
     if (!outlets.length) return null
     const on = outlets.some(o => o.isOn)
     const watts = outlets.reduce((sum, o) => sum + (o.isOn && o.powerW ? o.powerW : 0), 0)
+    const unreachable = outlets.some(o => o.reachable === false)
     return {
         on,
         watts: on && watts > 0 ? formatWatts(watts) : '',
-        title: plugs.map(p => `${p.name}: ${power.outlet(p)?.isOn ? 'aan' : 'uit'}`).join('\n'),
+        pending: plugs.some(p => power.isPending(p)),
+        unreachable,
+        controllable: power.canControl,
+        title: plugs.map(p => {
+            const o = power.outlet(p)
+            return `${p.name}: ${o?.reachable === false ? 'niet bereikbaar' : (o?.isOn ? 'aan' : 'uit')}`
+        }).join('\n') + (on ? '\nKlik om uit te zetten' : '\nKlik om aan te zetten'),
+    }
+}
+
+/** Rechtstreeks vanaf de tegel (de pc's gaan in de zaal gewoon via de stekker aan en uit). */
+async function togglePower(setup) {
+    const plugs = power.plugsForSetup(setup.id).filter(p => power.outlet(p))
+    if (!plugs.length) return
+    const target = !plugs.some(p => power.outlet(p).isOn)
+    try {
+        for (const plug of plugs) await power.setPlug(plug, target, { verify: true })
+        floor.toast(`${setup.name}: stroom ${target ? 'aan' : 'uit'}`)
+    } catch (e) {
+        floor.toast(e.message, 'error')
     }
 }
 

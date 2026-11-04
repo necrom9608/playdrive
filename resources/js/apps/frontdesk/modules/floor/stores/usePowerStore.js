@@ -22,7 +22,8 @@ import {
  * De sequentie loopt in deze store, dus ook verder als je naar een ander scherm gaat.
  */
 
-const POLL_MS = 10000
+// Rustig aan: een DIRIGERA met veel stekkers hoeft niet elke paar seconden bevraagd te worden.
+const POLL_MS = 30000
 const SYNC_MS = 60000
 const PAIR_TIMEOUT_MS = 90000
 const PAIR_POLL_MS = 2000
@@ -218,7 +219,8 @@ export const usePowerStore = defineStore('frontdeskPower', {
             } finally {
                 delete this.pending[k]
             }
-            window.setTimeout(() => this.pollHub(hub), 2500)
+            // Met verify kennen we de toestand al; anders één keer opnieuw uitlezen.
+            if (!verify) window.setTimeout(() => this.pollHub(hub), 2500)
         },
 
         // ---------------------------------------------------------- koppelen

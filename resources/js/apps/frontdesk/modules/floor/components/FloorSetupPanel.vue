@@ -119,24 +119,14 @@
                                 <div class="truncate text-sm font-semibold text-white">{{ plug.name }}</div>
                                 <div class="text-xs" :class="plugInfo(plug).error ? 'text-rose-300' : 'text-slate-500'">{{ plugInfo(plug).text }}</div>
                             </div>
-                            <button
+                            <PowerToggle
                                 v-if="power.canControl && plugInfo(plug).known"
-                                type="button"
-                                :disabled="power.isPending(plug)"
-                                class="rounded-xl border px-3 py-2 text-sm font-semibold transition disabled:opacity-50"
-                                :class="plugInfo(plug).on ? 'border-slate-700 text-slate-200 hover:bg-slate-800' : 'border-amber-500/40 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'"
-                                @click="togglePlug(plug)"
-                            >
-                                {{ power.isPending(plug) ? '…' : (plugInfo(plug).on ? 'Uit' : 'Aan') }}
-                            </button>
-                        </div>
-                        <div v-if="offConfirm === plug.id" class="mt-3 space-y-2 border-t border-slate-800 pt-3 text-sm text-amber-100">
-                            <p>De pc staat nog aan. Stroom eraf zonder afsluiten kan de installatie beschadigen.</p>
-                            <div class="flex flex-wrap gap-2">
-                                <button type="button" class="rounded-xl bg-amber-500 px-3 py-2 font-semibold text-slate-950" @click="shutdownThenOff(plug)">Pc uitzetten, dan stroom uit</button>
-                                <button type="button" class="rounded-xl border border-rose-500/40 px-3 py-2 text-rose-200" @click="plugOff(plug)">Toch meteen uit</button>
-                                <button type="button" class="rounded-xl border border-slate-700 px-3 py-2 text-slate-300" @click="offConfirm = null">Annuleren</button>
-                            </div>
+                                :on="plugInfo(plug).on"
+                                :pending="power.isPending(plug)"
+                                :unreachable="plugInfo(plug).unreachable"
+                                :title="plugInfo(plug).on ? 'Stroom uitzetten' : 'Stroom aanzetten'"
+                                @toggle="togglePlug(plug)"
+                            />
                         </div>
                     </div>
                 </div>
@@ -175,8 +165,9 @@ import {
     XMarkIcon,
 } from '@heroicons/vue/24/outline'
 import FloorPinDialog from './FloorPinDialog.vue'
+import PowerToggle from './PowerToggle.vue'
 import { useFloorStore } from '../stores/useFloorStore'
-import { usePowerStore, SHUTDOWN_GRACE_SECONDS } from '../stores/usePowerStore'
+import { usePowerStore } from '../stores/usePowerStore'
 import { STATE_META, formatTime, formatWatts, minutesSince, playscopeDevice, setupState, typeIcon } from '../utils/floorState'
 
 const props = defineProps({
@@ -193,7 +184,6 @@ const search = ref('')
 const pendingGame = ref(null)
 const messageOpen = ref(false)
 const message = reactive({ text: '', seconds: 15 })
-const offConfirm = ref(null)
 const pinAction = ref(null)
 
 const meta = computed(() => STATE_META[setupState(props.setup)])
@@ -217,7 +207,6 @@ watch(() => props.setup.id, () => {
     pendingGame.value = null
     messageOpen.value = false
     message.text = ''
-    offConfirm.value = null
 })
 
 function plugInfo(plug) {
@@ -228,7 +217,7 @@ function plugInfo(plug) {
     if (!hub?.paired) return { known: false, on: false, text: 'Hub niet gekoppeld', error: true }
     if (hubError && !outlet) return { known: false, on: false, text: hubError, error: true }
     if (!outlet) return { known: false, on: false, text: 'Status ophalen…' }
-    if (outlet.reachable === false) return { known: true, on: Boolean(outlet.isOn), text: 'Stekker niet bereikbaar', error: true }
+    if (outlet.reachable === false) return { known: true, on: Boolean(outlet.isOn), unreachable: true, text: 'Stekker niet bereikbaar voor de hub', error: true }
     const watts = outlet.isOn && outlet.powerW !== null && outlet.powerW !== undefined ? ` · ${formatWatts(outlet.powerW)}` : ''
     return { known: true, on: Boolean(outlet.isOn), text: outlet.isOn ? `Aan${watts}` : 'Uit' }
 }
@@ -276,36 +265,12 @@ function confirmPin(pin) {
 
 async function togglePlug(plug) {
     const info = plugInfo(plug)
-    if (info.on && device.value?.online) {
-        offConfirm.value = plug.id
-        return
-    }
     try {
         await power.setPlug(plug, !info.on, { verify: true })
         floor.toast(`${plug.name}: stroom ${info.on ? 'uit' : 'aan'}`)
     } catch (e) {
         floor.toast(e.message, 'error')
     }
-}
-
-async function plugOff(plug) {
-    offConfirm.value = null
-    try {
-        await power.setPlug(plug, false, { verify: true })
-        floor.toast(`${plug.name}: stroom uit`)
-    } catch (e) {
-        floor.toast(e.message, 'error')
-    }
-}
-
-function shutdownThenOff(plug) {
-    offConfirm.value = null
-    withPin('Pc uitzetten', async (pin) => {
-        const ok = await command('shutdown', 'Pc uitzetten', { pin })
-        if (!ok) return
-        floor.toast(`${plug.name}: stroom gaat uit over ${SHUTDOWN_GRACE_SECONDS} s`, 'info')
-        window.setTimeout(() => plugOff(plug), SHUTDOWN_GRACE_SECONDS * 1000)
-    })
 }
 </script>
 

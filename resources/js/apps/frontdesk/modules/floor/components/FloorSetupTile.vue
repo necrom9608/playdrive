@@ -1,9 +1,11 @@
 <template>
-    <button
-        type="button"
-        class="flex min-h-[132px] flex-col gap-2 rounded-3xl border bg-slate-900/80 p-4 text-left shadow-xl shadow-slate-950/20 transition hover:border-slate-600"
+    <div
+        role="button"
+        tabindex="0"
+        class="flex min-h-[132px] cursor-pointer flex-col gap-2 rounded-3xl border bg-slate-900/80 p-4 text-left shadow-xl shadow-slate-950/20 transition hover:border-slate-600"
         :class="[meta.tile, selected ? 'border-blue-500! ring-1 ring-blue-500' : '']"
         @click="$emit('select')"
+        @keydown.enter="$emit('select')"
     >
         <div class="flex items-center gap-3">
             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-950">
@@ -24,27 +26,34 @@
 
         <div class="mt-auto flex items-center justify-between gap-2">
             <span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold" :class="meta.pill">{{ meta.label }}</span>
-            <span v-if="power" class="flex items-center gap-1 text-xs" :class="power.on ? 'text-amber-300' : 'text-slate-600'" :title="power.title">
-                <BoltIcon class="h-4 w-4" />
-                {{ power.on ? (power.watts || 'Aan') : 'Uit' }}
-            </span>
+            <div v-if="power" class="flex items-center gap-2">
+                <span v-if="power.watts" class="text-xs text-amber-300/80">{{ power.watts }}</span>
+                <PowerToggle
+                    :on="power.on"
+                    :pending="power.pending"
+                    :unreachable="power.unreachable"
+                    :disabled="!power.controllable"
+                    :title="power.title"
+                    @toggle="$emit('toggle-power')"
+                />
+            </div>
         </div>
-    </button>
+    </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { BoltIcon } from '@heroicons/vue/24/outline'
+import PowerToggle from './PowerToggle.vue'
 import { STATE_META, minutesSince, playscopeDevice, setupState, typeIcon } from '../utils/floorState'
 
 const props = defineProps({
     setup: { type: Object, required: true },
     selected: { type: Boolean, default: false },
     now: { type: Number, default: () => Date.now() },
-    // { on, watts, title } of null (geen stekker / onbekend)
+    // { on, watts, title, pending, unreachable, controllable } of null (geen stekker / onbekend)
     power: { type: Object, default: null },
 })
-defineEmits(['select'])
+defineEmits(['select', 'toggle-power'])
 
 const state = computed(() => setupState(props.setup))
 const meta = computed(() => STATE_META[state.value])
