@@ -40,3 +40,6 @@ desktop/*.log
 /deploy/failed/
 /deploy/backups/
 /deploy/*.log
+
+# Claude Code: tijdelijke git-worktrees (eigen repo, niet meecommitten)
+/.claude/worktrees/
