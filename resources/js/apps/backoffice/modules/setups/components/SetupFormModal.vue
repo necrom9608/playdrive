@@ -15,13 +15,18 @@
                 </select>
             </label>
 
-            <label class="space-y-1">
+            <div class="space-y-1">
                 <span class="block text-sm font-medium text-slate-300">Zone</span>
-                <input v-model="form.zone" type="text" list="setup-zones" placeholder="bijv. LAN-room, Arcadehal" class="input" />
-                <datalist id="setup-zones">
-                    <option v-for="z in zones" :key="z" :value="z" />
-                </datalist>
-            </label>
+                <select v-if="!newZone" :value="form.zone" class="input" @change="pickZone($event.target.value)">
+                    <option value="">Geen zone</option>
+                    <option v-for="z in zoneOptions" :key="z" :value="z">{{ z }}</option>
+                    <option value="__new__">+ Nieuwe zone…</option>
+                </select>
+                <div v-else class="flex gap-2">
+                    <input ref="zoneInput" v-model="form.zone" type="text" maxlength="100" placeholder="bijv. LAN-room, Arcadehal" class="input" />
+                    <button v-if="zoneOptions.length" type="button" class="shrink-0 rounded-xl border border-slate-700 px-3 text-sm text-slate-300 transition hover:bg-slate-800" title="Kies uit de bestaande zones" @click="cancelNewZone">Lijst</button>
+                </div>
+            </div>
 
             <label class="space-y-1">
                 <span class="block text-sm font-medium text-slate-300">Max. spelers</span>
@@ -77,7 +82,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import ModalDialog from '../../../components/ModalDialog.vue'
 
@@ -95,6 +100,40 @@ const emit = defineEmits(['close', 'submit', 'delete'])
 
 const form = reactive({ name: '', type: 'arcade', zone: '', max_players: null, status: 'active', games: [], description: '' })
 const gameInput = ref('')
+const newZone = ref(false)
+const zoneInput = ref(null)
+
+// Bestaande zones (+ de huidige, ook als die nergens anders gebruikt wordt)
+const zoneOptions = computed(() => {
+    const list = [...props.zones]
+    const current = props.setup?.zone
+    if (current && !list.includes(current)) list.push(current)
+    return list.sort((a, b) => a.localeCompare(b, 'nl'))
+})
+
+async function pickZone(value) {
+    if (value === '__new__') {
+        form.zone = ''
+        newZone.value = true
+        await nextTick()
+        zoneInput.value?.focus()
+        return
+    }
+    form.zone = value
+}
+
+function cancelNewZone() {
+    form.zone = props.setup?.zone ?? ''
+    newZone.value = !zoneOptions.value.length
+    newZone.value = false
+}
+
+/** Nieuwe zone die enkel in hoofdletters verschilt van een bestaande → de bestaande nemen. */
+function normalizedZone() {
+    const value = (form.zone || '').trim()
+    if (!value) return null
+    return zoneOptions.value.find(z => z.toLowerCase() === value.toLowerCase()) ?? value
+}
 
 const isEdit = computed(() => !!props.setup?.id)
 
@@ -124,7 +163,7 @@ function submit() {
     emit('submit', {
         name: form.name,
         type: form.type,
-        zone: form.zone || null,
+        zone: normalizedZone(),
         max_players: form.max_players || null,
         status: form.status,
         games: form.games,
