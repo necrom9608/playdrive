@@ -5,6 +5,8 @@ use App\Http\Controllers\Api\Frontdesk\AgendaController;
 use App\Http\Controllers\Api\Frontdesk\AuthController;
 use App\Http\Controllers\Api\Frontdesk\CatalogController;
 use App\Http\Controllers\Api\Frontdesk\FamilyController;
+use App\Http\Controllers\Api\Frontdesk\FloorController;
+use App\Http\Controllers\Api\Frontdesk\FloorPowerController;
 use App\Http\Controllers\Api\Frontdesk\FormOptionsController;
 use App\Http\Controllers\Api\Frontdesk\GiftVoucherController;
 use App\Http\Controllers\Api\Frontdesk\LocationSearchController;
@@ -96,5 +98,20 @@ Route::prefix('api/frontdesk')->group(function () {
 
         Route::get('/staff-attendance', [StaffAttendanceController::class, 'index']);
         Route::post('/staff-attendance/scan', [StaffAttendanceController::class, 'scan']);
+
+        // Zaal: live overzicht en bediening van de speelplekken (inrichten = backoffice)
+        Route::get('/floor', [FloorController::class, 'index']);
+        Route::get('/floor/devices/{venueDevice}/games', [FloorController::class, 'games']);
+        Route::post('/floor/devices/{venueDevice}/commands', [FloorController::class, 'command']);
+        Route::get('/floor/commands/{venueDeviceCommand}', [FloorController::class, 'commandStatus']);
+        Route::post('/floor/setups/{setup}/status', [FloorController::class, 'setStatus']);
+        Route::post('/floor/groups/{deviceGroup}/switch', [FloorController::class, 'groupSwitch']);
+        Route::post('/floor/groups/{deviceGroup}/pause', [FloorController::class, 'groupPause']);
+        Route::post('/floor/shutdown-pcs', [FloorController::class, 'shutdownPcs']);
+
+        // Zaal: slimme stekkers (DIRIGERA, via de kassa-app in het lokale netwerk)
+        Route::get('/floor/power', [FloorPowerController::class, 'index']);
+        Route::post('/floor/power/hubs/{powerHub}/token', [FloorPowerController::class, 'storeToken']);
+        Route::post('/floor/power/hubs/{powerHub}/sync', [FloorPowerController::class, 'sync']);
     });
 });

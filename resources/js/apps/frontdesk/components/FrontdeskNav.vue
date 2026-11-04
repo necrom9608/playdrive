@@ -31,6 +31,7 @@ import {
     TicketIcon,
     IdentificationIcon,
     UsersIcon,
+    Squares2X2Icon,
 } from '@heroicons/vue/24/outline'
 
 const route = useRoute()
@@ -51,6 +52,7 @@ const iconMap = {
     ticket: TicketIcon,
     identification: IdentificationIcon,
     users: UsersIcon,
+    'squares-2x2': Squares2X2Icon,
 }
 
 function isActive(item) {

@@ -28,11 +28,26 @@ final class DeviceCommands
         'kiosk_on'    => 'Kioskmodus aan',
         'reboot'      => 'Pc herstarten',
         'shutdown'    => 'Pc uitzetten',
+        // payload: { game_id, source, id (externe id), name } — vanuit de frontdesk (Zaal)
+        'launch_game' => 'Game starten',
     ];
 
     public static function label(string $command): string
     {
         return self::COMMANDS[$command] ?? $command;
+    }
+
+    /** Opdracht in de wachtrij zetten (backoffice of frontdesk). */
+    public static function queue(VenueDevice $device, string $command, ?array $payload = null, ?int $userId = null): VenueDeviceCommand
+    {
+        return VenueDeviceCommand::create([
+            'tenant_id'       => $device->tenant_id,
+            'venue_device_id' => $device->id,
+            'command'         => $command,
+            'payload'         => $payload,
+            'status'          => 'pending',
+            'created_by'      => $userId,
+        ]);
     }
 
     /** Openstaande opdrachten voor het toestel; oude worden eerst op "expired" gezet. */

@@ -1,5 +1,6 @@
 mod commands {
     pub mod config;
+    pub mod dirigera;
     pub mod rfid;
 }
 
@@ -12,6 +13,12 @@ use commands::config::{
     open_playdrive_window,
     reset_desktop_config,
     save_desktop_config,
+};
+use commands::dirigera::{
+    dirigera_list_outlets,
+    dirigera_pair_finish,
+    dirigera_pair_start,
+    dirigera_set_outlet,
 };
 use commands::rfid::{cancel_rfid_scan, scan_rfid_once};
 use tauri::Manager;
@@ -60,6 +67,10 @@ pub fn run() {
             get_monitor_count,
             scan_rfid_once,
             cancel_rfid_scan,
+            dirigera_pair_start,
+            dirigera_pair_finish,
+            dirigera_list_outlets,
+            dirigera_set_outlet,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Playdrive Desktop");

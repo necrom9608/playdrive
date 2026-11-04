@@ -9,7 +9,7 @@
             </div>
 
             <div class="flex flex-wrap gap-3">
-                <button type="button" class="inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-800" @click="loadAll(); groupsPanel?.load()">
+                <button type="button" class="inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-800" @click="loadAll(); groupsPanel?.load(); powerPanel?.load()">
                     <ArrowPathIcon class="h-5 w-5" /> Vernieuwen
                 </button>
                 <button v-if="tab === 'setups'" type="button" class="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500" @click="openSetupForm(null)">
@@ -17,6 +17,9 @@
                 </button>
                 <button v-else-if="tab === 'groups'" type="button" class="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500" @click="groupsPanel?.openForm(null)">
                     <PlusIcon class="h-5 w-5" /> Groep
+                </button>
+                <button v-else-if="tab === 'power'" type="button" class="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500" @click="powerPanel?.openHubForm(null)">
+                    <PlusIcon class="h-5 w-5" /> Hub
                 </button>
                 <button v-else type="button" class="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500" @click="openDeviceForm(null)">
                     <LinkIcon class="h-5 w-5" /> Toestel koppelen
@@ -102,6 +105,9 @@
 
         <!-- Groepen (rotatie) -->
         <DeviceGroupsPanel v-else-if="tab === 'groups'" ref="groupsPanel" @count="(n) => (groupCount = n)" />
+
+        <!-- Stroom (slimme stekkers, IKEA DIRIGERA) -->
+        <PowerPanel v-else-if="tab === 'power'" ref="powerPanel" @count="(n) => (powerCount = n)" />
 
         <!-- Toestellen -->
         <template v-else>
@@ -274,6 +280,7 @@ import DeviceFormModal from '../components/DeviceFormModal.vue'
 import DeviceControlModal from '../components/DeviceControlModal.vue'
 import SetupQrModal from '../components/SetupQrModal.vue'
 import DeviceGroupsPanel from '../components/DeviceGroupsPanel.vue'
+import PowerPanel from '../components/PowerPanel.vue'
 import {
     claimVenueDevice,
     createSetup,
@@ -314,6 +321,8 @@ const control = reactive({ open: false, device: null })
 const playscopeVersion = ref(null)
 const groupsPanel = ref(null)
 const groupCount = ref(null)
+const powerPanel = ref(null)
+const powerCount = ref(null)
 const installCommand = `curl -fsSL ${window.location.origin}/api/playscope/install.sh | bash`
 const installCommandWindows = `irm ${window.location.origin}/api/playscope/install.ps1 | iex`
 const adminPin = reactive({ isSet: false, updatedAt: null, editing: false, value: '', saving: false, error: '', saved: '' })
@@ -324,6 +333,7 @@ const tabs = computed(() => [
     { key: 'setups', label: 'Speelplekken', count: setups.value.filter(s => s.status !== 'archived').length },
     { key: 'devices', label: 'Toestellen', count: devices.value.length },
     { key: 'groups', label: 'Groepen', count: groupCount.value ?? '' },
+    { key: 'power', label: 'Stroom', count: powerCount.value ?? '' },
 ])
 
 const zones = computed(() => [...new Set(setups.value.map(s => s.zone).filter(Boolean))].sort())

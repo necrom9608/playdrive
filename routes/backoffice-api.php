@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\Backoffice\RosterController;
 use App\Http\Controllers\Api\Backoffice\RosterLeaveController;
 use App\Http\Controllers\Api\Backoffice\RosterRoleController;
 use App\Http\Controllers\Api\Backoffice\DeviceGroupController;
+use App\Http\Controllers\Api\Backoffice\PowerController;
 use App\Http\Controllers\Api\Backoffice\SetupController;
 use App\Http\Controllers\Api\Backoffice\VenueDeviceCommandController;
 use App\Http\Controllers\Api\Backoffice\VenueDeviceController;
@@ -130,6 +131,19 @@ Route::prefix('api/backoffice')->group(function () {
         Route::delete('/device-groups/{deviceGroup}', [DeviceGroupController::class, 'destroy']);
         Route::post('/device-groups/{deviceGroup}/next', [DeviceGroupController::class, 'next']);
         Route::post('/device-groups/{deviceGroup}/pause', [DeviceGroupController::class, 'pause']);
+
+        // Stroom: DIRIGERA-hubs, opstartgolven, stekker ↔ speelplek (koppelen gebeurt aan de kassa)
+        Route::get('/power', [PowerController::class, 'index']);
+        Route::post('/power/hubs', [PowerController::class, 'storeHub']);
+        Route::put('/power/hubs/{powerHub}', [PowerController::class, 'updateHub']);
+        Route::post('/power/hubs/{powerHub}/unpair', [PowerController::class, 'unpairHub']);
+        Route::delete('/power/hubs/{powerHub}', [PowerController::class, 'destroyHub']);
+        Route::put('/power/plugs/{powerPlug}', [PowerController::class, 'updatePlug']);
+        Route::delete('/power/plugs/{powerPlug}', [PowerController::class, 'destroyPlug']);
+        Route::post('/power/waves/reorder', [PowerController::class, 'reorderWaves']);   // vóór {powerWave}
+        Route::post('/power/waves', [PowerController::class, 'storeWave']);
+        Route::put('/power/waves/{powerWave}', [PowerController::class, 'updateWave']);
+        Route::delete('/power/waves/{powerWave}', [PowerController::class, 'destroyWave']);
 
         // Games (catalogus gevoed door Playscope) + categorieën
         Route::get('/games', [GameController::class, 'index']);

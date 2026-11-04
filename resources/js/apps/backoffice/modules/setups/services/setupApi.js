@@ -71,3 +71,41 @@ export function nextDeviceGroupGame(id, gameId = null) {
 export function pauseDeviceGroup(id, paused) {
     return apiFetch(`${BASE}/device-groups/${id}/pause`, { method: 'POST', body: JSON.stringify({ paused }) })
 }
+
+// ── Stroom (IKEA DIRIGERA): hubs, opstartgolven, stekker ↔ speelplek ────────
+// Koppelen van een hub en de stekkers uitlezen gebeurt aan de kassa (Zaal → tandwiel).
+export function fetchPower() {
+    return apiFetch(`${BASE}/power`)
+}
+export function createPowerHub(payload) {
+    return apiFetch(`${BASE}/power/hubs`, { method: 'POST', body: JSON.stringify(payload) })
+}
+export function updatePowerHub(id, payload) {
+    return apiFetch(`${BASE}/power/hubs/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+export function unpairPowerHub(id) {
+    return apiFetch(`${BASE}/power/hubs/${id}/unpair`, { method: 'POST' })
+}
+export function deletePowerHub(id) {
+    return apiFetch(`${BASE}/power/hubs/${id}`, { method: 'DELETE' })
+}
+// { setup_id, power_wave_id, wave_order }
+export function updatePowerPlug(id, payload) {
+    return apiFetch(`${BASE}/power/plugs/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+export function deletePowerPlug(id) {
+    return apiFetch(`${BASE}/power/plugs/${id}`, { method: 'DELETE' })
+}
+// { name, stagger_seconds, delay_after_seconds } → { waves }
+export function createPowerWave(payload) {
+    return apiFetch(`${BASE}/power/waves`, { method: 'POST', body: JSON.stringify(payload) })
+}
+export function updatePowerWave(id, payload) {
+    return apiFetch(`${BASE}/power/waves/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+export function deletePowerWave(id) {
+    return apiFetch(`${BASE}/power/waves/${id}`, { method: 'DELETE' })
+}
+export function reorderPowerWaves(ids) {
+    return apiFetch(`${BASE}/power/waves/reorder`, { method: 'POST', body: JSON.stringify({ ids }) })
+}

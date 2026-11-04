@@ -43,7 +43,8 @@ class VenueDeviceCommandController extends Controller
         abort_unless($venueDevice->is_active, 422, 'Dit toestel is uitgeschakeld.');
 
         $data = $request->validate([
-            'command'         => ['required', 'string', Rule::in(array_keys(DeviceCommands::COMMANDS))],
+            // launch_game gebeurt via de frontdesk (Zaal), met de game uit de lijst van het toestel.
+            'command'         => ['required', 'string', Rule::in(array_keys(DeviceCommands::COMMANDS)), Rule::notIn(['launch_game'])],
             'payload'         => ['nullable', 'array'],
             'payload.text'    => ['required_if:command,message', 'nullable', 'string', 'max:200'],
             'payload.seconds' => ['nullable', 'integer', 'min:5', 'max:600'],

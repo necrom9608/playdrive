@@ -9,6 +9,7 @@ import AgendaPage from '../modules/agenda/pages/AgendaPage.vue'
 import StaffPage from '../modules/staff/pages/StaffPage.vue'
 import MembersPage from '../modules/members/pages/MembersPage.vue'
 import TasksPage from '../modules/tasks/pages/TasksPage.vue'
+import FloorPage from '../modules/floor/pages/FloorPage.vue'
 
 const routes = [
     { path: '/', name: 'frontdesk.dashboard', component: DashboardPage },
@@ -16,6 +17,7 @@ const routes = [
     { path: '/sales', name: 'frontdesk.sales', component: SalesPage },
     { path: '/vouchers', name: 'frontdesk.vouchers', component: VouchersPage },
     { path: '/agenda', name: 'frontdesk.agenda', component: AgendaPage },
+    { path: '/floor', name: 'frontdesk.floor', component: FloorPage },
     { path: '/staff', name: 'frontdesk.staff', component: StaffPage },
     { path: '/members', name: 'frontdesk.members', component: MembersPage },
     { path: '/tasks', name: 'frontdesk.tasks', component: TasksPage },

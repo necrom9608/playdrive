@@ -26,6 +26,7 @@ const navigation = [
     { label: 'POS', to: '/pos', icon: 'credit-card' },
     { label: 'VERKOPEN', to: '/sales', icon: 'clipboard-document-list' },
     { label: 'AGENDA', to: '/agenda', icon: 'calendar-days' },
+    { label: 'ZAAL', to: '/floor', icon: 'squares-2x2' },
     { label: 'TAKEN', to: '/tasks', icon: 'clipboard-document-check' },
     { label: 'CADEAUBONNEN', to: '/vouchers', icon: 'ticket' },
     { label: 'LEDEN', to: '/members', icon: 'identification' },
