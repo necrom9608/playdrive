@@ -1,0 +1,11 @@
+{
+    "version":  "0.3.0",
+    "notes":  "Playdrive Desktop 0.3.0",
+    "pub_date":  "2026-11-04T11:30:17Z",
+    "platforms":  {
+                      "windows-x86_64":  {
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVjh0cnA3d0FYTDZvN1czVzJ1Y3hQWGZOWml0Mm9CVDB0VUlUd0ZGMWNDczQ1MDFnSDA1Y3ZDMDZCcUdWcEdwMXJsbkh0ZlNwTTlCQUJoL1dZZHc2SWw4dDA4dEk0MHdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNzkxODE2CWZpbGU6UGxheWRyaXZlIERlc2t0b3BfMC4zLjBfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMy4wCmJ3dzlqcExoRHhpTUVYdERsNlZKUU5WQWRmNWxzWmNoVmV5WmNGOUpDU0ZJcXRneVc5ZUk3bUVUV2J2U3djOGtQRkFRYmx1Mk9aYzlid1dzTVZidkFRPT0K",
+                                             "url":  "https://playdrive.be/desktop/Playdrive-Desktop-0.3.0-x64-setup.exe"
+                                         }
+                  }
+}

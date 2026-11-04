@@ -95,9 +95,15 @@ $KeyPass = if ($env:MAVISYS_CERT_PASS) { $env:MAVISYS_CERT_PASS } elseif ($env:P
 
 Push-Location $Desktop
 try {
-    if (-not (Test-Path (Join-Path $Desktop 'node_modules'))) {
+    # npm ci als node_modules ontbreekt of package-lock.json wijzigde (anders botsen de versies
+    # van @tauri-apps/* met de Rust-crate tauri)
+    $lockHash = (Get-FileHash (Join-Path $Desktop 'package-lock.json') -Algorithm SHA256).Hash
+    $lockMark = Join-Path $Desktop 'node_modules\.playdrive-lock'
+    $installed = if (Test-Path $lockMark) { (ReadText $lockMark).Trim() } else { '' }
+    if ($installed -ne $lockHash) {
         Step 'npm-pakketten'
         Run 'npm ci' { npm ci --no-audit --no-fund }
+        WriteText $lockMark $lockHash
     }
 
     if (-not (Test-Path $KeyPath)) {
@@ -130,7 +136,8 @@ try {
 
     # -----------------------------------------------------------------------------------------
     Step "Bouwen (tauri build, $version)"
-    $env:TAURI_SIGNING_PRIVATE_KEY = $KeyPath
+    # Inhoud van de sleutel (werkt in alle Tauri-versies; het pad kan via TAURI_SIGNING_PRIVATE_KEY_PATH)
+    $env:TAURI_SIGNING_PRIVATE_KEY = (ReadText $KeyPath).Trim()
     $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = $KeyPass
     if (Test-Path $BundleDir) { Remove-Item -Recurse -Force $BundleDir }
     Run 'tauri build' { npx tauri build --bundles nsis }
