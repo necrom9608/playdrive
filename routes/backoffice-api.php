@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\Backoffice\VenueDeviceController;
 use App\Http\Controllers\Api\Backoffice\GameController;
 use App\Http\Controllers\Api\Backoffice\AnalyticsController;
 use App\Http\Controllers\Api\Backoffice\DayTotalsController;
+use App\Http\Controllers\Api\Backoffice\DisplaySkinController;
 use App\Http\Controllers\Api\Backoffice\AccountingExportController;
 use App\Http\Controllers\Api\Backoffice\MailAssistantController;
 use App\Http\Controllers\Api\Backoffice\VoucherTemplateController;
@@ -242,5 +243,17 @@ Route::prefix('api/backoffice')->group(function () {
         Route::post('/booking-form-config', [BookingFormConfigController::class, 'save']);
         Route::post('/opening-hours/exceptions', [OpeningHoursController::class, 'storeException']);
         Route::delete('/opening-hours/exceptions/{exception}', [OpeningHoursController::class, 'destroyException']);
+
+        // Klantenscherm (skin + filmpjes)
+        Route::get('/display-skin', [DisplaySkinController::class, 'show']);
+        Route::put('/display-skin', [DisplaySkinController::class, 'update']);
+        Route::post('/display-skin/videos', [DisplaySkinController::class, 'storeVideo']);
+        Route::post('/display-skin/videos/reorder', [DisplaySkinController::class, 'reorder']);
+        Route::post('/display-skin/videos/{video}/chunk', [DisplaySkinController::class, 'chunk'])->whereNumber('video');
+        Route::post('/display-skin/videos/{video}/complete', [DisplaySkinController::class, 'complete'])->whereNumber('video');
+        Route::post('/display-skin/videos/{video}/retry', [DisplaySkinController::class, 'retry'])->whereNumber('video');
+        Route::get('/display-skin/videos/{video}/file', [DisplaySkinController::class, 'file'])->whereNumber('video');
+        Route::put('/display-skin/videos/{video}', [DisplaySkinController::class, 'updateVideo'])->whereNumber('video');
+        Route::delete('/display-skin/videos/{video}', [DisplaySkinController::class, 'destroyVideo'])->whereNumber('video');
     });
 });

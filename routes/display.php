@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Display\DisplaySkinController;
 use App\Http\Controllers\Display\TenantLogoController;
 use App\Support\CurrentTenant;
 use Illuminate\Support\Facades\Route;
@@ -35,4 +36,7 @@ Route::get('/manifest.webmanifest', function (CurrentTenant $currentTenant) {
         ],
     ])->header('Content-Type', 'application/manifest+json');
 })->name('display.manifest');
+Route::get('/media/videos/{video}', [DisplaySkinController::class, 'video'])
+    ->whereNumber('video')
+    ->name('display.video');
 Route::view('/{any?}', 'display.app')->where('any', '.*');

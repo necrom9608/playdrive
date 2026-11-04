@@ -85,6 +85,20 @@
                 @save="saveMemberRegistration"
             />
 
+            <GameInnScreen
+                v-else-if="useGameInn"
+                :mode="mode === 'reservation' ? 'order' : 'standby'"
+                :skin="skin"
+                :reservation="reservation"
+                :items="groupedOrderItems"
+                :total="orderTotal"
+                :total-persons-label="totalPersonsLabel"
+                :start-time-label="startTimeLabel"
+                :end-time-label="endTimeLabel"
+                @logo-hold-start="startConfigAccess"
+                @logo-hold-end="cancelConfigAccess"
+            />
+
             <DisplayOverview
                 v-else-if="mode === 'reservation'"
                 :tenant-name="tenantName"
@@ -140,6 +154,8 @@ import DisplayDisconnected from '../components/DisplayDisconnected.vue'
 import DisplayOverview from '../components/DisplayOverview.vue'
 import DisplayStandby from '../components/DisplayStandby.vue'
 import DisplayMemberRegistration from '../components/DisplayMemberRegistration.vue'
+import GameInnScreen from '../components/gameinn/GameInnScreen.vue'
+import { useDisplaySkin } from '../composables/useDisplaySkin'
 import { getDisplayName, getDisplayToken, getOrCreateDisplayUuid, storeDisplayName, storeDisplayToken } from '../shared/device'
 import { getEcho, leaveChannel } from '../shared/realtime'
 import { isLocalDisplayMode, localDisplayListen, localDisplayClose } from '../../../shared/localDisplay'
@@ -168,6 +184,10 @@ const showPinPrompt = ref(false)
 const pinInput = ref('')
 const pinError = ref('')
 const hasDisplayName = computed(() => displayName.value.trim().length > 0)
+
+// Skin uit Backoffice → Klantenscherm (standaard = het bestaande scherm hieronder)
+const { skin } = useDisplaySkin()
+const useGameInn = computed(() => skin.value?.skin === 'gameinn')
 
 const IDLE_TIMEOUT_MS = 20000
 const CONFIG_ACCESS_HOLD_MS = 5000

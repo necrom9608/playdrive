@@ -20,6 +20,7 @@ import CardsPage from '../modules/cards/pages/CardsPage.vue'
 import MailLogsPage from '../modules/maillogs/pages/MailLogsPage.vue'
 import MailAssistantPage from '../modules/mail-assistant/pages/MailAssistantPage.vue'
 import OpeningHoursPage from '../modules/opening-hours/pages/OpeningHoursPage.vue'
+import DisplaySkinPage from '../modules/display-skin/pages/DisplaySkinPage.vue'
 import BookingFormConfigPage from '../modules/booking-form/pages/BookingFormConfigPage.vue'
 import EmailTemplatesPage from '../modules/email-templates/pages/EmailTemplatesPage.vue'
 
@@ -57,6 +58,7 @@ const routes = [
     { path: '/mail-assistant', name: 'backoffice.mail-assistant', component: MailAssistantPage },
     { path: '/mail-logs', name: 'backoffice.mail-logs', component: MailLogsPage },
     { path: '/opening-hours', name: 'backoffice.opening-hours', component: OpeningHoursPage },
+    { path: '/display-skin', name: 'backoffice.display-skin', component: DisplaySkinPage },
     { path: '/booking-form', name: 'backoffice.booking-form', component: BookingFormConfigPage },
     { path: '/email-templates', name: 'backoffice.email-templates', component: EmailTemplatesPage },
 ]

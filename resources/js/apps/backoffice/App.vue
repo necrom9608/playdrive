@@ -38,6 +38,7 @@ import {
     SparklesIcon,
     TagIcon,
     TicketIcon,
+    TvIcon,
     UsersIcon,
 } from '@heroicons/vue/24/outline'
 import AppShell from '../../shared/layouts/AppShell.vue'
@@ -68,6 +69,7 @@ const navigation = [
     { label: 'Event types', to: '/event-types', group: 'Instellingen', icon: TagIcon },
     { label: 'Verblijfsopties', to: '/stay-options', group: 'Instellingen', icon: HomeModernIcon },
     { label: 'Openingsuren', to: '/opening-hours', group: 'Instellingen', icon: ClockIcon },
+    { label: 'Klantenscherm', to: '/display-skin', group: 'Instellingen', icon: TvIcon },
     { label: 'Reservatieformulier', to: '/booking-form', group: 'Instellingen', icon: DocumentTextIcon },
     { label: 'E-mailtemplates', to: '/email-templates', group: 'Instellingen', icon: EnvelopeOpenIcon },
     { label: 'Boekhouding', to: '/accounting', group: 'Instellingen', icon: BanknotesIcon },

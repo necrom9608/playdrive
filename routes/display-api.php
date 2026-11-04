@@ -3,11 +3,13 @@
 use App\Http\Controllers\Api\Display\DisplayDeviceController;
 use App\Http\Controllers\Api\Display\DisplaySyncController;
 use App\Http\Controllers\Api\Display\DisplayMemberController;
+use App\Http\Controllers\Api\Display\DisplaySkinController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api/display')->group(function () {
     Route::post('/bootstrap', [DisplayDeviceController::class, 'bootstrap']);
     Route::get('/state', [DisplayDeviceController::class, 'state']);
+    Route::get('/skin', [DisplaySkinController::class, 'show']);
 
     Route::post('/members', [DisplayMemberController::class, 'store']);
 
