@@ -135,9 +135,17 @@ class MemberAuthController extends Controller
     {
         $request->validate(['email' => ['required', 'email']]);
 
-        Password::broker('accounts')->sendResetLink(
-            ['email' => strtolower(trim($request->email))]
-        );
+        $email = strtolower(trim($request->email));
+
+        try {
+            Password::broker('accounts')->sendResetLink(['email' => $email]);
+        } catch (\Throwable $e) {
+            // Niet lekken of het adres bestaat; wel loggen zodat we het zien.
+            \Illuminate\Support\Facades\Log::error('Resetmail (member forgot-password) mislukt', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return response()->json([
             'message' => 'Als dit e-mailadres gekend is, ontvang je een resetlink.',

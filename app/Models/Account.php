@@ -66,4 +66,30 @@ class Account extends Authenticatable implements MustVerifyEmail
     {
         return trim($this->first_name . ' ' . $this->last_name);
     }
+
+    /**
+     * Eigen resetmail i.p.v. Laravels standaard ResetPassword-notificatie:
+     * die verwacht een route 'password.reset' die Playdrive niet heeft.
+     * De link wijst naar de member app, net als de uitnodigingsmail.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $resetUrl = url('/member#/reset-password?' . http_build_query([
+            'token' => $token,
+            'email' => $this->email,
+        ]));
+
+        $mailable = new \App\Mail\PasswordResetMail($this, $resetUrl);
+
+        \Illuminate\Support\Facades\Mail::to($this->email, $this->full_name)->send($mailable);
+
+        \App\Services\MailLogger::log(
+            toEmail:   $this->email,
+            subject:   'Stel een nieuw wachtwoord in voor je PlayDrive account',
+            toName:    $this->full_name,
+            accountId: $this->id,
+            mailType:  'password_reset',
+            htmlBody:  $mailable->render(),
+        );
+    }
 }
