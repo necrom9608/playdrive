@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Api\Member;
 
 use App\Domain\Arcade\ArcadeGames;
+use App\Domain\Games\GameArtwork;
 use App\Http\Controllers\Controller;
 use App\Models\ArcadeCard;
 use App\Models\ArcadePlay;
 use App\Models\ArcadePlayer;
 use App\Models\ArcadeScore;
 use App\Models\ArcadeSong;
+use App\Models\Setup;
 use App\Models\Tenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,6 +37,8 @@ class MemberArcadeController extends Controller
             ->whereIn('arcade_player_id', $ids)
             ->get(['id', 'game', 'song_id', 'chart', 'plays', 'is_new_best', 'played_at']);
 
+        $banners = $this->banners($tenant->id);
+
         // speelbeurten per game: speelteller van Asphyxia waar die bestaat, anders de historiek
         $perGame = [];
         foreach (ArcadeGames::GAMES as $game => $meta) {
@@ -53,6 +57,7 @@ class MemberArcadeController extends Controller
                 'plays'          => $count,
                 'charts'         => $gScores->count(),
                 'last_played_at' => $gScores->max('last_played_at')?->toIso8601String(),
+                'banner'         => $banners[$game] ?? null,
             ];
         }
         usort($perGame, fn ($a, $b) => $b['plays'] <=> $a['plays']);
@@ -94,7 +99,7 @@ class MemberArcadeController extends Controller
         return response()->json([
             'data' => [
                 'venue'   => ['slug' => $tenant->slug, 'name' => $tenant->display_name],
-                'games'   => ArcadeGames::all(),
+                'games'   => array_map(fn ($g) => [...$g, 'banner' => $banners[$g['key']] ?? null], ArcadeGames::all()),
                 'linked'  => $players->isNotEmpty(),
                 'players' => $players->map(fn (ArcadePlayer $p) => [
                     'id'             => $p->id,
@@ -226,6 +231,7 @@ class MemberArcadeController extends Controller
                     'artist'      => $song['artist'] ?? null,
                     'chart'       => $chart,
                     'level'       => $song['levels'][$chart] ?? null,
+                    'banner'      => $this->banners($tenant->id)[$game] ?? null,
                     'total'       => (clone $base)->count(),
                     'my_position' => $myPosition,
                     'my_score'    => $mine?->score,
@@ -381,6 +387,54 @@ class MemberArcadeController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Banner per Asphyxia-game: die van de speelplek (kast) in de venue waarvan de naam
+     * of de games bij de game passen, bv. speelplek "DANCERUSH STARDOM" → drs.
+     *
+     * @return array<string, array{url:string, ratio:float}>
+     */
+    private function banners(int $tenantId): array
+    {
+        static $cache = [];
+        if (isset($cache[$tenantId])) {
+            return $cache[$tenantId];
+        }
+
+        $patterns = [
+            'drs'       => ['dancerush', 'dance rush'],
+            'ddr'       => ['dance dance revolution', 'dancedancerevolution', 'ddr'],
+            'popn'      => ["pop'n", 'popn', 'pop n music'],
+            'sdvx'      => ['sound voltex', 'soundvoltex', 'sdvx'],
+            'nostalgia' => ['nostalgia'],
+        ];
+
+        $setups = Setup::query()
+            ->where('tenant_id', $tenantId)
+            ->where('status', '!=', Setup::STATUS_ARCHIVED)
+            ->whereNotNull('banner_path')
+            ->orderBy('sort_order')
+            ->get(['id', 'name', 'games', 'banner_path', 'banner_source', 'banner_ratio']);
+
+        $out = [];
+        foreach ($patterns as $game => $needles) {
+            foreach ($setups as $setup) {
+                $haystack = mb_strtolower($setup->name . ' ' . implode(' ', array_map(
+                    fn ($g) => is_array($g) ? implode(' ', $g) : (string) $g,
+                    (array) ($setup->games ?? [])
+                )));
+                $hit = collect($needles)->contains(fn ($n) => strlen($n) <= 4
+                    ? (bool) preg_match('/\b' . preg_quote($n, '/') . '\b/u', $haystack)
+                    : str_contains($haystack, $n));
+                if ($hit && ($banner = GameArtwork::bannerFor($setup))) {
+                    $out[$game] = ['url' => $banner['url'], 'ratio' => $banner['ratio']];
+                    break;
+                }
+            }
+        }
+
+        return $cache[$tenantId] = $out;
     }
 
     private function firstPlaces(int $tenantId, Collection $ids): int
