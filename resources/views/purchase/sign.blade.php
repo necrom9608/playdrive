@@ -409,6 +409,7 @@
                         if (first !== 'signature') { showStep(1); showError(err1, msg); return; }
                     }
                     if (r.status === 419) msg = 'De pagina stond te lang open. Herlaad de pagina en probeer opnieuw.';
+                    if (r.status === 429) msg = 'Even te veel pogingen. Wacht een minuutje en probeer dan opnieuw.';
                     showError(err2, msg);
                     return;
                 }

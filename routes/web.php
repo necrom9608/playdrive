@@ -39,18 +39,18 @@ Route::get('/s/{code}', [\App\Http\Controllers\Website\SetupLandingController::c
 $purchaseToken = '[A-Za-z0-9]{32,64}';
 Route::get('/borderel/{token}', [\App\Http\Controllers\Website\PurchaseSignController::class, 'show'])
     ->where('token', $purchaseToken)
-    ->middleware('throttle:60,1')
+    ->middleware('throttle:purchase-sign-view')
     ->name('purchase.sign');
 Route::post('/borderel/{token}', [\App\Http\Controllers\Website\PurchaseSignController::class, 'submit'])
     ->where('token', $purchaseToken)
-    ->middleware('throttle:10,1');
+    ->middleware('throttle:purchase-sign-submit');
 Route::get('/borderel/{token}/pdf', [\App\Http\Controllers\Website\PurchaseSignController::class, 'pdf'])
     ->where('token', $purchaseToken)
-    ->middleware('throttle:30,1');
+    ->middleware('throttle:purchase-sign-files');
 Route::get('/borderel/{token}/photos/{index}', [\App\Http\Controllers\Website\PurchaseSignController::class, 'photo'])
     ->where('token', $purchaseToken)
     ->whereNumber('index')
-    ->middleware('throttle:120,1');
+    ->middleware('throttle:purchase-sign-files');
 
 // Banners van games/speelplekken (Frontdesk → Zaal); ?v=<hash> wisselt bij een nieuw beeld.
 Route::get('/media/banners/{kind}/{id}', [\App\Http\Controllers\Website\BannerMediaController::class, 'show'])
