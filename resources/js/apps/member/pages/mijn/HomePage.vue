@@ -24,22 +24,6 @@
         <!-- Dashboard — met venues -->
         <template v-else-if="venue.activeVenue">
 
-            <!-- Sub-navigatie -->
-            <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-                <button
-                    v-for="tab in subTabs"
-                    :key="tab.to"
-                    class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-colors shrink-0"
-                    :class="route.path === tab.to
-                        ? 'bg-blue-500/20 border border-blue-500/30 text-blue-300'
-                        : 'bg-slate-800/50 border border-slate-700/40 text-slate-400'"
-                    @click="router.push(tab.to)"
-                >
-                    <component :is="tab.icon" class="w-3.5 h-3.5" />
-                    {{ tab.label }}
-                </button>
-            </div>
-
             <!-- Lidmaatschap kaart -->
             <button class="w-full text-left" @click="router.push('/mijn/lidmaatschap')">
                 <div class="glass-card rounded-3xl p-5 relative overflow-hidden">
@@ -62,6 +46,20 @@
                 </div>
             </button>
 
+            <!-- Snelle acties -->
+            <div class="grid grid-cols-4 gap-2">
+                <button
+                    v-for="action in quickActions"
+                    :key="action.label"
+                    class="glass-card rounded-2xl px-1 py-3.5 flex flex-col items-center gap-2 text-center"
+                    @click="router.push(action.to)"
+                >
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center" :class="action.color">
+                        <component :is="action.icon" class="w-5 h-5" />
+                    </div>
+                    <span class="text-[11px] text-slate-300 font-medium leading-tight">{{ action.label }}</span>
+                </button>
+            </div>
             <!-- Stats (arcade-scores) -->
             <button v-if="arcade" class="w-full text-left" @click="router.push('/mijn/stats')">
                 <div class="glass-card rounded-3xl overflow-hidden relative">
@@ -119,20 +117,6 @@
                 </div>
             </button>
 
-            <!-- Snelle acties -->
-            <div class="grid grid-cols-3 gap-3">
-                <button
-                    v-for="action in quickActions"
-                    :key="action.label"
-                    class="glass-card rounded-2xl p-4 flex flex-col items-center gap-2 text-center"
-                    @click="router.push(action.to)"
-                >
-                    <div class="w-9 h-9 rounded-xl flex items-center justify-center" :class="action.color">
-                        <component :is="action.icon" class="w-5 h-5" />
-                    </div>
-                    <span class="text-xs text-slate-300 font-medium leading-tight">{{ action.label }}</span>
-                </button>
-            </div>
         </template>
 
         <!-- Loading -->
@@ -146,7 +130,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import {
     MapPinIcon,
     QrCodeIcon,
@@ -163,7 +147,6 @@ import { useVenueStore } from '../../stores/useVenueStore'
 import StatusBadge from '../../components/StatusBadge.vue'
 
 const router = useRouter()
-const route = useRoute()
 const venue = useVenueStore()
 
 const membershipLabel = computed(() => {
@@ -173,17 +156,10 @@ const membershipLabel = computed(() => {
     return 'Bezoekersprofiel'
 })
 
-const subTabs = [
-    { to: '/mijn/lidmaatschap', label: 'Lidmaatschap', icon: IdentificationIcon },
-    { to: '/mijn/stats',        label: 'Stats',        icon: TrophyIcon },
-    { to: '/mijn/reservaties',  label: 'Reservaties',  icon: CalendarDaysIcon },
-    { to: '/mijn/tickets',      label: 'Tickets',      icon: TicketIcon },
-    { to: '/mijn/bonnen',       label: 'Bonnen',       icon: GiftIcon },
-]
-
 const quickActions = [
     { label: 'Stats',       to: '/mijn/stats',       icon: TrophyIcon,       color: 'bg-amber-500/15 border border-amber-500/25 text-amber-400' },
     { label: 'Reservaties', to: '/mijn/reservaties', icon: CalendarDaysIcon, color: 'bg-blue-500/15 border border-blue-500/25 text-blue-400' },
+    { label: 'Tickets',     to: '/mijn/tickets',     icon: TicketIcon,       color: 'bg-violet-500/15 border border-violet-500/25 text-violet-400' },
     { label: 'Bonnen',      to: '/mijn/bonnen',      icon: GiftIcon,         color: 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-400' },
 ]
 
