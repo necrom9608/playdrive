@@ -151,7 +151,6 @@
     </div>
 </div>
 
-<div class="hints"><kbd>D</kbd> toestel · <kbd>L</kbd> landscape · <kbd>R</kbd> herladen</div>
 
 <script>
 (() => {
@@ -168,7 +167,7 @@
         set(k, v) { try { localStorage.setItem('devframe.' + k, v) } catch {} },
     }
 
-    let app = @json($app)
+    let app = @json($app);
     let device = DEVICES[store.get('device')] ? store.get('device') : 'iphone'
     let landscape = store.get('landscape') === '1'
 
@@ -214,7 +213,7 @@
 
         btns.querySelectorAll('.btn').forEach(b => b.classList.toggle('active', b.dataset.device === device))
         $('btn-rotate').classList.toggle('active', landscape)
-        $('badge').textContent = `${APPS[app].label} · ${landscape ? d.h + '×' + d.w : d.w + '×' + d.h}`
+        $('badge').textContent = `${APPS[app].label} · ${landscape ? d.h + '×' + d.w : d.w + '×' + d.h}  ·  D toestel · L landscape · R herladen`
         fit()
     }
 
