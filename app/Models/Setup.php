@@ -32,6 +32,8 @@ class Setup extends Model
             'games'       => 'array',
             'max_players' => 'integer',
             'sort_order'  => 'integer',
+            'banner_ratio'      => 'float',
+            'banner_fetched_at' => 'datetime',
         ];
     }
 

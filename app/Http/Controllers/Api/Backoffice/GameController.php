@@ -330,6 +330,7 @@ class GameController extends Controller
             'external_id'       => $game->external_id,
             'name'              => $game->name,
             'cover_url'         => $game->coverUrl(),
+            ...BannerController::bannerPayload($game),
             'categories'        => $game->categories->pluck('id')->values(),
             'local_players_max' => $game->local_players_max,
             'lan_multiplayer'   => $game->lan_multiplayer,

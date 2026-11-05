@@ -52,5 +52,11 @@ Route::get('/borderel/{token}/photos/{index}', [\App\Http\Controllers\Website\Pu
     ->whereNumber('index')
     ->middleware('throttle:120,1');
 
+// Banners van games/speelplekken (Frontdesk → Zaal); ?v=<hash> wisselt bij een nieuw beeld.
+Route::get('/media/banners/{kind}/{id}', [\App\Http\Controllers\Website\BannerMediaController::class, 'show'])
+    ->whereIn('kind', ['game', 'setup'])
+    ->whereNumber('id')
+    ->middleware('throttle:600,1');
+
 // Website — catch-all op / — moet als laatste staan
 Route::group([], base_path('routes/website.php'));

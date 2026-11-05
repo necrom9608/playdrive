@@ -86,6 +86,15 @@
                         class="flex flex-col rounded-3xl border bg-slate-900/80 p-5 shadow-xl shadow-slate-950/20"
                         :class="setup.status === 'archived' ? 'border-slate-800 opacity-60' : 'border-slate-800'"
                     >
+                        <button
+                            v-if="setup.banner_url"
+                            type="button"
+                            class="-mx-5 -mt-5 mb-4 block h-24 overflow-hidden rounded-t-3xl border-b border-slate-800 bg-slate-950"
+                            title="Banner wijzigen"
+                            @click="openBanner(setup)"
+                        >
+                            <img :src="setup.banner_url" alt="" loading="lazy" class="h-full w-full" :class="Number(setup.banner_ratio) > 2.6 ? 'object-contain bg-black' : 'object-cover'" />
+                        </button>
                         <div class="flex items-start gap-4">
                             <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-700 bg-slate-950">
                                 <component :is="typeIcon(setup.type)" class="h-6 w-6 text-sky-300" />
@@ -122,6 +131,9 @@
                             </button>
                             <button type="button" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 transition hover:bg-slate-800" @click="openSetupForm(setup)">
                                 <PencilSquareIcon class="h-4 w-4" /> Bewerken
+                            </button>
+                            <button type="button" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 transition hover:bg-slate-800" @click="openBanner(setup)">
+                                <PhotoIcon class="h-4 w-4" /> Banner
                             </button>
                         </div>
                     </article>
@@ -275,6 +287,17 @@
             @updated="(d) => (devices = devices.map((x) => (x.id === d.id ? d : x)))"
         />
 
+        <BannerPickerModal
+            :open="bannerPicker.open"
+            :name="bannerPicker.setup?.name || ''"
+            :endpoint="bannerPicker.setup ? `/api/backoffice/setups/${bannerPicker.setup.id}/banner` : '/api/backoffice/setups/0/banner'"
+            :banner="bannerPicker.setup || {}"
+            :default-query="bannerPicker.setup?.games?.[0] || bannerPicker.setup?.name || ''"
+            :show-mame="bannerPicker.setup?.type === 'arcade' || bannerPicker.setup?.type === 'pinball'"
+            @close="bannerPicker.open = false"
+            @updated="onBannerUpdated"
+        />
+
         <SetupQrModal
             :open="qr.open"
             :setup="qr.setup"
@@ -295,6 +318,7 @@ import {
     LinkIcon,
     LockClosedIcon,
     PencilSquareIcon,
+    PhotoIcon,
     PlusIcon,
     PuzzlePieceIcon,
     QrCodeIcon,
@@ -307,6 +331,7 @@ import DeviceControlModal from '../components/DeviceControlModal.vue'
 import SetupQrModal from '../components/SetupQrModal.vue'
 import DeviceGroupsPanel from '../components/DeviceGroupsPanel.vue'
 import PowerPanel from '../components/PowerPanel.vue'
+import BannerPickerModal from '../../../components/BannerPickerModal.vue'
 import {
     claimVenueDevice,
     createSetup,
@@ -480,6 +505,21 @@ async function removeSetup() {
     } finally {
         saving.value = false
     }
+}
+
+// Banner voor Frontdesk → Zaal: marquee van een arcadekast, foto van een couch-setup, ...
+const bannerPicker = reactive({ open: false, setup: null })
+
+function openBanner(setup) {
+    bannerPicker.setup = setup
+    bannerPicker.open = true
+}
+
+function onBannerUpdated(payload) {
+    const id = bannerPicker.setup?.id
+    if (!id) return
+    setups.value = setups.value.map(s => (s.id === id ? { ...s, ...payload } : s))
+    bannerPicker.setup = setups.value.find(s => s.id === id) ?? bannerPicker.setup
 }
 
 function openQr(setup) {

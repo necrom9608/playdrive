@@ -1,5 +1,7 @@
 <?php
 
+use App\Domain\Games\GameArtwork;
+use App\Models\Game;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -31,3 +33,26 @@ Schedule::command('mail-assistant:fetch')
     ->everyTwoMinutes()
     ->withoutOverlapping(15)
     ->runInBackground();
+
+// Banners voor Frontdesk → Zaal ophalen voor bestaande games (eigen uploads blijven staan).
+//   php artisan games:banners --tenant=1          enkel games zonder banner die nog nooit gezocht werden
+//   php artisan games:banners --tenant=1 --force  alles opnieuw (behalve uploads en bewust verwijderde)
+Artisan::command('games:banners {--tenant=} {--force}', function (GameArtwork $artwork) {
+    $force = (bool) $this->option('force');
+    $games = Game::query()
+        ->when($this->option('tenant'), fn ($q, $t) => $q->where('tenant_id', (int) $t))
+        ->where(fn ($q) => $q->whereNull('banner_source')->orWhereNotIn('banner_source', ['upload', 'removed']))
+        ->when(! $force, fn ($q) => $q->whereNull('banner_path')->whereNull('banner_fetched_at'))
+        ->orderBy('id')
+        ->get();
+
+    $counts = [];
+    foreach ($games as $game) {
+        $status = $artwork->auto($game, $force);
+        $counts[$status] = ($counts[$status] ?? 0) + 1;
+        $this->line(sprintf('%-10s %s', $status, $game->name));
+        usleep(200_000);
+    }
+
+    $this->info(collect($counts)->map(fn ($n, $k) => "{$k}: {$n}")->implode(' · ') ?: 'Niets te doen.');
+})->purpose('Banners ophalen voor de Zaal-tegels');

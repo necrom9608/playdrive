@@ -38,6 +38,8 @@ class Game extends Model
             'metadata'            => 'array',
             'metadata_fetched_at' => 'datetime',
             'auto_fields'         => 'array',
+            'banner_ratio'        => 'float',
+            'banner_fetched_at'   => 'datetime',
         ];
     }
 

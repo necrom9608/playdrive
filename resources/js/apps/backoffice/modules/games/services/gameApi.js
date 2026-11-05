@@ -19,6 +19,10 @@ export function markAllGamesReviewed() {
 export function fetchGameMetadata(payload = {}) {
     return apiFetch(`${BASE}/games/fetch-metadata`, { method: 'POST', body: JSON.stringify(payload) })
 }
+/** Banners voor de Zaal automatisch zoeken voor een stukje games → {processed, remaining, last_id, games} */
+export function fetchGameBanners(payload = {}) {
+    return apiFetch(`${BASE}/games/fetch-banners`, { method: 'POST', body: JSON.stringify(payload) })
+}
 export function deleteGame(id) {
     return apiFetch(`${BASE}/games/${id}`, { method: 'DELETE' })
 }

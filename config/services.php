@@ -46,6 +46,12 @@ return [
         'client_secret' => env('IGDB_CLIENT_SECRET'),
     ],
 
+    // Banners voor Frontdesk → Zaal (TeknoParrot en andere niet-Steam-games): gratis key via
+    // https://www.steamgriddb.com/profile/preferences/api
+    'steamgriddb' => [
+        'key' => env('STEAMGRIDDB_API_KEY'),
+    ],
+
     // Klantenscherm: filmpjes verkleinen
     'ffmpeg' => [
         'path' => env('FFMPEG_PATH'),

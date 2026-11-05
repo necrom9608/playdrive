@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Frontdesk;
 
+use App\Domain\Games\GameArtwork;
 use App\Domain\Setups\DeviceAdminPin;
 use App\Domain\Setups\DeviceCommands;
 use App\Domain\Setups\DeviceRotation;
@@ -72,8 +73,14 @@ class FloorController extends Controller
             ->orderBy('name')
             ->get();
 
+        // Games op naam, om bij een spelende pc de banner van de game te vinden (Playscope meldt de naam).
+        $gamesByName = Game::query()
+            ->where('tenant_id', $tenantId)
+            ->get(['id', 'tenant_id', 'name', 'source', 'external_id', 'banner_path', 'banner_source', 'banner_ratio'])
+            ->keyBy(fn (Game $g) => mb_strtolower(trim($g->name)));
+
         return response()->json([
-            'setups'        => $setups->map(fn (Setup $s) => $this->setupArray($s, $plugs->get($s->id, collect())))->values(),
+            'setups'        => $setups->map(fn (Setup $s) => $this->setupArray($s, $plugs->get($s->id, collect()), $gamesByName))->values(),
             'groups'        => $groups->map(fn (DeviceGroup $g) => $this->groupArray($g, $members))->values(),
             'admin_pin_set' => filled($currentTenant->tenant?->device_admin_pin),
             'server_time'   => now()->toIso8601String(),
@@ -218,12 +225,20 @@ class FloorController extends Controller
 
     // ---------------------------------------------------------------- hulpjes
 
-    private function setupArray(Setup $setup, Collection $plugs): array
+    private function setupArray(Setup $setup, Collection $plugs, ?Collection $gamesByName = null): array
     {
         $devices = $setup->devices;
         $playscope = $devices->where('type', 'playscope')->values();
         $live = $playscope->first(fn (VenueDevice $d) => $d->isOnline() && ($d->state['status'] ?? null) === 'playing');
         $grouped = $playscope->isNotEmpty() && $playscope->every(fn (VenueDevice $d) => $d->device_group_id);
+
+        // Banner: de game die nu speelt, anders het eigen beeld van de speelplek (marquee, foto).
+        $banner = null;
+        $liveGame = $live?->state['game'] ?? null;
+        if ($liveGame && $gamesByName && ($game = $gamesByName->get(mb_strtolower(trim((string) $liveGame))))) {
+            $banner = GameArtwork::bannerFor($game);
+        }
+        $banner ??= GameArtwork::bannerFor($setup);
 
         return [
             'id'           => $setup->id,
@@ -236,6 +251,7 @@ class FloorController extends Controller
             'in_use'       => (bool) $live,
             'current_game' => $live?->state['game'] ?? null,
             'playing_since'=> $live?->state['since'] ?? null,
+            'banner'       => $banner,
             'group_id'     => $grouped ? (int) $playscope->first()->device_group_id : null,
             'devices'      => $devices->map(fn (VenueDevice $d) => [
                 'id'              => $d->id,

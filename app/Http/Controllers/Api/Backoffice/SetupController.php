@@ -192,6 +192,7 @@ class SetupController extends Controller
             'sort_order'  => (int) $setup->sort_order,
             'in_use'      => (bool) $live,
             'current_game'=> $live?->state['game'] ?? null,
+            ...BannerController::bannerPayload($setup),
             'devices'     => $devices->map(fn (VenueDevice $d) => [
                 'id'     => $d->id,
                 'name'   => $d->name,

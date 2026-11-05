@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\Backoffice\SetupController;
 use App\Http\Controllers\Api\Backoffice\VenueDeviceCommandController;
 use App\Http\Controllers\Api\Backoffice\VenueDeviceController;
 use App\Http\Controllers\Api\Backoffice\GameController;
+use App\Http\Controllers\Api\Backoffice\BannerController;
 use App\Http\Controllers\Api\Backoffice\AnalyticsController;
 use App\Http\Controllers\Api\Backoffice\DayTotalsController;
 use App\Http\Controllers\Api\Backoffice\DisplaySkinController;
@@ -155,7 +156,15 @@ Route::prefix('api/backoffice')->group(function () {
         Route::get('/games/summary', [GameController::class, 'summary']);
         Route::post('/games/mark-all-reviewed', [GameController::class, 'markAllReviewed']);
         Route::post('/games/fetch-metadata', [GameController::class, 'fetchMetadata']);
+        Route::post('/games/fetch-banners', [BannerController::class, 'fetchGames']);
         Route::put('/games/{game}', [GameController::class, 'update']);
+        // Banners voor Frontdesk → Zaal (Steam / SteamGridDB / Arcade Database / upload)
+        Route::get('/games/{game}/banner/candidates', [BannerController::class, 'gameCandidates']);
+        Route::post('/games/{game}/banner', [BannerController::class, 'storeGame']);
+        Route::delete('/games/{game}/banner', [BannerController::class, 'destroyGame']);
+        Route::get('/setups/{setup}/banner/candidates', [BannerController::class, 'setupCandidates']);
+        Route::post('/setups/{setup}/banner', [BannerController::class, 'storeSetup']);
+        Route::delete('/setups/{setup}/banner', [BannerController::class, 'destroySetup']);
         Route::delete('/games/{game}', [GameController::class, 'destroy']);
         Route::post('/game-categories', [GameController::class, 'storeCategory']);
         Route::post('/game-categories/reorder', [GameController::class, 'reorderCategories']);

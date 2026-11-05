@@ -23,6 +23,18 @@
                     <template v-else-if="pendingMeta">Gegevens ophalen ({{ pendingMeta }})</template>
                     <template v-else>Opnieuw ophalen</template>
                 </button>
+                <button
+                    v-if="pendingBanners || bannerFetch.busy"
+                    type="button"
+                    :disabled="bannerFetch.busy"
+                    title="Banners voor de Zaal-tegels zoeken (Steam, SteamGridDB). Eigen uploads blijven staan."
+                    class="inline-flex items-center gap-2 rounded-2xl border border-sky-500/40 bg-sky-500/10 px-4 py-3 text-sm font-semibold text-sky-100 transition hover:bg-sky-500/20 disabled:opacity-70"
+                    @click="fetchBanners"
+                >
+                    <PhotoIcon class="h-5 w-5" :class="{ 'animate-pulse': bannerFetch.busy }" />
+                    <template v-if="bannerFetch.busy">Banners… {{ bannerFetch.done }}/{{ bannerFetch.total }}</template>
+                    <template v-else>Banners ophalen ({{ pendingBanners }})</template>
+                </button>
                 <button type="button" class="inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-800" @click="load">
                     <ArrowPathIcon class="h-5 w-5" /> Vernieuwen
                 </button>
@@ -100,9 +112,26 @@
                     :class="g.is_hidden ? 'opacity-50' : ''"
                 >
                     <!-- Cover -->
-                    <div class="relative h-14 w-[150px] overflow-hidden rounded-xl border border-slate-800" :style="{ background: fallbackBg(g) }">
-                        <img v-if="g.cover_url && !brokenCovers.has(g.id)" :src="g.cover_url" alt="" loading="lazy" class="h-full w-full object-cover" @error="brokenCovers.add(g.id)" />
-                    </div>
+                    <button
+                        type="button"
+                        class="group relative h-14 w-[150px] overflow-hidden rounded-xl border border-slate-800 transition hover:border-slate-500"
+                        :style="{ background: fallbackBg(g) }"
+                        :title="g.banner_stored ? 'Banner wijzigen' : 'Banner kiezen voor de Zaal'"
+                        @click="openBanner(g)"
+                    >
+                        <img
+                            v-if="(g.banner_url || g.cover_url) && !brokenCovers.has(g.id)"
+                            :src="g.banner_url || g.cover_url"
+                            alt=""
+                            loading="lazy"
+                            class="h-full w-full"
+                            :class="Number(g.banner_ratio) > 2.6 ? 'object-contain bg-black' : 'object-cover'"
+                            @error="brokenCovers.add(g.id)"
+                        />
+                        <span class="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-slate-950/80 py-0.5 text-[10px] font-semibold text-slate-200 opacity-0 transition group-hover:opacity-100">
+                            <PhotoIcon class="h-3 w-3" /> Banner
+                        </span>
+                    </button>
 
                     <!-- Naam -->
                     <div class="min-w-0">
@@ -255,6 +284,16 @@
                 </form>
             </div>
         </template>
+        <BannerPickerModal
+            :open="banner.open"
+            :name="banner.game?.name || ''"
+            :endpoint="banner.game ? `/api/backoffice/games/${banner.game.id}/banner` : '/api/backoffice/games/0/banner'"
+            :banner="banner.game || {}"
+            :default-query="banner.game?.name || ''"
+            :show-mame="banner.game?.source === 'teknoparrot'"
+            @close="banner.open = false"
+            @updated="onBannerUpdated"
+        />
     </div>
 </template>
 
@@ -268,6 +307,7 @@ import {
     EyeIcon,
     EyeSlashIcon,
     MagnifyingGlassIcon,
+    PhotoIcon,
     PlusIcon,
     PuzzlePieceIcon,
     SparklesIcon,
@@ -275,11 +315,13 @@ import {
     TrashIcon,
 } from '@heroicons/vue/24/outline'
 import { StarIcon as StarSolidIcon } from '@heroicons/vue/24/solid'
+import BannerPickerModal from '../../../components/BannerPickerModal.vue'
 import {
     announceNewGamesCount,
     createGameCategory,
     deleteGame,
     deleteGameCategory,
+    fetchGameBanners,
     fetchGameMetadata,
     fetchGames,
     markAllGamesReviewed,
@@ -374,6 +416,45 @@ async function fetchMeta(force = false) {
     } finally {
         meta.busy = false
         await load({ silent: true })
+    }
+}
+
+// ── Banners voor Frontdesk → Zaal ──────────────────────────────────────
+const banner = reactive({ open: false, game: null })
+const bannerFetch = reactive({ busy: false, done: 0, total: 0 })
+const pendingBanners = computed(() => games.value.filter(g => !g.banner_stored && !g.banner_checked && !g.banner_source).length)
+
+function openBanner(game) {
+    banner.game = game
+    banner.open = true
+}
+
+function onBannerUpdated(payload) {
+    if (!banner.game) return
+    Object.assign(banner.game, payload)
+    brokenCovers.delete(banner.game.id)
+}
+
+async function fetchBanners() {
+    bannerFetch.busy = true
+    bannerFetch.done = 0
+    bannerFetch.total = pendingBanners.value
+    let afterId = 0
+    error.value = ''
+    try {
+        for (;;) {
+            const res = await fetchGameBanners({ after_id: afterId })
+            const fresh = new Map((res.games ?? []).map(g => [g.id, g]))
+            games.value = games.value.map(g => (fresh.has(g.id) ? { ...g, ...fresh.get(g.id) } : g))
+            bannerFetch.done += res.processed ?? 0
+            bannerFetch.total = Math.max(bannerFetch.total, bannerFetch.done + (res.remaining ?? 0))
+            afterId = res.last_id ?? afterId
+            if (!res.remaining || !res.processed) break
+        }
+    } catch (e) {
+        error.value = e.message || 'Banners ophalen mislukt.'
+    } finally {
+        bannerFetch.busy = false
     }
 }
 
