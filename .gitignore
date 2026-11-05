@@ -43,3 +43,6 @@ desktop/*.log
 
 # Claude Code: tijdelijke git-worktrees (eigen repo, niet meecommitten)
 /.claude/worktrees/
+
+# Mockups en schermafbeeldingen van Claude (lokaal, niet meecommitten)
+/Claude outputs/
