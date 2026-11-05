@@ -2,10 +2,18 @@
 
 use Illuminate\Support\Facades\Route;
 
-// Dev frame — enkel buiten productie beschikbaar
-if (! app()->isProduction()) {
-    Route::get('/_devframe/member', fn () => view('devframe.member'))->name('devframe.member');
-}
+// Telefoonweergave om de mobiele apps in de browser te testen: /_devframe/member, /_devframe/staff
+// Ook live beschikbaar: het is enkel een kader rond de gewone app (geen data, noindex).
+Route::get('/_devframe/{app?}', function (string $app = 'member') {
+    $apps = [
+        'member' => ['label' => 'Member app', 'path' => '/member#/mijn'],
+        'staff'  => ['label' => 'Staff app',  'path' => '/staff'],
+    ];
+
+    return response()
+        ->view('devframe.phone', ['apps' => $apps, 'app' => $app])
+        ->header('X-Robots-Tag', 'noindex, nofollow');
+})->whereIn('app', ['member', 'staff'])->name('devframe');
 
 // PWA manifest routes met correcte Content-Type header
 Route::get('/staff.webmanifest', function () {
