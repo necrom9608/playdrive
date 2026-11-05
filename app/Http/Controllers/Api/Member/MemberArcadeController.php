@@ -101,6 +101,7 @@ class MemberArcadeController extends Controller
                 'venue'   => ['slug' => $tenant->slug, 'name' => $tenant->display_name],
                 'games'   => array_map(fn ($g) => [...$g, 'banner' => $banners[$g['key']] ?? null], ArcadeGames::all()),
                 'linked'  => $players->isNotEmpty(),
+                'has_arcade' => \App\Models\ArcadeSource::query()->where('tenant_id', $tenant->id)->where('is_active', true)->exists(),
                 'players' => $players->map(fn (ArcadePlayer $p) => [
                     'id'             => $p->id,
                     'name'           => $p->displayName(),
