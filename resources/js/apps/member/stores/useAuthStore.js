@@ -48,11 +48,15 @@ export const useAuthStore = defineStore('auth', () => {
         return await api.post('/auth/forgot-password', { email })
     }
 
+    async function resetPassword(payload) {
+        return await api.post('/auth/reset-password', payload)
+    }
+
     async function updateProfile(payload) {
         const { data } = await api.put('/profile', payload)
         account.value = data
         return data
     }
 
-    return { account, initialized, isAuthenticated, initialize, login, register, logout, forgotPassword, updateProfile }
+    return { account, initialized, isAuthenticated, initialize, login, register, logout, forgotPassword, resetPassword, updateProfile }
 })

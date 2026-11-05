@@ -21,6 +21,12 @@ const routes = [
         component: () => import('../pages/auth/ForgotPasswordPage.vue'),
         meta: { layout: 'auth' },
     },
+    {
+        path: '/reset-password',
+        name: 'reset-password',
+        component: () => import('../pages/auth/ResetPasswordPage.vue'),
+        meta: { layout: 'auth' },
+    },
 
     // App — Mijn PlayDrive
     {
@@ -78,6 +84,12 @@ const routes = [
         name: 'profiel',
         component: () => import('../pages/profiel/ProfielPage.vue'),
         meta: { layout: 'app', requiresAuth: true },
+    },
+
+    // Onbekende route → geen lege pagina, maar terug naar start
+    {
+        path: '/:pathMatch(.*)*',
+        redirect: '/mijn',
     },
 ]
 
