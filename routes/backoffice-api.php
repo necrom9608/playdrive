@@ -162,6 +162,7 @@ Route::prefix('api/backoffice')->group(function () {
         Route::get('/games/{game}/banner/candidates', [BannerController::class, 'gameCandidates']);
         Route::post('/games/{game}/banner', [BannerController::class, 'storeGame']);
         Route::delete('/games/{game}/banner', [BannerController::class, 'destroyGame']);
+        Route::post('/setups/auto-banners', [BannerController::class, 'autoSetups']);
         Route::get('/setups/{setup}/banner/candidates', [BannerController::class, 'setupCandidates']);
         Route::post('/setups/{setup}/banner', [BannerController::class, 'storeSetup']);
         Route::delete('/setups/{setup}/banner', [BannerController::class, 'destroySetup']);

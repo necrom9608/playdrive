@@ -40,6 +40,7 @@ class Game extends Model
             'auto_fields'         => 'array',
             'banner_ratio'        => 'float',
             'banner_fetched_at'   => 'datetime',
+            'banner_manual'       => 'boolean',
         ];
     }
 

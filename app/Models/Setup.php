@@ -23,7 +23,7 @@ class Setup extends Model
 
     protected $fillable = [
         'tenant_id', 'name', 'type', 'zone', 'description', 'games',
-        'max_players', 'status', 'qr_code', 'sort_order',
+        'max_players', 'status', 'qr_code', 'sort_order', 'mame_name',
     ];
 
     protected function casts(): array
@@ -34,6 +34,7 @@ class Setup extends Model
             'sort_order'  => 'integer',
             'banner_ratio'      => 'float',
             'banner_fetched_at' => 'datetime',
+            'banner_manual'     => 'boolean',
         ];
     }
 

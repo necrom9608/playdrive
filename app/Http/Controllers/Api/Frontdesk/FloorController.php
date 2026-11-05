@@ -14,6 +14,7 @@ use App\Models\PowerPlug;
 use App\Models\Setup;
 use App\Models\VenueDevice;
 use App\Models\VenueDeviceCommand;
+use App\Models\VenueDeviceGameSession;
 use App\Support\CurrentTenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -78,9 +79,35 @@ class FloorController extends Controller
             ->where('tenant_id', $tenantId)
             ->get(['id', 'tenant_id', 'name', 'source', 'external_id', 'banner_path', 'banner_source', 'banner_ratio'])
             ->keyBy(fn (Game $g) => mb_strtolower(trim($g->name)));
+        $gamesById = $gamesByName->keyBy('id');
+
+        // Laatst gespeelde game per speelplek (laatste 30 dagen), voor de banner als er niets speelt.
+        $deviceSetup = collect();
+        foreach ($setups as $s) {
+            foreach ($s->devices->where('type', 'playscope') as $d) {
+                $deviceSetup[$d->id] = $s->id;   // toestel-id → speelplek-id
+            }
+        }
+        $lastPlayed = collect();
+        if ($deviceSetup->isNotEmpty()) {
+            $lastPlayed = VenueDeviceGameSession::query()
+                ->where('tenant_id', $tenantId)
+                ->whereIn('venue_device_id', $deviceSetup->keys())
+                ->where('ended_at', '>=', now()->subDays(30))
+                ->orderByDesc('ended_at')
+                ->limit(500)
+                ->get(['venue_device_id', 'game_id', 'game_name', 'ended_at'])
+                ->unique(fn (VenueDeviceGameSession $s) => $deviceSetup[$s->venue_device_id])
+                ->keyBy(fn (VenueDeviceGameSession $s) => $deviceSetup[$s->venue_device_id]);
+        }
 
         return response()->json([
-            'setups'        => $setups->map(fn (Setup $s) => $this->setupArray($s, $plugs->get($s->id, collect()), $gamesByName))->values(),
+            'setups'        => $setups->map(fn (Setup $s) => $this->setupArray(
+                $s,
+                $plugs->get($s->id, collect()),
+                $gamesByName,
+                $this->lastPlayedBanner($lastPlayed->get($s->id), $gamesById, $gamesByName)
+            ))->values(),
             'groups'        => $groups->map(fn (DeviceGroup $g) => $this->groupArray($g, $members))->values(),
             'admin_pin_set' => filled($currentTenant->tenant?->device_admin_pin),
             'server_time'   => now()->toIso8601String(),
@@ -225,20 +252,37 @@ class FloorController extends Controller
 
     // ---------------------------------------------------------------- hulpjes
 
-    private function setupArray(Setup $setup, Collection $plugs, ?Collection $gamesByName = null): array
+    /** Banner van de laatst gespeelde game, met de naam erbij ("Laatst: …" op de tegel). */
+    private function lastPlayedBanner(?VenueDeviceGameSession $session, Collection $gamesById, Collection $gamesByName): ?array
+    {
+        if (! $session) {
+            return null;
+        }
+
+        $game = ($session->game_id ? $gamesById->get($session->game_id) : null)
+            ?? $gamesByName->get(mb_strtolower(trim((string) $session->game_name)));
+        $banner = $game ? GameArtwork::bannerFor($game) : null;
+
+        return $banner ? [...$banner, 'last_played' => $game->name ?: $session->game_name] : null;
+    }
+
+    private function setupArray(Setup $setup, Collection $plugs, ?Collection $gamesByName = null, ?array $lastPlayedBanner = null): array
     {
         $devices = $setup->devices;
         $playscope = $devices->where('type', 'playscope')->values();
         $live = $playscope->first(fn (VenueDevice $d) => $d->isOnline() && ($d->state['status'] ?? null) === 'playing');
         $grouped = $playscope->isNotEmpty() && $playscope->every(fn (VenueDevice $d) => $d->device_group_id);
 
-        // Banner: de game die nu speelt, anders het eigen beeld van de speelplek (marquee, foto).
+        // Banner: de game die nu speelt, anders het eigen beeld van de speelplek (marquee, foto),
+        // anders de laatst gespeelde game.
         $banner = null;
         $liveGame = $live?->state['game'] ?? null;
         if ($liveGame && $gamesByName && ($game = $gamesByName->get(mb_strtolower(trim((string) $liveGame))))) {
             $banner = GameArtwork::bannerFor($game);
         }
         $banner ??= GameArtwork::bannerFor($setup);
+        // Niets aan het spelen en geen eigen beeld: de game die hier laatst speelde.
+        $banner ??= $lastPlayedBanner;
 
         return [
             'id'           => $setup->id,

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Backoffice;
 
 use App\Domain\Setups\SetupTypes;
 use App\Http\Controllers\Controller;
+use App\Jobs\FetchSetupBanner;
 use App\Models\Setup;
 use App\Models\VenueDevice;
 use App\Support\CurrentTenant;
@@ -52,6 +53,8 @@ class SetupController extends Controller
             'sort_order' => $nextSort + 1,
         ]);
 
+        FetchSetupBanner::dispatchAfterResponse($setup->id);
+
         return response()->json($this->map($setup->load('devices')), 201);
     }
 
@@ -65,7 +68,17 @@ class SetupController extends Controller
             ...$data,
             'games'  => $this->cleanGames($data['games'] ?? []),
             'status' => $data['status'] ?? $setup->status,
-        ])->save();
+        ]);
+
+        // Banner opnieuw zoeken als bepaalt wat er gezocht wordt verandert (zelf gekozen banners blijven staan).
+        $searchChanged = $setup->isDirty(['name', 'type', 'mame_name'])
+            || (collect($setup->getOriginal('games') ?? [])->first() !== collect($setup->games ?? [])->first());
+
+        $setup->save();
+
+        if ($searchChanged && ! $setup->banner_manual) {
+            FetchSetupBanner::dispatchAfterResponse($setup->id);
+        }
 
         return response()->json($this->map($setup->fresh('devices')));
     }
@@ -150,7 +163,7 @@ class SetupController extends Controller
 
     private function validateSetup(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'name'        => ['required', 'string', 'max:255'],
             'type'        => ['required', 'string', Rule::in(SetupTypes::keys())],
             'zone'        => ['nullable', 'string', 'max:100'],
@@ -158,8 +171,17 @@ class SetupController extends Controller
             'games'       => ['nullable', 'array', 'max:500'],
             'games.*'     => ['nullable', 'string', 'max:255'],
             'max_players' => ['nullable', 'integer', 'min:1', 'max:64'],
+            'mame_name'   => ['nullable', 'string', 'max:32', 'regex:/^[A-Za-z0-9_]+$/'],
             'status'      => ['nullable', 'string', Rule::in(array_keys(SetupTypes::STATUSES))],
+        ], [
+            'mame_name.regex' => 'Een MAME-romnaam bestaat enkel uit letters, cijfers en _ (bv. motoxgo).',
         ]);
+
+        if (array_key_exists('mame_name', $data)) {
+            $data['mame_name'] = filled($data['mame_name']) ? strtolower(trim($data['mame_name'])) : null;
+        }
+
+        return $data;
     }
 
     private function cleanGames(array $games): array
@@ -186,6 +208,7 @@ class SetupController extends Controller
             'description' => $setup->description,
             'games'       => $setup->games ?? [],
             'max_players' => $setup->max_players,
+            'mame_name'   => $setup->mame_name,
             'status'      => $setup->status,
             'qr_code'     => $setup->qr_code,
             'qr_url'      => $setup->qrUrl(),

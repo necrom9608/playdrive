@@ -9,6 +9,10 @@ export function fetchSetups() {
 export function createSetup(payload) {
     return apiFetch(`${BASE}/setups`, { method: 'POST', body: JSON.stringify(payload) })
 }
+/** Banners automatisch zoeken voor een stukje speelplekken → {processed, remaining, last_id, statuses, setups} */
+export function autoSetupBanners(payload = {}) {
+    return apiFetch(`${BASE}/setups/auto-banners`, { method: 'POST', body: JSON.stringify(payload) })
+}
 export function updateSetup(id, payload) {
     return apiFetch(`${BASE}/setups/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
 }

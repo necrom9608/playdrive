@@ -19,6 +19,7 @@ use Illuminate\Validation\Rule;
  *   POST   /games/{game}/banner                        {url, source} of multipart "file"
  *   DELETE /games/{game}/banner
  *   POST   /games/fetch-banners                        {force?, after_id?}  stukje games automatisch
+ *   POST   /setups/auto-banners                        {force?, after_id?}  stukje speelplekken automatisch
  *   ... en hetzelfde voor /setups/{setup}/banner
  */
 class BannerController extends Controller
@@ -69,6 +70,7 @@ class BannerController extends Controller
 
         $base = fn () => Game::query()
             ->where('tenant_id', $currentTenant->id())
+            ->where('banner_manual', false)
             ->where(fn ($q) => $q->whereNull('banner_source')->orWhereNotIn('banner_source', ['upload', 'removed']))
             ->when(! $force, fn ($q) => $q->whereNull('banner_path')->whereNull('banner_fetched_at'))
             ->where('id', '>', $afterId);
@@ -96,6 +98,48 @@ class BannerController extends Controller
 
     // ---------------------------------------------------------------- speelplekken
 
+    /** Automatisch banners zoeken voor een stukje speelplekken ("Alles automatisch"). */
+    public function autoSetups(Request $request, CurrentTenant $currentTenant): JsonResponse
+    {
+        abort_unless($currentTenant->exists(), 404, 'Geen geldige tenant gevonden.');
+        @set_time_limit(180);
+
+        $data = $request->validate([
+            'force'    => ['sometimes', 'boolean'],
+            'after_id' => ['sometimes', 'integer', 'min:0'],
+        ]);
+
+        $force = (bool) ($data['force'] ?? false);
+        $afterId = (int) ($data['after_id'] ?? 0);
+
+        $base = fn () => Setup::query()
+            ->where('tenant_id', $currentTenant->id())
+            ->where('status', '!=', Setup::STATUS_ARCHIVED)
+            ->where('banner_manual', false)
+            ->where(fn ($q) => $q->whereNull('banner_source')->orWhereNotIn('banner_source', ['upload', 'removed']))
+            ->when(! $force, fn ($q) => $q->whereNull('banner_path'))
+            ->where('id', '>', $afterId);
+
+        $batch = $base()->orderBy('id')->limit(3)->get();
+
+        $statuses = [];
+        foreach ($batch as $setup) {
+            $status = $this->artwork->autoSetup($setup, $force);
+            $statuses[$status] = ($statuses[$status] ?? 0) + 1;
+        }
+
+        $lastId = (int) ($batch->last()?->id ?? $afterId);
+
+        return response()->json([
+            'processed' => $batch->count(),
+            'statuses'  => $statuses,
+            'remaining' => $base()->where('id', '>', $lastId)->count(),
+            'last_id'   => $lastId,
+            'setups'    => Setup::query()->whereIn('id', $batch->pluck('id'))->get()
+                ->map(fn (Setup $s) => ['id' => $s->id, 'mame_name' => $s->mame_name, ...$this->bannerPayload($s)])->values(),
+        ]);
+    }
+
     public function setupCandidates(Request $request, CurrentTenant $currentTenant, Setup $setup): JsonResponse
     {
         $this->authorize($currentTenant, $setup);
@@ -109,7 +153,13 @@ class BannerController extends Controller
         $this->authorize($currentTenant, $setup);
         $this->store($request, $setup);
 
-        return response()->json($this->bannerPayload($setup->fresh()));
+        // Marquee gekozen met een MAME-romnaam: die onthouden voor de speelplek.
+        $mame = $request->input('mame');
+        if ($request->input('source') === 'arcadedb' && is_string($mame) && preg_match('/^[a-z0-9_]{1,32}$/', strtolower($mame))) {
+            $setup->forceFill(['mame_name' => strtolower($mame)])->save();
+        }
+
+        return response()->json(['mame_name' => $setup->fresh()->mame_name, ...$this->bannerPayload($setup->fresh())]);
     }
 
     public function destroySetup(CurrentTenant $currentTenant, Setup $setup): JsonResponse
@@ -132,6 +182,7 @@ class BannerController extends Controller
             'banner_ratio'   => $banner['ratio'] ?? null,
             'banner_source'  => $target->banner_source,
             'banner_stored'  => (bool) $target->banner_path,
+            'banner_manual'  => (bool) $target->banner_manual,
             'banner_checked' => $target->banner_fetched_at !== null,
         ];
     }
@@ -157,7 +208,7 @@ class BannerController extends Controller
         ]);
 
         abort_unless($this->artwork->allowedUrl($data['url']), 422, 'Deze afbeelding komt niet van een gekende bron.');
-        abort_unless($this->artwork->storeFromUrl($target, $data['url'], $data['source']), 422, 'Afbeelding ophalen mislukt. Probeer een andere.');
+        abort_unless($this->artwork->storeFromUrl($target, $data['url'], $data['source'], manual: true), 422, 'Afbeelding ophalen mislukt. Probeer een andere.');
     }
 
     private function searchParams(Request $request): array

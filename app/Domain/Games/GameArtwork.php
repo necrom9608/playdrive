@@ -4,6 +4,7 @@ namespace App\Domain\Games;
 
 use App\Models\Game;
 use App\Models\Setup;
+use App\Models\VenueDevice;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
@@ -24,6 +25,13 @@ use Throwable;
  *
  * Gekozen beelden worden gedownload naar de disk "local" (banners/{tenant}/...) en
  * uitgeleverd via /media/banners/{game|setup}/{id}, zodat de kassa niet afhangt van externe sites.
+ *
+ * Automatisch (auto / autoSetup) laat zelf gekozen of geüploade banners (banner_manual) en
+ * bewust verwijderde banners (banner_source = removed) altijd staan.
+ *
+ * Arcadekasten: de MAME-romnaam wordt gezocht door Claude een paar romnamen te laten voorstellen
+ * (ANTHROPIC_API_KEY, dezelfde als de mailassistent) en elke gok bij Arcade Database te controleren:
+ * enkel een romnaam waarvan de titel overeenkomt met de naam van de kast wordt aanvaard.
  */
 class GameArtwork
 {
@@ -111,7 +119,7 @@ class GameArtwork
      */
     public function auto(Game $game, bool $force = false): string
     {
-        if (in_array($game->banner_source, ['upload', 'removed'], true)) {
+        if ($game->banner_manual || in_array($game->banner_source, ['upload', 'removed'], true)) {
             return 'skipped';
         }
         if ($game->banner_path && ! $force) {
@@ -127,6 +135,168 @@ class GameArtwork
         $game->forceFill(['banner_fetched_at' => now()])->save();
 
         return 'not_found';
+    }
+
+    /**
+     * Banner voor een speelplek, volgens het type:
+     *   arcade / pinball         echte marquee via de MAME-romnaam (zelf gezocht), anders SteamGridDB op naam
+     *   met Playscope-toestel    niets opslaan: de Zaal toont de game die speelt of laatst speelde
+     *   console / vr / andere    SteamGridDB op de eerste game van de lijst
+     * → ok | not_found | skipped
+     */
+    public function autoSetup(Setup $setup, bool $force = false): string
+    {
+        if ($setup->banner_manual || in_array($setup->banner_source, ['upload', 'removed'], true)) {
+            return 'skipped';
+        }
+        if ($setup->banner_path && ! $force) {
+            return 'skipped';
+        }
+
+        $firstGame = collect($setup->games ?? [])->map(fn ($g) => trim((string) $g))->filter()->first();
+        $term = $firstGame ?: (string) $setup->name;
+        $candidates = [];
+
+        if (in_array($setup->type, ['arcade', 'pinball'], true)) {
+            $mame = $setup->mame_name ?: $this->findMameName($term);
+            if ($mame && $mame !== $setup->mame_name) {
+                $setup->forceFill(['mame_name' => $mame])->save();
+            }
+            if ($mame) {
+                $candidates = $this->arcadeDb($mame);
+            }
+            $candidates = [...$candidates, ...array_slice($this->steamGridDb($term, null), 0, 3)];
+        } else {
+            $hasPlayscope = VenueDevice::query()->where('setup_id', $setup->id)->where('type', 'playscope')->exists();
+            if ($hasPlayscope || ! $firstGame) {
+                $setup->forceFill(['banner_fetched_at' => now()])->save();
+
+                return 'skipped';
+            }
+            $candidates = array_slice($this->steamGridDb($firstGame, null), 0, 3);
+        }
+
+        foreach ($candidates as $candidate) {
+            if ($this->storeFromUrl($setup, $candidate['url'], $candidate['source'])) {
+                return 'ok';
+            }
+        }
+
+        $setup->forceFill(['banner_fetched_at' => now()])->save();
+
+        return 'not_found';
+    }
+
+    /**
+     * MAME-romnaam voor een arcadespel: Claude stelt er een paar voor, Arcade Database bevestigt.
+     * Enkel een romnaam waarvan de titel bij ADB overeenkomt met de naam wordt teruggegeven.
+     */
+    public function findMameName(string $title): ?string
+    {
+        $title = trim($title);
+        if ($title === '') {
+            return null;
+        }
+
+        foreach ($this->mameGuesses($title) as $guess) {
+            $row = $this->arcadeDbRow($guess);
+            if ($row && $this->titlesMatch($title, (string) ($row['title'] ?? ''))) {
+                return $guess;
+            }
+            usleep(150_000);
+        }
+
+        return null;
+    }
+
+    /** @return string[] */
+    private function mameGuesses(string $title): array
+    {
+        $key = (string) config('services.anthropic.key');
+        if ($key === '') {
+            return [];
+        }
+
+        return Cache::remember('mame-guess:'.md5(mb_strtolower($title)), now()->addDays(30), function () use ($key, $title) {
+            try {
+                $response = Http::withHeaders(['x-api-key' => $key, 'anthropic-version' => '2023-06-01'])
+                    ->timeout(30)
+                    ->post('https://api.anthropic.com/v1/messages', [
+                        'model' => (string) config('services.anthropic.model', 'claude-sonnet-4-5'),
+                        'max_tokens' => 200,
+                        'system' => 'Je kent de MAME-romnamen (short names) van arcadespellen. Antwoord uitsluitend met JSON, zonder uitleg.',
+                        'messages' => [[
+                            'role' => 'user',
+                            'content' => 'Welke MAME short names horen bij het arcadespel "'.$title.'"? '
+                                .'Geef maximaal 5 kandidaten, meest waarschijnlijke eerst (parent-set eerst, daarna varianten). '
+                                .'Zit het spel niet in MAME, geef dan een lege lijst. '
+                                .'Formaat: {"romnames": ["...", "..."]}',
+                        ]],
+                    ]);
+
+                if (! $response->successful()) {
+                    return [];
+                }
+
+                $text = collect($response->json('content', []))->where('type', 'text')->pluck('text')->implode('');
+                if (! preg_match('/\{.*\}/s', $text, $m)) {
+                    return [];
+                }
+
+                return collect((array) (json_decode($m[0], true)['romnames'] ?? []))
+                    ->map(fn ($n) => strtolower(trim((string) $n)))
+                    ->filter(fn ($n) => preg_match('/^[a-z0-9_]{1,32}$/', $n))
+                    ->unique()
+                    ->take(5)
+                    ->values()
+                    ->all();
+            } catch (Throwable) {
+                return [];
+            }
+        });
+    }
+
+    /**
+     * Komt de naam van de kast overeen met de titel bij Arcade Database?
+     * "Motocross Go! DX" ↔ "Motocross Go! (MG3 Ver. A)", "Harley-Davidson" ↔ "Harley-Davidson & L.A. Riders (Revision A)".
+     */
+    public function titlesMatch(string $name, string $adbTitle): bool
+    {
+        $words = function (string $text): array {
+            $text = preg_replace('/\([^)]*\)|\[[^\]]*\]/u', ' ', mb_strtolower($text));
+            $text = preg_replace('/[^\p{L}\p{N}]+/u', ' ', (string) $text);
+
+            $roman = ['ii' => '2', 'iii' => '3', 'iv' => '4'];
+            $list = array_map(fn ($w) => $roman[$w] ?? $w, explode(' ', trim((string) $text)));
+
+            return array_values(array_filter($list, fn ($w) => mb_strlen($w) >= 2 || ctype_digit($w)));
+        };
+
+        $a = $words($name);
+        $b = $words($adbTitle);
+        if (! $a || ! $b) {
+            return false;
+        }
+
+        // Varianten zoals "DX" / "Deluxe" / "Twin" mogen ontbreken aan één kant.
+        $ignore = ['dx', 'deluxe', 'sd', 'twin', 'upright', 'cabinet', 'kast', 'the', 'arcade'];
+        $a2 = array_values(array_diff($a, $ignore)) ?: $a;
+        $b2 = array_values(array_diff($b, $ignore)) ?: $b;
+
+        // Volgnummers moeten gelijk zijn: "Time Crisis 2" is niet "Time Crisis".
+        $numbers = fn (array $w) => collect($w)
+            ->filter(fn ($x) => ctype_digit($x))
+            ->unique()->sort()->values()->all();
+        if ($numbers($a2) !== $numbers($b2)) {
+            return false;
+        }
+
+        $common = array_intersect($a2, $b2);
+        if (! collect($common)->contains(fn ($w) => mb_strlen($w) >= 4 || ctype_digit($w))) {
+            return false;
+        }
+
+        return ! array_diff($a2, $b2) || ! array_diff($b2, $a2);
     }
 
     // ---------------------------------------------------------------- kandidaten
@@ -241,19 +411,12 @@ class GameArtwork
             return [];
         }
 
-        return Cache::remember('adb:'.$mameName, now()->addDay(), function () use ($mameName) {
-            try {
-                $row = Http::withUserAgent(self::UA)->acceptJson()->timeout(10)
-                    ->get('https://adb.arcadeitalia.net/service_scraper.php', [
-                        'ajax'      => 'query_mame',
-                        'game_name' => $mameName,
-                    ])
-                    ->json('result.0');
+        $row = $this->arcadeDbRow($mameName);
+        if (! $row) {
+            return [];
+        }
 
-                if (! is_array($row)) {
-                    return [];
-                }
-
+        return (function () use ($row) {
                 $list = [];
                 foreach (['url_image_marquee' => 'Arcade marquee', 'url_image_title' => 'Titelscherm'] as $field => $label) {
                     if (! empty($row[$field])) {
@@ -270,10 +433,37 @@ class GameArtwork
                 }
 
                 return $list;
+        })();
+    }
+
+    /** Eén spel bij Arcade Database (null = onbekend). */
+    private function arcadeDbRow(string $mameName): ?array
+    {
+        $mameName = strtolower(trim($mameName));
+        if (! preg_match('/^[a-z0-9_]{1,32}$/', $mameName)) {
+            return null;
+        }
+
+        $row = Cache::remember('adb-row:'.$mameName, now()->addDays(7), function () use ($mameName) {
+            try {
+                $row = Http::withUserAgent(self::UA)->acceptJson()->timeout(10)
+                    ->get('https://adb.arcadeitalia.net/service_scraper.php', [
+                        'ajax'      => 'query_mame',
+                        'game_name' => $mameName,
+                    ])
+                    ->json('result.0');
+
+                return is_array($row) && ! empty($row['title']) ? $row : false;
             } catch (Throwable) {
-                return [];
+                return null;   // niet cachen bij een netwerkfout
             }
         });
+
+        if ($row === null) {
+            Cache::forget('adb-row:'.$mameName);
+        }
+
+        return is_array($row) ? $row : null;
     }
 
     private function unique(array $list): array
@@ -283,7 +473,7 @@ class GameArtwork
 
     // ---------------------------------------------------------------- opslaan
 
-    public function storeFromUrl(Model $target, string $url, string $source): bool
+    public function storeFromUrl(Model $target, string $url, string $source, bool $manual = false): bool
     {
         if (! $this->allowedUrl($url) || ! array_key_exists($source, self::SOURCES)) {
             return false;
@@ -300,12 +490,12 @@ class GameArtwork
             return false;
         }
 
-        return $this->storeBytes($target, $response->body(), $source);
+        return $this->storeBytes($target, $response->body(), $source, $manual);
     }
 
     public function storeUpload(Model $target, UploadedFile $file): bool
     {
-        return $this->storeBytes($target, (string) file_get_contents($file->getRealPath()), 'upload');
+        return $this->storeBytes($target, (string) file_get_contents($file->getRealPath()), 'upload', true);
     }
 
     /** Verwijderen; bij een game wordt er daarna niet meer automatisch gezocht. */
@@ -316,7 +506,8 @@ class GameArtwork
         $target->forceFill([
             'banner_path'       => null,
             'banner_ratio'      => null,
-            'banner_source'     => $target instanceof Game ? 'removed' : null,
+            'banner_source'     => 'removed',
+            'banner_manual'     => false,
             'banner_fetched_at' => now(),
         ])->save();
     }
@@ -332,7 +523,7 @@ class GameArtwork
             && empty($parts['port']);
     }
 
-    private function storeBytes(Model $target, string $bytes, string $source): bool
+    private function storeBytes(Model $target, string $bytes, string $source, bool $manual = false): bool
     {
         if ($bytes === '' || strlen($bytes) > self::MAX_BYTES) {
             return false;
@@ -363,6 +554,7 @@ class GameArtwork
             'banner_path'       => $path,
             'banner_source'     => $source,
             'banner_ratio'      => round($info[0] / max(1, $info[1]), 2),
+            'banner_manual'     => $manual,
             'banner_fetched_at' => now(),
         ])->save();
 

@@ -12,6 +12,18 @@
                 <button type="button" class="inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-800" @click="loadAll(); groupsPanel?.load(); powerPanel?.load()">
                     <ArrowPathIcon class="h-5 w-5" /> Vernieuwen
                 </button>
+                <button
+                    v-if="tab === 'setups'"
+                    type="button"
+                    :disabled="autoBanners.busy"
+                    title="Banners zoeken voor alle speelplekken: marquee voor arcadekasten, banner van de eerste game voor consoles en VR. Zelf gekozen banners blijven staan."
+                    class="inline-flex items-center gap-2 rounded-2xl border border-sky-500/40 bg-sky-500/10 px-4 py-3 text-sm font-semibold text-sky-100 transition hover:bg-sky-500/20 disabled:opacity-70"
+                    @click="runAutoBanners"
+                >
+                    <PhotoIcon class="h-5 w-5" :class="{ 'animate-pulse': autoBanners.busy }" />
+                    <template v-if="autoBanners.busy">Banners… {{ autoBanners.done }}/{{ autoBanners.total || '?' }}</template>
+                    <template v-else>Banners automatisch</template>
+                </button>
                 <button v-if="tab === 'setups'" type="button" class="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500" @click="openSetupForm(null)">
                     <PlusIcon class="h-5 w-5" /> Speelplek
                 </button>
@@ -334,6 +346,7 @@ import PowerPanel from '../components/PowerPanel.vue'
 import BannerPickerModal from '../../../components/BannerPickerModal.vue'
 import {
     claimVenueDevice,
+    autoSetupBanners,
     createSetup,
     deleteSetup,
     deleteVenueDevice,
@@ -509,6 +522,40 @@ async function removeSetup() {
 
 // Banner voor Frontdesk → Zaal: marquee van een arcadekast, foto van een couch-setup, ...
 const bannerPicker = reactive({ open: false, setup: null })
+
+// "Banners automatisch": in stukjes van 3 (elke kast kan een paar seconden zoeken).
+const autoBanners = reactive({ busy: false, done: 0, total: 0, summary: '' })
+
+async function runAutoBanners() {
+    const force = setups.value.some(s => s.banner_stored && !s.banner_manual)
+        && window.confirm('Ook automatisch gevonden banners opnieuw zoeken?\n\nOK = alles opnieuw · Annuleren = enkel speelplekken zonder banner.\nZelf gekozen of geüploade banners blijven altijd staan.')
+    autoBanners.busy = true
+    autoBanners.done = 0
+    autoBanners.total = 0
+    const totals = {}
+    let afterId = 0
+    error.value = ''
+    try {
+        for (;;) {
+            const res = await autoSetupBanners({ force, after_id: afterId })
+            const fresh = new Map((res.setups ?? []).map(s => [s.id, s]))
+            setups.value = setups.value.map(s => (fresh.has(s.id) ? { ...s, ...fresh.get(s.id) } : s))
+            for (const [k, n] of Object.entries(res.statuses ?? {})) totals[k] = (totals[k] ?? 0) + n
+            autoBanners.done += res.processed ?? 0
+            autoBanners.total = autoBanners.done + (res.remaining ?? 0)
+            afterId = res.last_id ?? afterId
+            if (!res.remaining || !res.processed) break
+        }
+        const found = totals.ok ?? 0
+        const missing = totals.not_found ?? 0
+        if (!autoBanners.done) window.alert('Alle speelplekken hebben al een banner.')
+        else window.alert(`${found} banner(s) gevonden${missing ? `, ${missing} zonder resultaat (upload die zelf via "Banner")` : ''}.`)
+    } catch (e) {
+        error.value = e.message || 'Banners zoeken mislukt.'
+    } finally {
+        autoBanners.busy = false
+    }
+}
 
 function openBanner(setup) {
     bannerPicker.setup = setup

@@ -16,7 +16,7 @@
                 alt=""
                 loading="lazy"
                 class="h-full w-full transition"
-                :class="[wideBanner ? 'object-contain bg-black' : 'object-cover', dimBanner ? 'grayscale' : '']"
+                :class="[wideBanner ? 'object-contain bg-black' : 'object-cover', dimBanner ? 'grayscale' : '', lastPlayed && !dimBanner ? 'opacity-45' : '']"
                 @error="brokenUrl = bannerUrl"
             />
             <div v-else class="flex h-full flex-col items-center justify-center gap-1.5 text-slate-500">
@@ -24,6 +24,9 @@
                 <span class="max-w-[85%] truncate text-xs font-medium">{{ fallbackText }}</span>
             </div>
 
+            <span v-if="lastPlayed && bannerUrl" class="absolute bottom-2 left-2 max-w-[85%] truncate rounded-md bg-slate-950/80 px-2 py-0.5 text-[11px] font-medium text-slate-300">
+                Laatst: {{ lastPlayed }}
+            </span>
             <span v-if="state === 'busy'" class="absolute top-2 right-2 inline-flex items-center gap-1.5 rounded-full bg-slate-950/75 px-2 py-0.5 text-[10px] font-bold tracking-wider text-white">
                 <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>LIVE
             </span>
@@ -88,5 +91,7 @@ const bannerUrl = computed(() => {
 // Arcade-marquees zijn veel breder dan de tegel: volledig tonen op zwart i.p.v. bij te snijden.
 const wideBanner = computed(() => Number(props.setup.banner?.ratio) > 2.6)
 const dimBanner = computed(() => state.value === 'offline' || state.value === 'maintenance')
+// Er speelt niets: de banner is die van de laatst gespeelde game (gedempt, met label).
+const lastPlayed = computed(() => (state.value !== 'busy' ? props.setup.banner?.last_played || null : null))
 const fallbackText = computed(() => (state.value === 'offline' ? 'Pc niet bereikbaar' : device.value ? 'Geen game actief' : props.setup.type_label || props.setup.name))
 </script>

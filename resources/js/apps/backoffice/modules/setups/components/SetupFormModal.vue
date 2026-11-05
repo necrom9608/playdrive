@@ -63,6 +63,12 @@
                 </div>
             </div>
 
+            <label v-if="form.type === 'arcade' || form.type === 'pinball'" class="space-y-1 md:col-span-2">
+                <span class="block text-sm font-medium text-slate-300">MAME-romnaam</span>
+                <input v-model="form.mame_name" type="text" maxlength="32" placeholder="Leeg laten: wordt automatisch gezocht (bv. motoxgo)" class="input" />
+                <span class="block text-xs text-slate-500">Voor de echte marquee op de Zaal-tegel. Wordt zelf ingevuld als hij gevonden wordt.</span>
+            </label>
+
             <label class="space-y-1 md:col-span-2">
                 <span class="block text-sm font-medium text-slate-300">Omschrijving</span>
                 <textarea v-model="form.description" rows="3" placeholder="Zichtbaar voor klanten die de QR-code scannen" class="input" />
@@ -98,7 +104,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'submit', 'delete'])
 
-const form = reactive({ name: '', type: 'arcade', zone: '', max_players: null, status: 'active', games: [], description: '' })
+const form = reactive({ name: '', type: 'arcade', zone: '', max_players: null, status: 'active', games: [], description: '', mame_name: '' })
 const gameInput = ref('')
 const newZone = ref(false)
 const zoneInput = ref(null)
@@ -146,6 +152,7 @@ watch(() => props.open, (open) => {
     form.status = props.setup?.status ?? 'active'
     form.games = [...(props.setup?.games ?? [])]
     form.description = props.setup?.description ?? ''
+    form.mame_name = props.setup?.mame_name ?? ''
     gameInput.value = ''
 })
 
@@ -168,6 +175,7 @@ function submit() {
         status: form.status,
         games: form.games,
         description: form.description || null,
+        mame_name: (form.mame_name || '').trim() || null,
     })
 }
 </script>

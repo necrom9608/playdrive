@@ -92,7 +92,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['close', 'updated'])
 
-const current = reactive({ banner_url: null, banner_ratio: null, banner_source: null, banner_stored: false })
+const current = reactive({ banner_url: null, banner_ratio: null, banner_source: null, banner_stored: false, banner_manual: false })
 const query = ref('')
 const mame = ref('')
 const candidates = ref([])
@@ -104,7 +104,7 @@ const error = ref('')
 const sgdbAvailable = ref(true)
 
 const sourceLabel = computed(() => {
-    if (current.banner_stored) return SOURCE_LABELS[current.banner_source] || 'Opgeslagen'
+    if (current.banner_stored) return `${SOURCE_LABELS[current.banner_source] || 'Opgeslagen'}${current.banner_manual ? ' · zelf gekozen' : ' · automatisch'}`
     if (current.banner_url) return 'Steam (rechtstreeks, nog niet opgeslagen)'
     return SOURCE_LABELS[current.banner_source] || 'Nog geen banner'
 })
@@ -113,7 +113,7 @@ watch(() => props.open, (open) => {
     if (!open) return
     Object.assign(current, props.banner || {})
     query.value = ''
-    mame.value = ''
+    mame.value = props.banner?.mame_name || ''
     candidates.value = []
     searched.value = false
     error.value = ''
@@ -130,9 +130,10 @@ function apply(payload) {
         banner_ratio: payload.banner_ratio ?? null,
         banner_source: payload.banner_source ?? null,
         banner_stored: !!payload.banner_stored,
+        banner_manual: !!payload.banner_manual,
         banner_checked: !!payload.banner_checked,
     })
-    emit('updated', { ...current })
+    emit('updated', { ...current, ...(payload.mame_name !== undefined ? { mame_name: payload.mame_name } : {}) })
 }
 
 async function search() {
@@ -158,7 +159,9 @@ async function pick(candidate) {
     saving.value = candidate.url
     error.value = ''
     try {
-        apply(await apiFetch(props.endpoint, { method: 'POST', body: JSON.stringify({ url: candidate.url, source: candidate.source }) }))
+        const body = { url: candidate.url, source: candidate.source }
+        if (candidate.source === 'arcadedb' && mame.value.trim()) body.mame = mame.value.trim().toLowerCase()
+        apply(await apiFetch(props.endpoint, { method: 'POST', body: JSON.stringify(body) }))
     } catch (e) {
         error.value = e.message || 'Opslaan mislukt.'
     } finally {
