@@ -163,9 +163,16 @@ class MemberAuthController extends Controller
         $status = Password::broker('accounts')->reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function (Account $account, string $password) {
-                $account->forceFill(['password' => $password])
-                    ->setRememberToken(Str::random(60));
-                $account->save();
+                // Geen remember_token: accounts heeft die kolom niet (Sanctum-tokens i.p.v. sessies).
+                $account->forceFill([
+                    'password'          => $password,
+                    // Via de mail-link bewezen dat het adres van deze persoon is
+                    'email_verified_at' => $account->email_verified_at ?? now(),
+                ])->save();
+
+                // Bestaande app-sessies (Sanctum-tokens) ongeldig maken
+                $account->tokens()->delete();
+
                 event(new PasswordReset($account));
             }
         );
