@@ -204,6 +204,7 @@ class MemberAuthController extends Controller
             'postal_code'       => $account->postal_code ?? null,
             'city'              => $account->city ?? null,
             'country'           => $account->country ?? null,
+            'arcade_notify_mail' => (bool) ($account->arcade_notify_mail ?? true),
         ];
     }
 }

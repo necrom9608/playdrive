@@ -3,6 +3,7 @@
 namespace App\Domain\Arcade;
 
 use App\Models\ArcadeCard;
+use App\Models\ArcadeDethrone;
 use App\Models\ArcadePlayer;
 use App\Models\ArcadeScore;
 use App\Models\ArcadeSong;
@@ -152,6 +153,7 @@ class ArcadeIngestService
 
             $improved = ! $score->exists
                 || ($r['score'] !== null && ($score->score === null || $r['score'] > $score->score));
+            $oldScore = $score->exists ? $score->score : null;
 
             if ($improved) {
                 $score->fill([
@@ -179,6 +181,12 @@ class ArcadeIngestService
             if ($score->isDirty()) {
                 $score->save();
                 $n++;
+            }
+
+            // Recente nieuwe beste score: nam deze speler een #1 over (of pakte hij die terug)?
+            if ($improved && $r['score'] !== null && $at && $at->gte(now()->subDays(3))
+                && in_array($r['game'], ArcadeGames::NOTIFY, true)) {
+                $this->checkTopChange($tenantId, $playerId, $r, $oldScore, $r['score']);
             }
         }
 
@@ -232,6 +240,64 @@ class ArcadeIngestService
         $this->touchPlayers($rows, $players, 'played_at');
 
         return $inserted;
+    }
+
+    /**
+     * Na een nieuwe beste score van $playerId op een chart:
+     *  - staat hij nu #1, dan zijn eigen openstaande "overgenomen"-meldingen op die chart afsluiten;
+     *  - ging hij voorbij de vorige #1 (een ander, gekoppeld account), dan een melding voor die persoon.
+     * Gelijke score telt niet als overname (in de ranking staat wie het eerst haalde voor).
+     */
+    private function checkTopChange(int $tenantId, int $playerId, array $r, ?int $oldScore, int $newScore): void
+    {
+        $me = ArcadePlayer::query()->find($playerId, ['id', 'account_id']);
+        if (! $me) {
+            return;
+        }
+
+        $chart = fn ($q) => $q->where('tenant_id', $tenantId)
+            ->where('game', $r['game'])->where('song_id', $r['song_id'])->where('chart', $r['chart']);
+
+        $top = ArcadeScore::query()
+            ->where($chart)
+            ->where('arcade_player_id', '!=', $playerId)
+            ->whereNotNull('score')
+            ->orderByDesc('score')->orderBy('achieved_at')
+            ->with('player:id,account_id')
+            ->first();
+
+        $isFirst = ! $top || $newScore > (int) $top->score;
+
+        if ($isFirst && $me->account_id) {
+            ArcadeDethrone::query()->where($chart)
+                ->where('lost_account_id', $me->account_id)
+                ->whereNull('reclaimed_at')
+                ->update(['reclaimed_at' => now()]);
+        }
+
+        if (! $top || ! $isFirst) {
+            return;
+        }
+        if ($oldScore !== null && $oldScore > (int) $top->score) {
+            return; // stond al #1
+        }
+
+        $lostAccountId = $top->player?->account_id;
+        if (! $lostAccountId || (int) $lostAccountId === (int) $me->account_id) {
+            return; // vorige #1 niet gekoppeld, of hetzelfde account (tweede kaart)
+        }
+
+        ArcadeDethrone::query()->create([
+            'tenant_id'       => $tenantId,
+            'game'            => $r['game'],
+            'song_id'         => $r['song_id'],
+            'chart'           => $r['chart'],
+            'lost_account_id' => $lostAccountId,
+            'lost_player_id'  => $top->arcade_player_id,
+            'lost_score'      => $top->score,
+            'by_player_id'    => $playerId,
+            'by_score'        => $newScore,
+        ]);
     }
 
     // ------------------------------------------------------------------

@@ -82,6 +82,18 @@
                             </div>
                         </div>
 
+                        <div
+                            v-if="newDethrones.length"
+                            class="mb-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 px-3.5 py-3"
+                        >
+                            <p class="text-sm font-medium text-rose-200">
+                                {{ newDethrones.length === 1
+                                    ? `${newDethrones[0].by} nam je #1 over op ${newDethrones[0].title}`
+                                    : `Je bent je #1 kwijt op ${newDethrones.length} charts` }}
+                            </p>
+                            <p class="text-xs text-rose-300/80 mt-0.5">Pak ze terug ›</p>
+                        </div>
+
                         <template v-if="arcade.linked && lastPlay">
                             <div class="flex items-center gap-3">
                                 <div class="flex-1 min-w-0">
@@ -167,6 +179,7 @@ const quickActions = [
 const nf = new Intl.NumberFormat('nl-BE')
 const arcade = ref(null)
 const lastPlay = computed(() => arcade.value?.recent?.[0] ?? null)
+const newDethrones = computed(() => (arcade.value?.dethrones ?? []).filter(d => d.is_new))
 const arcadeBanner = computed(() => {
     const games = arcade.value?.games ?? []
     const key = lastPlay.value?.game ?? arcade.value?.stats?.per_game?.[0]?.game

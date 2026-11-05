@@ -6,6 +6,7 @@ use App\Domain\Arcade\ArcadeGames;
 use App\Domain\Games\GameArtwork;
 use App\Http\Controllers\Controller;
 use App\Models\ArcadeCard;
+use App\Models\ArcadeDethrone;
 use App\Models\ArcadePlay;
 use App\Models\ArcadePlayer;
 use App\Models\ArcadeScore;
@@ -122,8 +123,54 @@ class MemberArcadeController extends Controller
                     'favorites'      => $favorites,
                 ],
                 'recent'  => $this->transformPlays($recent),
+                'dethrones' => $this->dethrones($request, $tenant),
             ],
         ]);
+    }
+
+    /** POST /arcade/dethrones/seen — overgenomen plaatsen gezien (verdwijnt van de startpagina). */
+    public function dethronesSeen(Request $request): JsonResponse
+    {
+        $tenant = $this->tenant($request);
+
+        ArcadeDethrone::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('lost_account_id', $request->user()->id)
+            ->whereNull('seen_at')
+            ->update(['seen_at' => now()]);
+
+        return response()->json(['message' => 'Gezien.']);
+    }
+
+    /** Openstaande overgenomen #1-plaatsen (laatste 30 dagen, niet teruggepakt), één per chart. */
+    private function dethrones(Request $request, Tenant $tenant): array
+    {
+        $rows = ArcadeDethrone::query()
+            ->open()
+            ->where('tenant_id', $tenant->id)
+            ->where('lost_account_id', $request->user()->id)
+            ->with('byPlayer')
+            ->orderByDesc('created_at')
+            ->get()
+            ->unique(fn ($d) => "{$d->game}|{$d->song_id}|{$d->chart}")
+            ->take(10);
+
+        $titles = $this->titles($rows->map(fn ($d) => [$d->game, $d->song_id]));
+
+        return $rows->map(fn (ArcadeDethrone $d) => [
+            'id'       => $d->id,
+            'game'     => $d->game,
+            'short'    => ArcadeGames::short($d->game),
+            'song_id'  => $d->song_id,
+            'title'    => $titles["{$d->game}|{$d->song_id}"]['title'] ?? "Song #{$d->song_id}",
+            'chart'    => $d->chart,
+            'level'    => $titles["{$d->game}|{$d->song_id}"]['levels'][$d->chart] ?? null,
+            'by'       => $d->byPlayer?->displayName($d->game) ?? 'Een speler',
+            'by_score' => $d->by_score,
+            'my_score' => $d->lost_score,
+            'is_new'   => $d->seen_at === null,
+            'at'       => $d->created_at?->toIso8601String(),
+        ])->values()->all();
     }
 
     /** GET /arcade/scores?game=&sort=recent|score|title|rank — persoonlijke bests. */

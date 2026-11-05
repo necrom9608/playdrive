@@ -21,6 +21,7 @@ class MemberProfileController extends Controller
             'postal_code'  => ['sometimes', 'nullable', 'string', 'max:20'],
             'city'         => ['sometimes', 'nullable', 'string', 'max:255'],
             'country'      => ['sometimes', 'nullable', 'string', 'size:2'],
+            'arcade_notify_mail' => ['sometimes', 'boolean'],
         ]);
 
         $account = $request->user();
@@ -41,6 +42,8 @@ class MemberProfileController extends Controller
                 'postal_code'  => $account->postal_code,
                 'city'         => $account->city,
                 'country'      => $account->country,
+                'email_verified' => $account->hasVerifiedEmail(),
+                'arcade_notify_mail' => (bool) $account->arcade_notify_mail,
             ],
         ]);
     }

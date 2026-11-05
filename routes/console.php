@@ -83,6 +83,15 @@ Artisan::command('setups:banners {--tenant=} {--force}', function (GameArtwork $
     $this->info(collect($counts)->map(fn ($n, $k) => "{$k}: {$n}")->implode(' · ') ?: 'Niets te doen.');
 })->purpose('Banners zoeken voor de speelplekken (Zaal-tegels)');
 
+// Arcade: "je #1 is overgenomen"-mails (gebundeld, max. 1 per account per dag), overdag.
+//   php artisan arcade:notify-dethrones --dry-run
+Schedule::command('arcade:notify-dethrones')
+    ->hourly()
+    ->between('10:00', '21:00')
+    ->timezone('Europe/Brussels')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Elke nacht: banners voor nieuwe games en speelplekken zonder banner.
 Schedule::command('games:banners')->dailyAt('04:20')->timezone('Europe/Brussels')->withoutOverlapping()->runInBackground();
 Schedule::command('setups:banners')->dailyAt('04:40')->timezone('Europe/Brussels')->withoutOverlapping()->runInBackground();

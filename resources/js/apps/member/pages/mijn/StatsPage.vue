@@ -95,6 +95,29 @@
 
                 <!-- 1. Overzicht -->
                 <template v-if="tab === 'overzicht'">
+                    <div v-if="summary.dethrones?.length" class="glass-card rounded-3xl p-5 border !border-rose-500/30">
+                        <p class="section-label !text-rose-300">Je #1 kwijt · pak ze terug</p>
+                        <button
+                            v-for="d in summary.dethrones"
+                            :key="d.id"
+                            class="list-row w-full text-left"
+                            @click="openDetail(d)"
+                        >
+                            <span class="game-tag" :class="tagClass(d.game)">{{ d.short }}</span>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm text-white truncate">
+                                    {{ d.title }}
+                                    <span v-if="d.is_new" class="ml-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/30 align-middle">NIEUW</span>
+                                </p>
+                                <p class="text-[11px] text-slate-400 truncate">{{ chartLabel(d) }} · {{ d.by }} · {{ ago(d.at) }}</p>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <p class="text-sm font-semibold text-white tabular-nums">{{ num(d.by_score) }}</p>
+                                <p class="text-[10px] text-slate-400 tabular-nums">jij: {{ num(d.my_score) }}</p>
+                            </div>
+                        </button>
+                    </div>
+
                     <div class="glass-card rounded-3xl p-5">
                         <div class="flex items-center justify-between gap-2">
                             <h2 class="text-lg font-semibold text-white truncate">{{ playerNames }}</h2>
@@ -374,6 +397,10 @@ async function loadSummary() {
     try {
         const { data } = await arcadeApi.summary(slug.value)
         summary.value = data
+        // Overgenomen plaatsen zijn nu gezien → verdwijnen van de startpagina
+        if (data.dethrones?.some(d => d.is_new)) {
+            arcadeApi.seen(slug.value).catch(() => {})
+        }
     } catch (e) {
         summary.value = null
         error.value = e?.message ?? 'Scores konden niet geladen worden.'

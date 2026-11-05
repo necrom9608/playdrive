@@ -91,4 +91,5 @@ export const arcadeApi = {
     ranking: (venue, game, song_id, chart) => api.get('/arcade/ranking' + qs({ venue, game, song_id, chart })),
     link:    (venue, code, pin)       => api.post('/arcade/link', { venue, code, pin }),
     unlink:  (venue, id)              => api.delete(`/arcade/players/${id}` + qs({ venue })),
+    seen:    (venue)                  => api.post('/arcade/dethrones/seen', { venue }),
 }

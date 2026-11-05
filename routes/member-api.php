@@ -42,5 +42,6 @@ Route::prefix('member-api/v1')->group(function () {
         Route::get('/arcade/ranking',                 [MemberArcadeController::class, 'ranking']);
         Route::post('/arcade/link',                   [MemberArcadeController::class, 'link'])->middleware('throttle:5,1');
         Route::delete('/arcade/players/{id}',         [MemberArcadeController::class, 'unlink'])->whereNumber('id');
+        Route::post('/arcade/dethrones/seen',         [MemberArcadeController::class, 'dethronesSeen']);
     });
 });

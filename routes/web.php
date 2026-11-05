@@ -66,5 +66,12 @@ Route::get('/media/banners/{kind}/{id}', [\App\Http\Controllers\Website\BannerMe
     ->whereNumber('id')
     ->middleware('throttle:600,1');
 
+// Afmeldlink uit de mail "je #1 is overgenomen" (ondertekende URL, geen login nodig) — vóór de website catch-all
+Route::get('/arcade/meldingen-uit/{account}', function (\App\Models\Account $account) {
+    $account->forceFill(['arcade_notify_mail' => false])->save();
+
+    return response(view('emails.arcade-unsubscribed', ['account' => $account]));
+})->whereNumber('account')->middleware(['signed', 'throttle:20,1'])->name('arcade.mail.off');
+
 // Website — catch-all op / — moet als laatste staan
 Route::group([], base_path('routes/website.php'));

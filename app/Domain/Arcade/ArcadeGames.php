@@ -13,6 +13,12 @@ class ArcadeGames
         'nostalgia' => ['name' => 'NOSTALGIA', 'short' => 'NOSTALGIA', 'per_play' => false],
     ];
 
+    /**
+     * Games waarvoor we "je #1 is overgenomen" melden. DDR en pop'n nog niet: hun songtitels
+     * ontbreken (music-db), en "Song #400" in een mail is niet duidelijk.
+     */
+    public const NOTIFY = ['drs', 'sdvx', 'nostalgia'];
+
     /** Games waarvan Asphyxia een speelteller per chart bijhoudt. */
     public const COUNTED = ['drs', 'popn', 'nostalgia'];
 

@@ -36,6 +36,7 @@ class Account extends Authenticatable implements MustVerifyEmail
         'city',
         'country',
         'password',
+        'arcade_notify_mail',
     ];
 
     protected $hidden = [
@@ -48,6 +49,7 @@ class Account extends Authenticatable implements MustVerifyEmail
             'birth_date'        => 'date',
             'password'          => 'hashed',
             'email_verified_at' => 'datetime',
+            'arcade_notify_mail' => 'boolean',
         ];
     }
 

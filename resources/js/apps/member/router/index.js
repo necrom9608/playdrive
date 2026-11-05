@@ -85,6 +85,12 @@ const routes = [
         component: () => import('../pages/profiel/ProfielPage.vue'),
         meta: { layout: 'app', requiresAuth: true },
     },
+    {
+        path: '/profiel/notificaties',
+        name: 'notificaties',
+        component: () => import('../pages/profiel/NotificatiesPage.vue'),
+        meta: { layout: 'app', requiresAuth: true },
+    },
 
     // Onbekende route → geen lege pagina, maar terug naar start
     {
