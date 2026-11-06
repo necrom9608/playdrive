@@ -13,7 +13,7 @@
                     <!-- Header -->
                     <div class="flex items-start justify-between gap-4 border-b border-white/10 px-6 py-5">
                         <div>
-                            <h3 class="text-lg font-semibold text-white">Abonnement activeren</h3>
+                            <h3 class="text-lg font-semibold text-white">Abonnement toevoegen</h3>
                             <p class="mt-0.5 text-sm text-slate-400">{{ registration?.full_name }}</p>
                         </div>
                         <button type="button"

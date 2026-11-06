@@ -17,37 +17,73 @@ use Illuminate\Support\Facades\Mail;
 class NewRegistrationController extends Controller
 {
     /**
-     * Accounts die zich via QR code geregistreerd hebben bij deze tenant
-     * maar nog geen actief lidmaatschap hebben.
-     * Beperkt tot de laatste 7 dagen zodat de lijst beheersbaar blijft.
+     * Nieuwe leden van deze tenant (via QR / "lid worden" of de app) die nog geen abonnement
+     * hebben en nog niet als "gezien" gemarkeerd zijn. Laatste 7 dagen, zodat de lijst kort blijft.
+     * Kinderen (beheerde accounts) staan niet apart in de lijst maar onder hun ouder.
      */
     public function index(CurrentTenant $currentTenant): JsonResponse
     {
+        $tenantId = (int) $currentTenant->id();
+
         $registrations = TenantMembership::query()
-            ->where('tenant_id', $currentTenant->id())
+            ->where('tenant_id', $tenantId)
             ->whereNull('legacy_member_id')
+            ->whereNull('frontdesk_seen_at')
+            ->where('created_at', '>=', now()->subDays(7))
             ->where(function ($q) {
                 $q->where('is_active', false)
                   ->orWhereNull('membership_starts_at');
             })
-            ->with('account:id,first_name,last_name,email,created_at')
-            ->whereHas('account', fn ($q) => $q->where('created_at', '>=', now()->subDays(7)))
+            ->whereHas('account', fn ($q) => $q->whereNull('managed_by_account_id'))
+            ->with('account:id,first_name,last_name,email,email_verified_at,created_at,managed_by_account_id')
             ->orderByDesc('id')
+            ->limit(50)
+            ->get();
+
+        $children = TenantMembership::query()
+            ->where('tenant_id', $tenantId)
+            ->whereHas('account', fn ($q) => $q->whereIn('managed_by_account_id', $registrations->pluck('account_id')))
+            ->with('account:id,managed_by_account_id,first_name,birth_date')
             ->get()
-            ->map(fn (TenantMembership $tm) => [
+            ->groupBy(fn (TenantMembership $m) => $m->account?->managed_by_account_id);
+
+        $data = $registrations->map(function (TenantMembership $tm) use ($children) {
+            $account = $tm->account;
+            $created = $tm->created_at;
+
+            return [
                 'membership_id'    => $tm->id,
                 'account_id'       => $tm->account_id,
-                'first_name'       => $tm->account?->first_name,
-                'last_name'        => $tm->account?->last_name,
-                'full_name'        => trim(($tm->account?->first_name ?? '') . ' ' . ($tm->account?->last_name ?? '')),
-                'email'            => $tm->account?->email,
-                'registered_at'    => $tm->account?->created_at?->toIso8601String(),
-                'registered_label' => $tm->account?->created_at?->diffForHumans(),
-                'is_new'           => $tm->account?->created_at && $tm->account->created_at->diffInHours(now()) < 24,
-            ])
-            ->values();
+                'code'             => 'PDL-' . $tm->id,
+                'first_name'       => $account?->first_name,
+                'last_name'        => $account?->last_name,
+                'full_name'        => trim(($account?->first_name ?? '') . ' ' . ($account?->last_name ?? '')),
+                'email'            => $account?->email,
+                'email_verified'   => (bool) $account?->email_verified_at,
+                // Account bestond al (bv. lid van een andere venue) en werd nu gekoppeld
+                'existing_account' => $account?->created_at && $created && $account->created_at->lt($created->copy()->subMinutes(5)),
+                'children'         => ($children->get($tm->account_id) ?? collect())->map(fn (TenantMembership $c) => [
+                    'membership_id' => $c->id,
+                    'first_name'    => $c->account?->first_name,
+                    'age'           => $c->account?->birth_date?->age,
+                ])->values(),
+                'registered_at'    => $created?->toIso8601String(),
+                'registered_label' => $created?->diffForHumans(),
+                'is_new'           => $created && $created->diffInHours(now()) < 24,
+            ];
+        })->values();
 
-        return response()->json(['data' => $registrations]);
+        return response()->json(['data' => $data]);
+    }
+
+    /** "Gezien": weg uit het paneel Nieuwe leden. */
+    public function seen(CurrentTenant $currentTenant, TenantMembership $tenantMembership): JsonResponse
+    {
+        abort_unless((int) $tenantMembership->tenant_id === (int) $currentTenant->id(), 404);
+
+        $tenantMembership->forceFill(['frontdesk_seen_at' => now()])->save();
+
+        return response()->json(['message' => 'Gemarkeerd als gezien.']);
     }
 
     /**
@@ -83,6 +119,7 @@ class NewRegistrationController extends Controller
                 'membership_starts_at'      => $startDate->toDateString(),
                 'membership_ends_at'        => $endsDate->toDateString(),
                 'confirmation_mail_sent_at' => now(),
+                'frontdesk_seen_at'         => $membership->frontdesk_seen_at ?? now(),
             ]);
         });
 

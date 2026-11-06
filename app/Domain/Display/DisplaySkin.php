@@ -5,6 +5,7 @@ namespace App\Domain\Display;
 use App\Models\DisplaySetting;
 use App\Models\DisplayVideo;
 use App\Models\Tenant;
+use App\Support\JoinLink;
 
 /**
  * Skins voor het klantenscherm en wat het scherm ervan nodig heeft.
@@ -65,6 +66,7 @@ class DisplaySkin
             'order_ticker'   => $list($s->order_ticker, $d['order_ticker']),
             'show_hours'     => (bool) ($s->show_hours ?? true),
             'crt'            => in_array($s->crt, self::CRT, true) ? $s->crt : 'zacht',
+            'join_qr'        => (bool) ($s->join_qr ?? false),
         ];
     }
 
@@ -77,6 +79,8 @@ class DisplaySkin
     public static function payload(Tenant $tenant): array
     {
         $settings = self::resolved(self::settingsFor($tenant->id));
+        // QR "Word gratis lid": het scherm toont hem enkel als er een link is.
+        $settings['join_url'] = $settings['join_qr'] ? JoinLink::url($tenant) : null;
 
         $videos = DisplayVideo::query()
             ->where('tenant_id', $tenant->id)

@@ -7,7 +7,7 @@
                     <input
                         :value="search"
                         type="text"
-                        placeholder="Naam, e-mail of RFID"
+                        placeholder="Naam, e-mail, RFID of QR van een nieuw lid"
                         class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-blue-500"
                         @input="$emit('update:search', $event.target.value)"
                         @keyup.enter="$emit('search')"

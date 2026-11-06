@@ -93,6 +93,20 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="mt-6 flex flex-wrap items-start gap-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+                        <ToggleSwitch v-model="form.join_qr" />
+                        <div class="min-w-0 flex-1">
+                            <span class="block text-sm font-medium text-slate-200">QR-code "Word gratis lid" tonen</span>
+                            <span class="mt-1 block text-xs text-slate-400">
+                                In rust onder de titel, tijdens een bestelling klein rechtsboven. Klanten scannen en registreren zich met hun gsm.
+                            </span>
+                            <span v-if="joinUrl" class="mt-2 block break-all text-xs text-slate-500">
+                                Link: <a :href="joinUrl" target="_blank" rel="noopener" class="text-blue-300 hover:text-blue-200">{{ joinUrl }}</a>
+                            </span>
+                            <span v-else class="mt-2 block text-xs text-amber-300">Deze venue heeft nog geen publieke slug: stel die eerst in.</span>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- Filmpjes -->
@@ -230,7 +244,9 @@ const form = reactive({
     order_ticker: [],
     show_hours: true,
     crt: 'zacht',
+    join_qr: false,
 })
+const joinUrl = ref(null)
 
 const defaults = computed(() => allDefaults.value?.[form.skin] ?? {})
 
@@ -242,6 +258,7 @@ function apply(data) {
     allDefaults.value = data.defaults ?? {}
     zones.value = data.zones ?? []
     videos.value = (data.videos ?? []).map(v => ({ ...v }))
+    joinUrl.value = data.join_url ?? null
     Object.assign(form, {
         ...data.settings,
         title_line_1: data.settings?.title_line_1 ?? '',

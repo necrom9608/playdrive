@@ -12,7 +12,7 @@ class DisplaySetting extends Model
 {
     protected $fillable = [
         'tenant_id', 'skin', 'title_line_1', 'title_line_2', 'info_text',
-        'standby_ticker', 'order_ticker', 'show_hours', 'crt',
+        'standby_ticker', 'order_ticker', 'show_hours', 'crt', 'join_qr',
     ];
 
     protected function casts(): array
@@ -21,6 +21,7 @@ class DisplaySetting extends Model
             'standby_ticker' => 'array',
             'order_ticker'   => 'array',
             'show_hours'     => 'boolean',
+            'join_qr'        => 'boolean',
         ];
     }
 }

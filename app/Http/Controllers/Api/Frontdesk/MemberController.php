@@ -37,7 +37,10 @@ class MemberController extends Controller
             ->with(['account:id,first_name,last_name,email,phone,birth_date,created_at', 'family'])
             ->withCount('familyMembers');
 
-        if ($search !== '') {
+        if ($search !== '' && preg_match('/^PDL-(\d+)$/i', $search, $code)) {
+            // Persoonlijke QR van "lid worden" (/join): PDL-{tenant_membership_id}
+            $query->whereKey((int) $code[1]);
+        } elseif ($search !== '') {
             $query->where(function (Builder $q) use ($search) {
                 $q->where('rfid_uid', 'like', '%' . $search . '%')
                   ->orWhereHas('account', fn (Builder $aq) => $aq

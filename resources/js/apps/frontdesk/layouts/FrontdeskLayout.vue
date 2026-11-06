@@ -9,10 +9,13 @@
 
             <FrontdeskStatusBar />
         </div>
+
+        <NewMemberToast />
     </div>
 </template>
 
 <script setup>
 import FrontdeskHeader from '../components/FrontdeskHeader.vue'
 import FrontdeskStatusBar from '../components/FrontdeskStatusBar.vue'
+import NewMemberToast from '../components/NewMemberToast.vue'
 </script>

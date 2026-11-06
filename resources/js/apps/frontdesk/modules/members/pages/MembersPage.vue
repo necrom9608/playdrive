@@ -3,7 +3,10 @@
         <NewRegistrationsPanel
             :registrations="newRegistrations"
             :activating="activatingId"
+            :busy-id="seenBusyId"
             @activate="openActivateModal"
+            @seen="markSeen"
+            @open="openRegistration"
         />
 
         <MembersSummaryCards :summary="store.summary" />
@@ -48,7 +51,7 @@
                             :disabled="!store.selectedMember"
                             @click="openActivateModal(store.selectedMember)"
                         >
-                            Abonnement activeren
+                            Abonnement toevoegen
                         </button>
 
                         <!-- Uitnodiging sturen — enkel als er een geldig e-mailadres is -->
@@ -140,7 +143,8 @@
 
 <script setup>
 import { UserGroupIcon } from '@heroicons/vue/24/outline'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import axios from '@/lib/http'
 import MembersSummaryCards from '../components/MembersSummaryCards.vue'
 import MembersFilters from '../components/MembersFilters.vue'
@@ -154,6 +158,8 @@ import { usePosStore } from '@/apps/frontdesk/modules/pos/stores/usePosStore'
 
 const store    = useMembersStore()
 const posStore = usePosStore()
+const route    = useRoute()
+const router   = useRouter()
 
 const showModal              = ref(false)
 const editingMemberId        = ref(null)
@@ -166,19 +172,56 @@ const inviteMessage          = ref('')
 const converting             = ref(false)
 const showFamilyModal        = ref(false)
 const familyMembershipId     = ref(null)
+const seenBusyId             = ref(null)
+let registrationsTimer       = null
 
 const editingMember = computed(() =>
     editingMemberId.value ? store.members.find(m => m.id === editingMemberId.value) ?? null : null
 )
 
 onMounted(() => {
-    store.fetchMembers()
+    if (!applyRouteSearch()) store.fetchMembers()
     store.startPolling(30000)
     fetchNewRegistrations()
-    setInterval(fetchNewRegistrations, 20000)
+    registrationsTimer = setInterval(fetchNewRegistrations, 20000)
 })
 
-onUnmounted(() => store.stopPolling())
+onUnmounted(() => {
+    store.stopPolling()
+    clearInterval(registrationsTimer)
+})
+
+// Melding "Nieuw lid" (andere pagina) → /members?search=PDL-123: dat lid tonen.
+watch(() => route.query.search, () => applyRouteSearch())
+
+function applyRouteSearch() {
+    const search = typeof route.query.search === 'string' ? route.query.search.trim() : ''
+    if (!search) return false
+    store.setSearch(search)
+    store.fetchMembers()
+    router.replace({ query: { ...route.query, search: undefined } })
+    return true
+}
+
+/** Fiche openen: zoeken op de code van het lid (zelfde als de QR scannen). */
+function openRegistration(registration) {
+    if (!registration?.code) return
+    store.setSearch(registration.code)
+    store.fetchMembers()
+}
+
+async function markSeen(registration) {
+    if (!registration?.membership_id || seenBusyId.value) return
+    seenBusyId.value = registration.membership_id
+    try {
+        await axios.post(`/api/frontdesk/new-registrations/${registration.membership_id}/seen`)
+        newRegistrations.value = newRegistrations.value.filter(r => r.membership_id !== registration.membership_id)
+    } catch (err) {
+        store.error = err?.response?.data?.message ?? 'Markeren als gezien mislukt.'
+    } finally {
+        seenBusyId.value = null
+    }
+}
 
 async function fetchNewRegistrations() {
     try {

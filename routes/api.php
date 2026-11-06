@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Device\DeviceRotationController;
 use App\Http\Controllers\Api\Device\DeviceSessionController;
 use App\Http\Controllers\Api\Public\AccountRegistrationController;
 use App\Http\Controllers\Api\Public\BookingFormSetupController;
+use App\Http\Controllers\Api\Public\JoinController;
 use App\Http\Controllers\Api\Public\PlayscopeReleaseController;
 use App\Http\Controllers\Api\Public\PublicReservationController;
 use App\Http\Controllers\Api\PublicApi\PublicSubmissionController;
@@ -39,6 +40,14 @@ Route::prefix('register')->middleware('throttle:10,1')->group(function () {
     Route::get('/{tenantSlug}', [AccountRegistrationController::class, 'tenantInfo']);
     Route::post('/{tenantSlug}', [AccountRegistrationController::class, 'store']);
     Route::post('/resend-verification', [AccountRegistrationController::class, 'resendVerification']);
+});
+
+// Lid worden via de QR-code op het klantenscherm (/join/{slug}) — publiek, enkel rate limiting
+Route::prefix('join/{slug}')->middleware('throttle:30,1')->group(function () {
+    Route::get('/', [JoinController::class, 'show']);
+    Route::post('/register', [JoinController::class, 'register']);
+    Route::post('/login', [JoinController::class, 'login']);
+    Route::post('/resend', [JoinController::class, 'resend'])->middleware('throttle:3,10');
 });
 
 // E-mailverificatie link — redirect naar client app na bevestiging

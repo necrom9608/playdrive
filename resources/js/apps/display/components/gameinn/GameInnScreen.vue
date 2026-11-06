@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import GameInnOrbit from './GameInnOrbit.vue'
 import { ZONE_LABELS } from './icons.js'
+import QRCode from 'qrcode'
 import logoUrl from './assets/logo.webp'
 import emblemUrl from './assets/emblem.webp'
 
@@ -47,6 +48,22 @@ const isOrder = computed(() => props.mode === 'order')
 const standbyTicker = computed(() => settings.value.standby_ticker ?? [])
 const orderTicker = computed(() => settings.value.order_ticker ?? [])
 const tickerSeconds = (list) => Math.max(16, Math.round(list.join(' ').length * 0.32))
+
+// ── QR "Word gratis lid" (link naar /join/{venue}, aan/uit in de backoffice) ──
+const joinUrl = computed(() => settings.value.join_qr ? (settings.value.join_url || null) : null)
+const joinQr = ref('')
+watch(joinUrl, async (url) => {
+    if (!url) { joinQr.value = ''; return }
+    try {
+        const svg = await QRCode.toString(url, {
+            type: 'svg', margin: 0, errorCorrectionLevel: 'M',
+            color: { dark: '#0a0c11', light: '#ffffff' },
+        })
+        joinQr.value = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+    } catch {
+        joinQr.value = ''
+    }
+}, { immediate: true })
 
 /** "Waregem · *vlak aan het station*" → stukken met vet. */
 const infoParts = computed(() => String(settings.value.info_text || '')
@@ -317,7 +334,7 @@ const holdEnd = () => emit('logo-hold-end')
 
             <!-- Standby -->
             <Transition name="gi-fade">
-                <div v-if="!isOrder" class="layer">
+                <div v-if="!isOrder" class="layer" :class="{ 'has-join': joinQr }">
                     <div class="shade"></div>
                     <div class="floor"></div>
                     <div class="toplogo">
@@ -329,6 +346,14 @@ const holdEnd = () => emit('logo-hold-end')
                     <div class="bottom">
                         <div v-if="settings.title_line_1 || settings.title_line_2" class="title">
                             {{ settings.title_line_1 }}<span v-if="settings.title_line_2">{{ settings.title_line_2 }}</span>
+                        </div>
+                        <div v-if="joinQr" class="joinqr">
+                            <div class="qrbox"><img :src="joinQr" alt="QR-code: word gratis lid" draggable="false"></div>
+                            <div class="jtext">
+                                <small>Nog geen lid?</small>
+                                <strong>Word gratis lid</strong>
+                                <span>Scan met je gsm · klaar in 1 minuut</span>
+                            </div>
                         </div>
                         <div class="info">
                             <span v-if="hours" class="pill">
@@ -352,6 +377,10 @@ const holdEnd = () => emit('logo-hold-end')
                 <div v-if="isOrder" class="layer">
                     <div class="toplogo left">
                         <img :src="assets.logo" alt="Game-INN" draggable="false" @pointerdown="holdStart" @pointerup="holdEnd" @pointerleave="holdEnd" @pointercancel="holdEnd">
+                    </div>
+                    <div v-if="joinQr" class="joinchip">
+                        <div class="qrbox"><img :src="joinQr" alt="QR-code: word gratis lid" draggable="false"></div>
+                        <small>Word<br>gratis lid</small>
                     </div>
                     <div class="order">
                         <div class="otitle">Jouw <span>bestelling</span></div>
@@ -476,6 +505,30 @@ const holdEnd = () => emit('logo-hold-end')
 .big { width: 280px; margin: 0 auto; }
 
 .bottom { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 22px; }
+
+/* ── QR "Word gratis lid" ── */
+.has-join .orbitwrap { top: 108px; }
+.has-join .big { width: 220px; }
+.has-join .title { margin-bottom: 14px; }
+.joinqr {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 12px; padding: 9px 14px 9px 9px;
+    border-radius: 18px; border: 1px solid rgba(242, 119, 36, .5);
+    background: linear-gradient(135deg, rgba(242, 119, 36, .16), rgba(62, 107, 177, .14)), rgba(20, 24, 36, .9);
+}
+.qrbox { flex: none; background: #fff; border-radius: 12px; padding: 7px; line-height: 0; }
+.joinqr .qrbox img { width: 84px; height: 84px; display: block; }
+.jtext { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.jtext small { font: 800 9px/1 Orbitron, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: #ff9147; }
+.jtext strong { font: 900 28px/.95 'Big Shoulders Display', 'Arial Narrow', sans-serif; text-transform: uppercase; }
+.jtext span { font-size: 12px; color: #c9cbd4; }
+.joinchip {
+    position: absolute; right: 16px; top: 16px; z-index: 2;
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 8px 7px;
+    border-radius: 16px; border: 1px solid rgba(242, 119, 36, .55); background: rgba(20, 24, 36, .9);
+}
+.joinchip .qrbox { border-radius: 8px; padding: 6px; }
+.joinchip .qrbox img { width: 70px; height: 70px; display: block; }
+.joinchip small { font: 800 8px/1.3 Orbitron, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #ff9147; text-align: center; }
 .title {
     font: 900 46px/.9 'Big Shoulders Display', 'Arial Narrow', sans-serif;
     text-transform: uppercase; text-align: center; margin-bottom: 12px;

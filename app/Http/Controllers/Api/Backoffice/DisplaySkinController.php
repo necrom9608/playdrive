@@ -6,7 +6,9 @@ use App\Domain\Display\DisplaySkin;
 use App\Http\Controllers\Controller;
 use App\Jobs\TranscodeDisplayVideo;
 use App\Models\DisplayVideo;
+use App\Models\Tenant;
 use App\Support\CurrentTenant;
+use App\Support\JoinLink;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +20,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  * Backoffice → Klantenscherm: skin, teksten en filmpjes voor de standby.
  *
  *   GET    /display-skin                         instellingen + filmpjes
- *   PUT    /display-skin                         {skin, title_line_1, title_line_2, info_text, standby_ticker[], order_ticker[], show_hours, crt}
+ *   PUT    /display-skin                         {skin, title_line_1, title_line_2, info_text, standby_ticker[], order_ticker[], show_hours, crt, join_qr}
  *   POST   /display-skin/videos                  {title, zone, original_name, size}   → nieuw filmpje (status uploading)
  *   POST   /display-skin/videos/{id}/chunk       multipart {offset, chunk}            → stuk toevoegen
  *   POST   /display-skin/videos/{id}/complete                                        → verwerken (ffmpeg)
@@ -57,6 +59,7 @@ class DisplaySkinController extends Controller
             'order_ticker.*'   => ['nullable', 'string', 'max:60'],
             'show_hours'       => ['required', 'boolean'],
             'crt'              => ['required', Rule::in(DisplaySkin::CRT)],
+            'join_qr'          => ['sometimes', 'boolean'],
         ]);
 
         $clean = fn (?array $list) => array_values(array_filter(array_map(fn ($v) => trim((string) $v), $list ?? []), 'strlen'));
@@ -71,6 +74,7 @@ class DisplaySkinController extends Controller
             'order_ticker'   => $clean($data['order_ticker'] ?? null),
             'show_hours'     => (bool) $data['show_hours'],
             'crt'            => $data['crt'],
+            'join_qr'        => array_key_exists('join_qr', $data) ? (bool) $data['join_qr'] : (bool) $settings->join_qr,
         ])->save();
 
         return response()->json($this->state($currentTenant->id()));
@@ -240,7 +244,9 @@ class DisplaySkinController extends Controller
                 'order_ticker'   => $settings->order_ticker ?? [],
                 'show_hours'     => (bool) ($settings->show_hours ?? true),
                 'crt'            => $settings->crt ?: 'zacht',
+                'join_qr'        => (bool) ($settings->join_qr ?? false),
             ],
+            'join_url' => ($tenant = Tenant::query()->find($tenantId)) ? JoinLink::url($tenant) : null,
             'skins'    => collect(DisplaySkin::SKINS)->map(fn ($label, $key) => ['key' => $key, 'label' => $label])->values(),
             'defaults' => DisplaySkin::defaults(),
             'zones'    => DisplayVideo::ZONES,

@@ -91,6 +91,7 @@ Route::prefix('api/frontdesk')->group(function () {
 
         Route::get('/new-registrations', [NewRegistrationController::class, 'index']);
         Route::post('/new-registrations/activate', [NewRegistrationController::class, 'activate']);
+        Route::post('/new-registrations/{tenantMembership}/seen', [NewRegistrationController::class, 'seen']);
 
         Route::get('/tasks', [TaskController::class, 'index']);
         Route::post('/tasks', [TaskController::class, 'store']);
