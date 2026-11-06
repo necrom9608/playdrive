@@ -10,6 +10,14 @@
         </div>
         <div v-if="error" class="mb-4 rounded-2xl border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-300">{{ error }}</div>
 
+        <div v-if="device?.checks?.input_group === false" class="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            <p class="font-semibold">Groep "input" ontbreekt op deze pc</p>
+            <p class="mt-1 text-amber-200/80">Playscope ziet toetsenbord en muis niet, waardoor games niet afsluiten bij inactiviteit. Eén keer uitvoeren op de pc, daarna afmelden en opnieuw aanmelden:</p>
+            <pre class="mt-2 overflow-x-auto rounded-xl bg-black/40 px-3 py-2 text-xs text-amber-100">grep -q '^input:' /etc/group || grep '^input:' /usr/lib/group | sudo tee -a /etc/group
+sudo usermod -aG input $USER</pre>
+            <p class="mt-2 text-amber-200/80">Of op de pc zelf: beheermenu (Ctrl+Alt+P of Select + Start 3 s, pincode) → <b>Groep input instellen</b>.</p>
+        </div>
+
         <div class="grid gap-2 sm:grid-cols-2">
             <button
                 v-for="a in actions"

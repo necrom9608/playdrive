@@ -7,6 +7,7 @@ import AgendaMonthPage from '../pages/agenda/AgendaMonthPage.vue'
 import RosterPage from '../pages/RosterPage.vue'
 import TasksPage from '../pages/TasksPage.vue'
 import SettingsPage from '../pages/SettingsPage.vue'
+import DevicePairPage from '../pages/DevicePairPage.vue'
 
 export default createRouter({
   history: createWebHistory('/staff/'),
@@ -25,5 +26,7 @@ export default createRouter({
     { path: '/roster', name: 'staff.roster', component: RosterPage },
     { path: '/tasks', name: 'staff.tasks', component: TasksPage },
     { path: '/settings', name: 'staff.settings', component: SettingsPage },
+    // Toestel koppelen; de QR-code op Playscope/kiosk wijst naar /staff/koppel/<code>
+    { path: '/koppel/:code?', name: 'staff.pair', component: DevicePairPage },
   ],
 })

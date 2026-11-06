@@ -15,6 +15,22 @@
       @delete="store.deleteReservation($event)"
     />
 
+    <!-- Toestel koppelen (QR-code op Playscope/kiosk) — enkel voor admins -->
+    <RouterLink
+      v-if="auth.user?.is_admin"
+      to="/koppel"
+      class="flex items-center gap-4 rounded-[28px] border border-white/8 bg-slate-950/55 p-5 shadow-[0_18px_45px_rgba(2,6,23,0.28)] backdrop-blur-xl sm:p-6"
+    >
+      <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cyan-400/10 text-cyan-200">
+        <QrCodeIcon class="h-6 w-6" />
+      </span>
+      <span class="min-w-0 flex-1">
+        <span class="block font-semibold text-white">Toestel koppelen</span>
+        <span class="block text-sm text-slate-400">Scan de QR-code op het scherm van een nieuwe pc of kiosk</span>
+      </span>
+      <ChevronRightIcon class="h-5 w-5 text-slate-500" />
+    </RouterLink>
+
     <StaffDateCard
       :selected-date="store.selectedDate"
       :selected-date-label="store.data.selected_date_label"
@@ -44,6 +60,7 @@
 
 <script setup>
 import { onMounted } from 'vue'
+import { ChevronRightIcon, QrCodeIcon } from '@heroicons/vue/24/outline'
 import { useStaffDashboardStore } from '../stores/dashboardStore'
 import { useStaffAuthStore } from '../stores/authStore'
 import StaffDateCard from '../components/dashboard/StaffDateCard.vue'

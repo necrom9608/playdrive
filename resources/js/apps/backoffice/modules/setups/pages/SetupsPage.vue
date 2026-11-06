@@ -239,6 +239,9 @@
                                         <div v-if="d.type === 'playscope' && playscopeVersion && d.app_version && d.app_version !== playscopeVersion" class="text-xs text-amber-300">
                                             Update naar v{{ playscopeVersion }} volgt vanzelf
                                         </div>
+                                        <div v-if="d.checks?.input_group === false" class="text-xs text-amber-300" title="Games sluiten niet af bij inactiviteit. Zie Bediening.">
+                                            Groep "input" ontbreekt — zie Bediening
+                                        </div>
                                     </div>
                                 </div>
                             </td>

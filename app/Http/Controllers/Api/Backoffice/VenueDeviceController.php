@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Backoffice;
 
 use App\Domain\Games\GameCatalog;
 use App\Domain\Setups\DeviceAdminPin;
+use App\Domain\Setups\DevicePairing;
 use App\Domain\Setups\PlayscopeRelease;
 use App\Http\Controllers\Controller;
 use App\Models\Setup;
@@ -87,35 +88,14 @@ class VenueDeviceController extends Controller
             'setup_id'     => ['nullable', 'integer', $this->setupRule($currentTenant)],
         ]);
 
-        $code = VenueDevice::normalizeCode($data['pairing_code']);
-
-        $device = VenueDevice::query()
-            ->whereNull('tenant_id')
-            ->where('pairing_code', $code)
-            ->where('pairing_expires_at', '>', now())
-            ->first();
+        // Gedeeld met de staff-app (QR-code scannen), zie App\Domain\Setups\DevicePairing.
+        $device = DevicePairing::claim($currentTenant->id(), $data['pairing_code'], $data['name'], $data['setup_id'] ?? null);
 
         if (! $device) {
-            return response()->json([
-                'message' => 'Code niet gevonden of verlopen. Controleer de code op het scherm van het toestel.',
-            ], 422);
+            return response()->json(['message' => DevicePairing::NOT_FOUND], 422);
         }
 
-        // Atomisch claimen zodat twee admins niet tegelijk dezelfde code pakken.
-        $claimed = VenueDevice::query()
-            ->whereKey($device->id)
-            ->whereNull('tenant_id')
-            ->update([
-                'tenant_id'  => $currentTenant->id(),
-                'name'       => $data['name'],
-                'setup_id'   => $data['setup_id'] ?? null,
-                'claimed_at' => now(),
-                'is_active'  => true,
-            ]);
-
-        abort_unless($claimed === 1, 409, 'Dit toestel werd net door iemand anders gekoppeld.');
-
-        return response()->json($device->fresh('setup')->toPublicArray(), 201);
+        return response()->json($device->toPublicArray(), 201);
     }
 
     public function update(Request $request, CurrentTenant $currentTenant, VenueDevice $venueDevice): JsonResponse

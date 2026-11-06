@@ -48,6 +48,9 @@ class DeviceController extends Controller
             'state.status' => ['nullable', 'string', 'in:idle,playing,attract,admin'],
             'state.game'   => ['nullable', 'string', 'max:255'],
             'state.since'  => ['nullable', 'date'],
+            // Controles van Playscope (zie migratie 2026_11_06_100000): enkel gekende sleutels.
+            'checks'             => ['nullable', 'array'],
+            'checks.input_group' => ['nullable', 'boolean'],
         ]);
 
         $fill = array_filter([
@@ -59,6 +62,10 @@ class DeviceController extends Controller
         if (array_key_exists('state', $data)) {
             $fill['state'] = $data['state'] ? array_intersect_key($data['state'], array_flip(['status', 'game', 'since'])) : null;
             $fill['state_updated_at'] = now();
+        }
+
+        if (array_key_exists('checks', $data)) {
+            $fill['checks'] = $data['checks'] ? array_intersect_key($data['checks'], array_flip(['input_group'])) : null;
         }
 
         if ($fill) {

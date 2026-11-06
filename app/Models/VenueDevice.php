@@ -40,7 +40,7 @@ class VenueDevice extends Model
         'pairing_code', 'poll_secret_hash', 'pairing_expires_at', 'claimed_at',
         'token_hash', 'token_issued_at', 'is_active',
         'last_seen_at', 'last_ip', 'hostname', 'platform', 'app_version',
-        'state', 'state_updated_at', 'idle_minutes', 'rotation_report', 'rotation_reported_at',
+        'state', 'state_updated_at', 'checks', 'idle_minutes', 'rotation_report', 'rotation_reported_at',
     ];
 
     protected $hidden = ['token_hash', 'poll_secret_hash'];
@@ -55,6 +55,7 @@ class VenueDevice extends Model
             'last_seen_at'       => 'datetime',
             'state'              => 'array',
             'state_updated_at'   => 'datetime',
+            'checks'             => 'array',
             'idle_minutes'       => 'integer',
             'device_group_id'    => 'integer',
             'rotation_report'    => 'array',
@@ -168,6 +169,7 @@ class VenueDevice extends Model
             'platform'     => $this->platform,
             'app_version'  => $this->app_version,
             'state'        => $this->state,
+            'checks'       => $this->checks,
             'idle_minutes' => $this->idleMinutes(),
             'device_group_id' => $this->device_group_id,
             'claimed_at'   => $this->claimed_at?->toIso8601String(),

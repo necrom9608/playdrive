@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Staff\DashboardController;
 use App\Http\Controllers\Api\Staff\LeaveController;
 use App\Http\Controllers\Api\Staff\ProfileController;
 use App\Http\Controllers\Api\Staff\RosterController;
+use App\Http\Controllers\Api\Staff\StaffDeviceController;
 use App\Http\Controllers\Api\Staff\StaffReservationInboxController;
 use App\Http\Controllers\Api\Staff\TaskController;
 use Illuminate\Support\Facades\Route;
@@ -35,5 +36,10 @@ Route::prefix('api/staff')->group(function () {
         Route::post('/reservation-inbox/{id}/confirm', [StaffReservationInboxController::class, 'confirm']);
         Route::post('/reservation-inbox/{id}/reject',  [StaffReservationInboxController::class, 'reject']);
         Route::delete('/reservation-inbox/{id}',       [StaffReservationInboxController::class, 'destroy']);
+
+        // Toestellen koppelen (QR-code op Playscope/kiosk scannen) — enkel admins
+        Route::get('/devices/setups', [StaffDeviceController::class, 'setups']);
+        Route::get('/devices/pairing/{code}', [StaffDeviceController::class, 'lookup'])->middleware('throttle:60,1');
+        Route::post('/devices/claim', [StaffDeviceController::class, 'claim'])->middleware('throttle:30,1');
     });
 });

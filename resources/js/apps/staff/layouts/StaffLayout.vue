@@ -125,6 +125,7 @@ const currentPageTitle = computed(() => {
   if (route.path.startsWith('/roster')) return 'Rooster'
   if (route.path.startsWith('/tasks')) return 'Taken'
   if (route.path.startsWith('/settings')) return 'Settings'
+  if (route.path.startsWith('/koppel')) return 'Toestel koppelen'
   return 'Staff'
 })
 
