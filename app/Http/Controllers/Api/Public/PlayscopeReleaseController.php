@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Public;
 use App\Domain\Setups\PlayscopeRelease;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -42,10 +43,15 @@ class PlayscopeReleaseController extends Controller
         return $this->script('install.ps1', 'text/plain; charset=utf-8');
     }
 
-    public function download(string $version, string $platform = 'linux'): BinaryFileResponse
+    public function download(string $version, string $platform = 'linux'): BinaryFileResponse|RedirectResponse
     {
         $file = PlayscopeRelease::file($version, $platform);
         abort_unless($file, 404, 'Deze Playscope-versie bestaat niet (meer).');
+
+        // Statische kopie: nginx geeft het bestand rechtstreeks (zie PlayscopeRelease).
+        if ($url = PlayscopeRelease::staticUrl($version, $platform)) {
+            return redirect()->away($url, 302, ['Cache-Control' => 'no-store']);
+        }
 
         return response()->download($file, PlayscopeRelease::fileName($version, $platform), [
             'Content-Type' => 'application/octet-stream',

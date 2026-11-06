@@ -16,6 +16,11 @@ namespace App\Domain\Setups;
  *
  * De pc's krijgen de actieve versie voor hun platform mee met de heartbeat (`update`) zodra
  * die verschilt van wat ze draaien, en werken zichzelf bij (electron/updater.js in Playscope).
+ *
+ * Downloaden: de bestanden staan ook (hard link) in storage/app/public/playscope/<versie>/;
+ * /api/playscope/download/... stuurt dan door naar /storage/playscope/... zodat nginx ze
+ * rechtstreeks geeft (snel, hervatten mogelijk, geen PHP-worker per download). Zonder die
+ * kopie of zonder de public/storage-link gaat het zoals vroeger via PHP.
  */
 final class PlayscopeRelease
 {
@@ -62,6 +67,21 @@ final class PlayscopeRelease
         $file = self::dir() . "/releases/{$version}/" . self::FILES[self::platform($platform)];
 
         return is_file($file) ? $file : null;
+    }
+
+    /** Adres van de statische kopie (nginx) van dat bestand, of null als die er niet is. */
+    public static function staticUrl(string $version, string $platform = 'linux'): ?string
+    {
+        if (! self::isVersion($version)) {
+            return null;
+        }
+        $rel = "playscope/{$version}/" . self::FILES[self::platform($platform)];
+        // Via public/storage (de link van storage:link): zo is zeker dat nginx hem ook vindt.
+        if (! is_file(public_path("storage/{$rel}"))) {
+            return null;
+        }
+
+        return url("/storage/{$rel}");
     }
 
     public static function fileName(string $version, string $platform = 'linux'): string
