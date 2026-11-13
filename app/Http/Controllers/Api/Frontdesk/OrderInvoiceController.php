@@ -15,6 +15,7 @@ use RuntimeException;
  * Frontdesk → Verkopen: factuur van een bestelling maken in WeFact.
  *
  *   POST /api/frontdesk/orders/{order}/invoice        {company_name, contact_name, vat_number, email, address, postal_code, city, country, po_number, comment}
+ *   PUT  /api/frontdesk/orders/{order}/invoice        {invoice_requested, ...gegevens}  enkel opslaan (nog niet versturen)
  *   POST /api/frontdesk/orders/{order}/invoice/retry  {email?: bool}  opnieuw proberen (email = toch per e-mail i.p.v. Peppol)
  */
 class OrderInvoiceController extends Controller
@@ -53,6 +54,38 @@ class OrderInvoiceController extends Controller
         return $this->respond($invoice);
     }
 
+    /** Factuurgegevens aanpassen (zonder te versturen) of "factuur gevraagd" aan/uit. */
+    public function details(Request $request, CurrentTenant $currentTenant, Order $order): JsonResponse
+    {
+        $this->authorizeOrder($currentTenant, $order);
+
+        $data = $request->validate([
+            'invoice_requested' => ['required', 'boolean'],
+            'company_name'      => ['nullable', 'string', 'max:255'],
+            'contact_name'      => ['nullable', 'string', 'max:255'],
+            'vat_number'        => ['nullable', 'string', 'max:40'],
+            'email'             => ['nullable', 'email', 'max:255'],
+            'address'           => ['nullable', 'string', 'max:255'],
+            'postal_code'       => ['nullable', 'string', 'max:20'],
+            'city'              => ['nullable', 'string', 'max:255'],
+            'country'           => ['nullable', 'string', 'size:2'],
+            'po_number'         => ['nullable', 'string', 'max:100'],
+            'comment'           => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $invoice = $this->run(fn () => $this->invoices->saveDetails(
+            $order->load('registration'),
+            $data,
+            (bool) $data['invoice_requested'],
+            $request->attributes->get('frontdesk_user')?->id,
+        ));
+
+        return response()->json([
+            'message' => $invoice ? 'Factuurgegevens opgeslagen.' : 'Geen factuur voor deze bestelling.',
+            'data'    => $invoice?->toFrontdeskArray(),
+        ]);
+    }
+
     public function retry(Request $request, CurrentTenant $currentTenant, Order $order): JsonResponse
     {
         $this->authorizeOrder($currentTenant, $order);
@@ -70,7 +103,7 @@ class OrderInvoiceController extends Controller
         abort_unless($currentTenant->exists() && (int) $order->tenant_id === (int) $currentTenant->id(), 404);
     }
 
-    private function run(callable $action): OrderInvoice
+    private function run(callable $action): ?OrderInvoice
     {
         try {
             return $action();

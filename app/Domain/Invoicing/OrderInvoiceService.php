@@ -85,7 +85,7 @@ class OrderInvoiceService
     }
 
     /** Factuurgegevens opslaan (of bijwerken zolang er nog niets naar WeFact ging). */
-    public function prepare(Order $order, array $details, ?int $actorId): OrderInvoice
+    public function prepare(Order $order, array $details, ?int $actorId, bool $draft = false): OrderInvoice
     {
         $invoice = OrderInvoice::query()->firstOrNew(['order_id' => $order->id], [
             'tenant_id'  => $order->tenant_id,
@@ -111,12 +111,50 @@ class OrderInvoiceService
         }
 
         $missing = $this->missingDetails($invoice);
-        $invoice->status = $missing ? OrderInvoice::STATUS_MISSING_DETAILS : OrderInvoice::STATUS_PENDING;
+        $invoice->status = $missing
+            ? OrderInvoice::STATUS_MISSING_DETAILS
+            : ($draft && ! $invoice->wefact_invoice_id ? OrderInvoice::STATUS_DRAFT : OrderInvoice::STATUS_PENDING);
         $invoice->error  = $missing;
         $invoice->save();
 
         if (! $order->invoice_requested) {
             $order->forceFill(['invoice_requested' => true])->save();
+        }
+
+        return $invoice;
+    }
+
+    /**
+     * Factuurgegevens aanpassen zonder te versturen (Verkopen → Factuurgegevens).
+     * Ook op de reservatie bewaard, zodat een volgende bon van die reservatie dezelfde gegevens krijgt.
+     */
+    public function saveDetails(Order $order, array $details, bool $requested, ?int $actorId): ?OrderInvoice
+    {
+        $invoice = OrderInvoice::query()->where('order_id', $order->id)->first();
+
+        if ($invoice?->wefact_invoice_id) {
+            throw new RuntimeException('Deze factuur staat al in WeFact: pas de gegevens daar aan.');
+        }
+
+        if (! $requested) {
+            $invoice?->delete();
+            $order->forceFill(['invoice_requested' => false])->save();
+
+            return null;
+        }
+
+        $invoice = $this->prepare($order, $details, $actorId, draft: true);
+
+        if ($registration = $order->registration) {
+            $registration->forceFill([
+                'invoice_requested'    => true,
+                'invoice_company_name' => $invoice->company_name,
+                'invoice_vat_number'   => $invoice->vat_number,
+                'invoice_email'        => $invoice->email,
+                'invoice_address'      => $invoice->address,
+                'invoice_postal_code'  => $invoice->postal_code,
+                'invoice_city'         => $invoice->city,
+            ])->save();
         }
 
         return $invoice;

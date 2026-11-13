@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /** Factuur van een bestelling in WeFact. Zie App\Domain\Invoicing\OrderInvoiceService. */
 class OrderInvoice extends Model
 {
+    public const STATUS_DRAFT           = 'draft';   // gegevens opgeslagen, nog niet naar WeFact
     public const STATUS_PENDING         = 'pending';
     public const STATUS_MISSING_DETAILS = 'missing_details';
     public const STATUS_ERROR           = 'error';

@@ -68,6 +68,8 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel']);
         Route::post('/orders/{order}/refund', [OrderController::class, 'refund']);
         Route::post('/orders/{order}/invoice', [OrderInvoiceController::class, 'store']);
+        Route::put('/orders/{order}/invoice', [OrderInvoiceController::class, 'details']);
+        Route::get('/vat-lookup', [OrderInvoiceController::class, 'vatLookup'])->middleware('throttle:30,1');
         Route::post('/orders/{order}/invoice/retry', [OrderInvoiceController::class, 'retry']);
 
         Route::post('/vouchers/validate', [GiftVoucherController::class, 'validateForPos']);

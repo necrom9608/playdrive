@@ -179,15 +179,20 @@ export const useSalesStore = defineStore('sales', {
             return this._invoiceRequest(orderId, `/api/frontdesk/orders/${orderId}/invoice`, details)
         },
 
+        /** Factuurgegevens opslaan zonder te versturen (of factuur gevraagd uit). */
+        async saveInvoiceDetails(orderId, details) {
+            return this._invoiceRequest(orderId, `/api/frontdesk/orders/${orderId}/invoice`, details, 'put')
+        },
+
         async retryInvoice(orderId, viaEmail = false) {
             return this._invoiceRequest(orderId, `/api/frontdesk/orders/${orderId}/invoice/retry`, { email: viaEmail })
         },
 
-        async _invoiceRequest(orderId, url, payload) {
+        async _invoiceRequest(orderId, url, payload, method = 'post') {
             let ok = false
             let message = ''
             try {
-                const { data } = await axios.post(url, payload)
+                const { data } = await axios[method](url, payload)
                 ok = true
                 message = data?.message ?? 'Factuur verstuurd.'
             } catch (error) {
