@@ -57,6 +57,8 @@ function createDefaultForm() {
         invoice_address: '',
         invoice_postal_code: '',
         invoice_city: '',
+        invoice_po_number: '',
+        invoice_comment: '',
 
         // Abonnees in deze groep (zie RegistrationSubscribersBlock)
         subscribers: [],

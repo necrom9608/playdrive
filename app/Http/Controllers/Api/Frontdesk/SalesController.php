@@ -51,7 +51,7 @@ class SalesController extends Controller
 
         $query = Order::query()
             ->with([
-                'registration:id,name,email,invoice_requested,invoice_company_name,invoice_vat_number,invoice_email,invoice_address,invoice_postal_code,invoice_city',
+                'registration:id,name,email,invoice_requested,invoice_company_name,invoice_vat_number,invoice_email,invoice_address,invoice_postal_code,invoice_city,invoice_po_number,invoice_comment',
                 'invoice',
                 'items:id,order_id,name,quantity,line_total_incl_vat,source,source_reference,created_by,updated_by',
                 'creator:id,name',

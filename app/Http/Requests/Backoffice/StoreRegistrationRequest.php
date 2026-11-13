@@ -56,6 +56,8 @@ class StoreRegistrationRequest extends FormRequest
             'invoice_address'     => ['nullable', 'string', 'max:255'],
             'invoice_postal_code' => ['nullable', 'string', 'max:10'],
             'invoice_city'        => ['nullable', 'string', 'max:255'],
+            'invoice_po_number'   => ['nullable', 'string', 'max:100'],
+            'invoice_comment'     => ['nullable', 'string', 'max:1000'],
 
             'outside_opening_hours' => ['required', 'boolean'],
             'is_member'             => ['sometimes', 'boolean'],

@@ -47,6 +47,8 @@ class Registration extends Model
         'invoice_address',
         'invoice_postal_code',
         'invoice_city',
+        'invoice_po_number',
+        'invoice_comment',
         'checked_in_at',
         'checked_in_by',
         'checked_out_at',

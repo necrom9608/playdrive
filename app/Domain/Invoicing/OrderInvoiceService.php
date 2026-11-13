@@ -78,6 +78,8 @@ class OrderInvoiceService
             'postal_code'  => $r?->invoice_postal_code,
             'city'         => $r?->invoice_city,
             'country'      => 'BE',
+            'po_number'    => $r?->invoice_po_number,
+            'comment'      => $r?->invoice_comment,
         ];
     }
 
@@ -178,6 +180,8 @@ class OrderInvoiceService
                 'invoice_address'      => $invoice->address,
                 'invoice_postal_code'  => $invoice->postal_code,
                 'invoice_city'         => $invoice->city,
+                'invoice_po_number'    => $invoice->po_number,
+                'invoice_comment'      => $invoice->comment,
             ])->save();
         }
 
@@ -535,9 +539,9 @@ class OrderInvoiceService
         }
 
         return [
+            'iso9925'   => '9925:'.strtolower($vat),     // 9925:be0850037526 (aanvaard door WeFact)
             'iso0208'   => '0208:'.$m[1],               // 0208:0850037526
             'kbo'       => $m[1],                        // 0850037526
-            'iso9925'   => '9925:'.strtolower($vat),     // 9925:be0850037526
             'iso9925uc' => '9925:'.$vat,                 // 9925:BE0850037526
             'vat'       => $vat,                         // BE0850037526
         ];

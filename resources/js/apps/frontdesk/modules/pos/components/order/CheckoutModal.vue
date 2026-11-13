@@ -215,6 +215,43 @@
                                     </div>
                                 </section>
 
+                                <!-- Factuur: wat er na het afrekenen gebeurt -->
+                                <section
+                                    v-if="invoiceRequested"
+                                    class="rounded-[20px] border p-4"
+                                    :class="invoiceSummary.ready ? 'border-sky-500/30 bg-sky-500/5' : 'border-amber-500/40 bg-amber-500/10'"
+                                >
+                                    <div class="flex items-start gap-3">
+                                        <DocumentTextIcon class="mt-0.5 h-5 w-5 shrink-0" :class="invoiceSummary.ready ? 'text-sky-300' : 'text-amber-300'" />
+                                        <div class="min-w-0 flex-1 space-y-1 text-sm">
+                                            <template v-if="invoiceSummary.ready">
+                                                <div class="font-semibold text-white">
+                                                    Factuur gaat na het afrekenen meteen {{ invoiceSummary.channel }} naar {{ invoiceSummary.name }}
+                                                </div>
+                                                <div class="text-slate-400">
+                                                    {{ invoiceSummary.line }}
+                                                </div>
+                                                <div v-if="invoiceSummary.po" class="text-slate-300">
+                                                    Bestelbon: {{ invoiceSummary.po }}
+                                                </div>
+                                                <div v-if="paymentMethod === 'invoice'" class="text-slate-400">
+                                                    Betaling volgt via overschrijving; je volgt ze op in Verkopen.
+                                                </div>
+                                            </template>
+                                            <template v-else>
+                                                <div class="font-semibold text-amber-100">
+                                                    Factuurgegevens ontbreken
+                                                </div>
+                                                <div class="text-amber-200/80">
+                                                    {{ registration
+                                                        ? 'Vul ze in via Reservatie bewerken → Facturatie, of daarna in Verkopen. De factuur blijft daar klaarstaan.'
+                                                        : 'Losse verkoop: vul de factuurgegevens na het afrekenen in bij Verkopen.' }}
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </section>
+
                                 <section
                                     v-if="paymentMethod === 'cash'"
                                     class="rounded-[20px] border border-slate-800 bg-[#020b24] p-4"
@@ -401,7 +438,7 @@
                                 @click="handleConfirm(false)"
                             >
                                 <CheckIcon class="h-5 w-5" />
-                                <span>{{ confirmLoading ? 'Betaling verwerken...' : 'Betaling bevestigen' }}</span>
+                                <span>{{ confirmLabel }}</span>
                             </button>
 
                         </div>
@@ -682,6 +719,33 @@ const itemsTotalFormatted = computed(() => formatMoney(itemsTotal.value))
 const manualDiscountAmountFormatted = computed(() => formatMoney(manualDiscountAmountValue.value))
 const subtotalFormatted = computed(() => formatMoney(subtotal.value))
 const vatFormatted = computed(() => formatMoney(vatTotal.value))
+
+const confirmLabel = computed(() => {
+    if (paymentMethod.value === 'invoice') {
+        return props.confirmLoading ? 'Verwerken...' : 'Afrekenen op factuur'
+    }
+
+    return props.confirmLoading ? 'Betaling verwerken...' : 'Betaling bevestigen'
+})
+
+// Factuurgegevens van de reservatie: naar wie gaat de factuur na het afrekenen?
+const invoiceSummary = computed(() => {
+    const r = props.registration ?? {}
+    const vat = String(r.invoice_vat_number ?? '').replace(/[.\s]/g, '').toUpperCase()
+    const email = r.invoice_email || r.email || ''
+    const peppol = /^BE[01]\d{9}$/.test(vat)
+    const name = r.invoice_company_name || r.name || ''
+
+    return {
+        ready: Boolean(props.registration && name && (peppol || email)),
+        channel: peppol ? 'via Peppol' : 'per e-mail',
+        name,
+        line: [vat, [r.invoice_address, [r.invoice_postal_code, r.invoice_city].filter(Boolean).join(' ')].filter(Boolean).join(', '), peppol ? '' : email]
+            .filter(Boolean)
+            .join(' · '),
+        po: r.invoice_po_number || '',
+    }
+})
 
 const activeReservationLabel = computed(() => {
     if (!props.registration) {

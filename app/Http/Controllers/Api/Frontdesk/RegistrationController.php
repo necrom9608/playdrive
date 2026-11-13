@@ -629,6 +629,8 @@ class RegistrationController extends Controller
             'invoice_address'       => $registration->invoice_address,
             'invoice_postal_code'   => $registration->invoice_postal_code,
             'invoice_city'          => $registration->invoice_city,
+            'invoice_po_number'     => $registration->invoice_po_number,
+            'invoice_comment'       => $registration->invoice_comment,
             'checked_in_at'         => optional($registration->checked_in_at)?->toIso8601String(),
             'checked_in_by'         => $this->transformActor($registration->checkedInBy),
             'checked_out_at'        => optional($registration->checked_out_at)?->toIso8601String(),
