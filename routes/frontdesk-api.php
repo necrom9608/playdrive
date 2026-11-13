@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\Frontdesk\MemberController;
 use App\Http\Controllers\Api\Frontdesk\MemberInviteController;
 use App\Http\Controllers\Api\Frontdesk\NewRegistrationController;
 use App\Http\Controllers\Api\Frontdesk\OrderController;
+use App\Http\Controllers\Api\Frontdesk\OrderInvoiceController;
 use App\Http\Controllers\Api\Frontdesk\PhysicalCardController;
 use App\Http\Controllers\Api\Frontdesk\PricingController;
 use App\Http\Controllers\Api\Frontdesk\RegistrationController;
@@ -66,6 +67,8 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::post('/orders/{order}/send-receipt', [OrderController::class, 'sendReceipt']);
         Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel']);
         Route::post('/orders/{order}/refund', [OrderController::class, 'refund']);
+        Route::post('/orders/{order}/invoice', [OrderInvoiceController::class, 'store']);
+        Route::post('/orders/{order}/invoice/retry', [OrderInvoiceController::class, 'retry']);
 
         Route::post('/vouchers/validate', [GiftVoucherController::class, 'validateForPos']);
         Route::get('/vouchers', [GiftVoucherController::class, 'index']);

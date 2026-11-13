@@ -49,11 +49,21 @@
                     <td class="p-3">
                             <span
                                 class="inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold"
-                                :class="order.invoice_requested
-                                    ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
-                                    : 'border-slate-600 bg-slate-700/40 text-slate-300'"
+                                :class="order.invoice?.status === 'done'
+                                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                                    : order.invoice?.status === 'error' || order.invoice?.status === 'missing_details'
+                                        ? 'border-rose-500/30 bg-rose-500/10 text-rose-300'
+                                        : order.invoice_requested
+                                            ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                                            : 'border-slate-600 bg-slate-700/40 text-slate-300'"
                             >
-                                {{ order.invoice_requested ? 'Factuur' : 'Geen factuur' }}
+                                {{ order.invoice?.status === 'done'
+                                    ? (order.invoice.invoice_code || 'Gefactureerd')
+                                    : order.invoice?.status === 'error'
+                                        ? 'Factuur: fout'
+                                        : order.invoice?.status === 'missing_details'
+                                            ? 'Factuur: gegevens'
+                                            : order.invoice_requested ? 'Factuur' : 'Geen factuur' }}
                             </span>
                     </td>
 

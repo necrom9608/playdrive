@@ -10,6 +10,7 @@ use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Services\MailLogger;
 use App\Support\JoinLink;
+use App\Support\NewsletterHook;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -53,6 +54,7 @@ class JoinController extends Controller
             'birth_date'            => ['nullable', 'date', 'before:today'],
             'phone'                 => ['nullable', 'string', 'max:50'],
             'accept_terms'          => ['accepted'],
+            'newsletter'            => ['nullable', 'boolean'],
             'children'              => ['nullable', 'array', 'max:8'],
             'children.*.first_name' => ['required', 'string', 'max:255'],
             'children.*.last_name'  => ['nullable', 'string', 'max:255'],
@@ -92,6 +94,7 @@ class JoinController extends Controller
             return [$membership, $account];
         });
 
+        $this->newsletter($request, $tenant, $account, $membership);
         $mailSent = $this->sendWelcomeMail($account, $tenant, $membership);
 
         return response()->json([
@@ -107,6 +110,7 @@ class JoinController extends Controller
             'email'        => ['required', 'email'],
             'password'     => ['required', 'string'],
             'accept_terms' => ['accepted'],
+            'newsletter'   => ['nullable', 'boolean'],
         ], [
             'accept_terms.accepted' => 'Ga akkoord om lid te worden.',
         ]);
@@ -122,6 +126,7 @@ class JoinController extends Controller
 
         $already    = TenantMembership::query()->where('account_id', $account->id)->where('tenant_id', $tenant->id)->exists();
         $membership = $this->ensureMembership($account, $tenant);
+        $this->newsletter($request, $tenant, $account, $membership);
 
         return response()->json([
             'data' => [
@@ -175,8 +180,21 @@ class JoinController extends Controller
             'logo_url' => $tenant->logo_url,
             'city'     => $tenant->city,
             // Huisstijl van het formulier volgt de skin van het klantenscherm.
-            'theme'    => $skin === 'gameinn' ? 'gameinn' : 'standaard',
+            'theme'      => $skin === 'gameinn' ? 'gameinn' : 'standaard',
+            // Vinkje "nieuwsbrief" enkel als de venue een koppeling heeft (Tenantinstellingen).
+            'newsletter' => NewsletterHook::enabled($tenant),
         ];
+    }
+
+    /** Vinkje "nieuwsbrief": bijhouden en doorsturen naar de venue (die stuurt zelf de bevestigingsmail). */
+    private function newsletter(Request $request, Tenant $tenant, Account $account, TenantMembership $membership): void
+    {
+        if (! $request->boolean('newsletter') || ! NewsletterHook::enabled($tenant)) {
+            return;
+        }
+
+        $membership->forceFill(['newsletter_opt_in_at' => now()])->save();
+        NewsletterHook::subscribeLater($tenant, $account);
     }
 
     /** Lid worden: bestaande koppeling blijft ongemoeid (ook een actief abonnement). */

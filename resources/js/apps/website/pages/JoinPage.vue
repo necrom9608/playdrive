@@ -85,6 +85,10 @@
                         <input v-model="form.accept_terms" type="checkbox">
                         <span>Ik ga akkoord dat {{ venue.name }} mijn gegevens bewaart om mijn lidmaatschap te beheren.</span>
                     </label>
+                    <label v-if="venue.newsletter" class="check">
+                        <input v-model="form.newsletter" type="checkbox">
+                        <span>Hou me op de hoogte via de nieuwsbrief van {{ venue.name }} <em>(optioneel, je bevestigt via een aparte mail)</em></span>
+                    </label>
 
                     <p v-if="error" class="error" role="alert">{{ error }}</p>
 
@@ -113,6 +117,10 @@
                     <label class="check">
                         <input v-model="login.accept_terms" type="checkbox">
                         <span>Ik ga akkoord dat {{ venue.name }} mijn gegevens uit mijn Playdrive-account (naam, e-mail, geboortedatum, gsm) gebruikt voor mijn lidmaatschap.</span>
+                    </label>
+                    <label v-if="venue.newsletter" class="check">
+                        <input v-model="login.newsletter" type="checkbox">
+                        <span>Hou me op de hoogte via de nieuwsbrief van {{ venue.name }} <em>(optioneel, je bevestigt via een aparte mail)</em></span>
                     </label>
 
                     <p v-if="error" class="error" role="alert">{{ error }}</p>
@@ -150,6 +158,7 @@
                         <span v-else>De mail kon niet verstuurd worden. Vraag aan de kassa om hem opnieuw te sturen.</span>
                     </div>
                 </div>
+                <p v-if="result.newsletter" class="soft small">Je krijgt ook een aparte mail om je inschrijving voor de nieuwsbrief te bevestigen.</p>
                 <div v-if="result.needs_confirmation" class="row">
                     <button type="button" class="link" :disabled="resent || busy" @click="resend">{{ resent ? 'Mail opnieuw verstuurd' : 'Mail opnieuw sturen' }}</button>
                     <button v-if="!result.already_member" type="button" class="link" @click="editEmail">E-mailadres aanpassen</button>
@@ -179,8 +188,8 @@ const resent = ref(false)
 const today = new Date().toISOString().slice(0, 10)
 
 let kidSeq = 0
-const form = reactive({ first_name: '', last_name: '', email: '', birth_date: '', phone: '', children: [], accept_terms: false })
-const login = reactive({ email: '', password: '', accept_terms: false })
+const form = reactive({ first_name: '', last_name: '', email: '', birth_date: '', phone: '', children: [], accept_terms: false, newsletter: false })
+const login = reactive({ email: '', password: '', accept_terms: false, newsletter: false })
 
 const base = () => `/api/join/${encodeURIComponent(props.slug)}`
 
@@ -216,6 +225,7 @@ function goLogin(message = '') {
     error.value = ''
     notice.value = message
     if (!login.email) login.email = form.email
+    if (form.newsletter) login.newsletter = true
     step.value = 'login'
     window.scrollTo(0, 0)
 }
@@ -246,9 +256,10 @@ async function submitRegister() {
             birth_date: form.birth_date || null,
             phone: form.phone || null,
             accept_terms: true,
+            newsletter: !!(venue.value?.newsletter && form.newsletter),
             children: form.children.map(k => ({ first_name: k.first_name, birth_date: k.birth_date || null })),
         })
-        await finish(data)
+        await finish(data, !!(venue.value?.newsletter && form.newsletter))
     } catch (e) {
         if (e.status === 409 && e.data?.code === 'account_exists') {
             goLogin('Dit e-mailadres heeft al een Playdrive-account. Log in om lid te worden.')
@@ -267,8 +278,13 @@ async function submitLogin() {
     if (busy.value) return
     busy.value = true
     try {
-        const { data } = await api('/login', { email: login.email, password: login.password, accept_terms: true })
-        await finish(data)
+        const { data } = await api('/login', {
+            email: login.email,
+            password: login.password,
+            accept_terms: true,
+            newsletter: !!(venue.value?.newsletter && login.newsletter),
+        })
+        await finish(data, !!(venue.value?.newsletter && login.newsletter))
     } catch (e) {
         error.value = e.message
     } finally {
@@ -276,8 +292,8 @@ async function submitLogin() {
     }
 }
 
-async function finish(data) {
-    result.value = data
+async function finish(data, newsletter = false) {
+    result.value = { ...data, newsletter }
     resent.value = false
     try {
         qr.value = await QRCode.toDataURL(data.code, { margin: 1, width: 360, errorCorrectionLevel: 'M' })
@@ -387,6 +403,7 @@ h1 { margin: 0; font-family: var(--head); font-weight: var(--head-weight); text-
 
 .check { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; color: var(--soft); cursor: pointer; }
 .check input { width: 20px; height: 20px; margin: 1px 0 0; flex: none; accent-color: var(--accent); }
+.check em { font-style: normal; color: var(--muted); }
 
 .primary {
     height: 54px; border: 0; border-radius: 16px; background: var(--accent); color: var(--on-accent); font: inherit; font-size: 17px; font-weight: 700; cursor: pointer;
@@ -419,5 +436,6 @@ h1 { margin: 0; font-family: var(--head); font-weight: var(--head-weight); text-
 .mailbox span { display: block; color: var(--soft); font-size: 13px; }
 .mailbox b { color: var(--text); }
 
+.small { font-size: 13px; }
 .powered { margin-top: auto; text-align: center; font-size: 12px; color: var(--muted); }
 </style>

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\Backoffice;
 
+use App\Domain\Invoicing\OrderInvoiceService;
+use App\Domain\Invoicing\WeFactClient;
 use App\Http\Controllers\Controller;
 use App\Support\CurrentTenant;
 use Illuminate\Http\JsonResponse;
@@ -41,6 +43,16 @@ class TenantSettingsController extends Controller
             'remove_logo' => ['nullable', 'boolean'],
             'family_max_adults' => ['nullable', 'integer', 'min:1', 'max:50'],
             'family_max_children' => ['nullable', 'integer', 'min:0', 'max:50'],
+            'newsletter_url' => ['nullable', 'url', 'max:255'],
+            'newsletter_token' => ['nullable', 'string', 'max:255'],
+            'clear_newsletter_token' => ['nullable', 'boolean'],
+            'wefact_api_key' => ['nullable', 'string', 'max:255'],
+            'clear_wefact_api_key' => ['nullable', 'boolean'],
+            'wefact_tax_21' => ['nullable', 'string', 'max:20'],
+            'wefact_tax_12' => ['nullable', 'string', 'max:20'],
+            'wefact_tax_6' => ['nullable', 'string', 'max:20'],
+            'wefact_tax_0' => ['nullable', 'string', 'max:20'],
+            'test_wefact' => ['nullable', 'boolean'],
         ]);
 
         if ($request->boolean('remove_logo') && $tenant->logo_path) {
@@ -71,11 +83,49 @@ class TenantSettingsController extends Controller
             // leeg = onbeperkt
             'family_max_adults' => filled($data['family_max_adults'] ?? null) ? (int) $data['family_max_adults'] : null,
             'family_max_children' => filled($data['family_max_children'] ?? null) ? (int) $data['family_max_children'] : null,
+            'newsletter_url' => filled($data['newsletter_url'] ?? null) ? trim($data['newsletter_url']) : null,
         ]);
+
+        // Token is write-only: leeg laten = behouden.
+        if ($request->boolean('clear_newsletter_token')) {
+            $tenant->newsletter_token = null;
+        } elseif (filled($data['newsletter_token'] ?? null)) {
+            $tenant->newsletter_token = trim($data['newsletter_token']);
+        }
+
+        // WeFact: sleutel is write-only (leeg = behouden); btw-codes per tarief (leeg = standaard V21, V12, V6, V0).
+        $keyChanged = false;
+        if ($request->boolean('clear_wefact_api_key')) {
+            $tenant->wefact_api_key = null;
+        } elseif (filled($data['wefact_api_key'] ?? null)) {
+            $tenant->wefact_api_key = trim($data['wefact_api_key']);
+            $keyChanged = true;
+        }
+        $taxCodes = [];
+        foreach (['21', '12', '6', '0'] as $rate) {
+            if (filled($data['wefact_tax_' . $rate] ?? null)) {
+                $taxCodes[$rate] = strtoupper(trim($data['wefact_tax_' . $rate]));
+            }
+        }
+        $tenant->wefact_tax_codes = $taxCodes ?: null;
+
         $tenant->save();
 
+        $message = 'Tenantinstellingen werden opgeslagen.';
+        $wefactError = null;
+        if (($keyChanged || $request->boolean('test_wefact')) && filled($tenant->wefact_api_key)) {
+            try {
+                (new WeFactClient((string) $tenant->wefact_api_key))->call('debtor', 'list', ['limit' => 1]);
+                $message .= ' Verbinding met WeFact werkt.';
+            } catch (\Throwable $e) {
+                $wefactError = 'Opgeslagen, maar WeFact antwoordt niet: ' . $e->getMessage()
+                    . ' Staat het IP-adres van de server op de whitelist (WeFact → Instellingen → API)?';
+            }
+        }
+
         return response()->json([
-            'message' => 'Tenantinstellingen werden opgeslagen.',
+            'message' => $message,
+            'wefact_error' => $wefactError,
             'data' => $this->mapTenant($tenant->fresh()),
         ]);
     }
@@ -101,6 +151,10 @@ class TenantSettingsController extends Controller
             'receipt_footer' => $tenant->receipt_footer,
             'family_max_adults' => $tenant->family_max_adults,
             'family_max_children' => $tenant->family_max_children,
+            'newsletter_url' => $tenant->newsletter_url,
+            'newsletter_token_set' => filled($tenant->newsletter_token),
+            'wefact_api_key_set' => filled($tenant->wefact_api_key),
+            'wefact_tax_codes' => OrderInvoiceService::taxCodes($tenant),
         ];
     }
 }

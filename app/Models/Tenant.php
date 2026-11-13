@@ -38,11 +38,17 @@ class Tenant extends Model
         'receipt_footer',
         'family_max_adults',
         'family_max_children',
+        'newsletter_url',
+        'newsletter_token',
+        'wefact_api_key',
+        'wefact_tax_codes',
     ];
 
     /** Hash van de beheerpincode voor toestellen: nooit mee in een JSON-antwoord. */
     protected $hidden = [
         'device_admin_pin',
+        'newsletter_token',
+        'wefact_api_key',
     ];
 
     protected $appends = [
@@ -61,6 +67,9 @@ class Tenant extends Model
         'family_max_adults'   => 'integer',
         'family_max_children' => 'integer',
         'device_admin_pin_updated_at' => 'datetime',
+        'newsletter_token'  => 'encrypted',
+        'wefact_api_key'    => 'encrypted',
+        'wefact_tax_codes'  => 'array',
     ];
 
     // ------------------------------------------------------------------

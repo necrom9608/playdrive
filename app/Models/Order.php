@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Order extends Model
 {
@@ -65,6 +66,12 @@ class Order extends Model
     public function registration(): BelongsTo
     {
         return $this->belongsTo(Registration::class);
+    }
+
+    /** Factuur in WeFact (zie App\Domain\Invoicing\OrderInvoiceService). */
+    public function invoice(): HasOne
+    {
+        return $this->hasOne(OrderInvoice::class);
     }
 
     public function items(): HasMany

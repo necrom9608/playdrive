@@ -153,6 +153,32 @@ export const useSalesStore = defineStore('sales', {
             }
         },
 
+        /** Factuur maken in WeFact (Verkopen → Factuur). Geeft {ok, message} terug. */
+        async createInvoice(orderId, details) {
+            return this._invoiceRequest(orderId, `/api/frontdesk/orders/${orderId}/invoice`, details)
+        },
+
+        async retryInvoice(orderId, viaEmail = false) {
+            return this._invoiceRequest(orderId, `/api/frontdesk/orders/${orderId}/invoice/retry`, { email: viaEmail })
+        },
+
+        async _invoiceRequest(orderId, url, payload) {
+            let ok = false
+            let message = ''
+            try {
+                const { data } = await axios.post(url, payload)
+                ok = true
+                message = data?.message ?? 'Factuur verstuurd.'
+            } catch (error) {
+                const data = error?.response?.data
+                const errors = data?.errors ? Object.values(data.errors).flat() : []
+                message = errors[0] ?? data?.message ?? 'Factuur maken mislukt.'
+            }
+            await this.fetchSales()
+            this.selectedOrder = this.orders.find(order => order.id === orderId) ?? this.selectedOrder
+            return { ok, message }
+        },
+
         async sendReceiptForSelectedOrder(email) {
             if (!this.selectedOrder?.id) {
                 return false

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Frontdesk;
 
+use App\Domain\Invoicing\OrderInvoiceService;
 use App\Domain\Orders\OrderService;
 use App\Http\Controllers\Controller;
 use App\Mail\ReceiptMail;
@@ -112,6 +113,9 @@ class OrderController extends Controller
 
         $order = $this->orderService->checkout($validated, $currentTenant);
 
+        // Factuur gevraagd: meteen naar WeFact (na het antwoord), met de gegevens van de reservatie.
+        app(OrderInvoiceService::class)->afterCheckout($order);
+
         return response()->json([
             'data' => $this->transformOrder($order->fresh([
                 'items.product',
@@ -152,6 +156,8 @@ class OrderController extends Controller
         } catch (\InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
+
+        app(OrderInvoiceService::class)->afterCheckout($paid);
 
         return response()->json([
             'data' => $this->transformOrder($paid->fresh([

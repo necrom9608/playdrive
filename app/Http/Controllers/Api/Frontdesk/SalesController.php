@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Frontdesk;
 
+use App\Domain\Invoicing\OrderInvoiceService;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Support\CurrentTenant;
@@ -31,7 +32,8 @@ class SalesController extends Controller
 
         $query = Order::query()
             ->with([
-                'registration:id,name,invoice_requested,invoice_company_name',
+                'registration:id,name,email,invoice_requested,invoice_company_name,invoice_vat_number,invoice_email,invoice_address,invoice_postal_code,invoice_city',
+                'invoice',
                 'items:id,order_id,name,quantity,line_total_incl_vat,source,source_reference,created_by,updated_by',
                 'creator:id,name',
                 'updater:id,name',
@@ -85,6 +87,7 @@ class SalesController extends Controller
             'invoice_order_count' => $activeOrders->where('invoice_requested', true)->count(),
             'walk_in_order_count' => $activeOrders->where('source', Order::SOURCE_WALK_IN)->count(),
             'reservation_order_count' => $activeOrders->where('source', Order::SOURCE_RESERVATION)->count(),
+            'invoicing_enabled' => OrderInvoiceService::configured($currentTenant->tenant),
         ];
 
         $sales = $orders->map(function (Order $order) {
@@ -97,6 +100,9 @@ class SalesController extends Controller
                 'source_label' => $order->source === Order::SOURCE_RESERVATION ? 'Reservatie' : 'Losse verkoop',
                 'payment_method' => $order->payment_method,
                 'invoice_requested' => (bool) $order->invoice_requested,
+                // Factuur in WeFact (null = nog geen); invoice_defaults = gegevens van de reservatie om voor te vullen
+                'invoice' => $order->invoice?->toFrontdeskArray(),
+                'invoice_defaults' => $order->invoice ? null : OrderInvoiceService::detailsFromRegistration($order),
                 'subtotal_excl_vat' => (float) $order->subtotal_excl_vat,
                 'total_vat' => (float) $order->total_vat,
                 'total_incl_vat' => (float) $order->total_incl_vat,
