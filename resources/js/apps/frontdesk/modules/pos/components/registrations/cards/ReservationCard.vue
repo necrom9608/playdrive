@@ -50,8 +50,28 @@
                 </select>
             </div>
 
-            <div class="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3">
+            <!-- Uitgecheckt: uitcheckuur aanpasbaar (speeltijd en prijs worden herberekend) -->
+            <div v-if="isCheckedOut">
+                <label class="mb-2 block text-xs font-medium text-slate-400">
+                    Uitgecheckt om
+                </label>
 
+                <input
+                    v-model="model.checkout_time"
+                    type="time"
+                    class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-100 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-900"
+                >
+
+                <p class="mt-1.5 text-xs text-slate-500">
+                    Speeltijd: <span class="font-semibold text-slate-300">{{ playedLabel }}</span>
+                    <template v-if="plannedEndTime && plannedEndTime !== '--:--'"> · gepland einde {{ plannedEndTime }}</template>
+                </p>
+            </div>
+
+            <div v-else class="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3">
+                <div class="text-xs font-medium text-slate-400">
+                    Gepland einde
+                </div>
                 <div class="mt-1 text-lg font-semibold text-slate-100">
                     {{ plannedEndTime }}
                 </div>
@@ -86,6 +106,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import FormCard from '../fields/FormCard.vue'
 
 defineProps({
@@ -100,4 +121,20 @@ defineProps({
 })
 
 const model = defineModel({ type: Object, required: true })
+
+// Uitgecheckt = er is een uitcheckuur (komt uit checked_out_at, zie useRegistrationForm)
+const isCheckedOut = computed(() => !!model.value?.checkout_time)
+
+function toMinutes(time) {
+    const [h, m] = String(time ?? '').split(':').map(Number)
+    return Number.isNaN(h) || Number.isNaN(m) ? null : h * 60 + m
+}
+
+const playedLabel = computed(() => {
+    const start = toMinutes(model.value?.event_time)
+    const end = toMinutes(model.value?.checkout_time)
+    if (start === null || end === null) return '--'
+    const minutes = end > start ? end - start : end + 24 * 60 - start // na middernacht uitgecheckt
+    return `${Math.floor(minutes / 60)}u ${String(minutes % 60).padStart(2, '0')}m`
+})
 </script>

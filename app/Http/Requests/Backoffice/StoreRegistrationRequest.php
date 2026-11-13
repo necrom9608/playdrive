@@ -25,6 +25,8 @@ class StoreRegistrationRequest extends FormRequest
             'event_type_id'    => ['nullable', 'exists:event_types,id'],
             'event_date'       => ['nullable', 'date'],
             'event_time'       => ['nullable', 'date_format:H:i'],
+            // Uitcheckuur aanpassen (enkel bij een uitgecheckte registratie)
+            'checkout_time'    => ['nullable', 'date_format:H:i'],
             'stay_option_id'   => ['nullable', 'exists:stay_options,id'],
             'catering_option_id' => ['nullable', 'exists:catering_options,id'],
 

@@ -190,6 +190,39 @@ class RegistrationController extends Controller
                 $data['played_minutes'] = max(0, (int) $newStart->diffInMinutes($registration->checked_out_at));
             }
         }
+        // Uitcheckuur aangepast bij een uitgecheckte registratie → speeltijd herberekenen
+        $checkoutTime = $data['checkout_time'] ?? null;
+        unset($data['checkout_time']);
+        if ($checkoutTime && $registration->checked_out_at && $checkoutTime !== $registration->checked_out_at->format('H:i')) {
+            $start  = $data['checked_in_at'] ?? $registration->checked_in_at;
+            $newEnd = \Illuminate\Support\Carbon::parse(
+                ($start ?? $registration->checked_out_at)->toDateString() . ' ' . $checkoutTime
+            );
+            // Na middernacht uitgecheckt: volgende dag
+            if ($start && $newEnd->lessThanOrEqualTo($start) && $registration->checked_out_at->toDateString() !== $start->toDateString()) {
+                $newEnd->addDay();
+            }
+
+            if ($start && $newEnd->lessThanOrEqualTo($start)) {
+                return response()->json([
+                    'message' => 'Het uitcheckuur ligt vóór het startuur (' . $start->format('H:i') . ').',
+                    'errors'  => ['checkout_time' => ['Het uitcheckuur ligt vóór het startuur.']],
+                ], 422);
+            }
+            if ($newEnd->greaterThan(now()->addMinute())) {
+                return response()->json([
+                    'message' => 'Het uitcheckuur ligt in de toekomst.',
+                    'errors'  => ['checkout_time' => ['Het uitcheckuur ligt in de toekomst.']],
+                ], 422);
+            }
+
+            $data['checked_out_at'] = $newEnd;
+            if ($start) {
+                $data['played_minutes'] = max(0, (int) $start->diffInMinutes($newEnd));
+            }
+            $startChanged = true; // zelfde gevolg: speeltijd en prijs opnieuw berekenen
+        }
+
         if (($data['status'] ?? null) === Registration::STATUS_CHECKED_OUT && ! $registration->checked_out_at) {
             $data['checked_out_at'] = now();
             $data['checked_out_by'] = $registration->checked_out_by ?: $actorUserId;
@@ -218,7 +251,7 @@ class RegistrationController extends Controller
 
         $registration->load($this->withRelations());
 
-        // Al uitgecheckt maar nog niet betaald: speeltijd opnieuw berekenen met het nieuwe startuur
+        // Al uitgecheckt maar nog niet betaald: speeltijd opnieuw berekenen met het nieuwe start- of uitcheckuur
         if ($startChanged && $registration->status === Registration::STATUS_CHECKED_OUT) {
             $hasOpenOrder = Order::query()
                 ->where('registration_id', $registration->id)

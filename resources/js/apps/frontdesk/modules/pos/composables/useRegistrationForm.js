@@ -63,7 +63,23 @@ function createDefaultForm() {
 
         // Effectieve inchecktijd (alleen-lezen in het formulier, stuurt het label "Startuur")
         checked_in_at: null,
+
+        // Uitgecheckt? Dan kan het uitcheckuur aangepast worden (HH:MM)
+        checked_out_at: null,
+        checkout_time: null,
     }
+}
+
+function checkoutTimeFor(values = {}) {
+    if (!values.checked_out_at) {
+        return null
+    }
+
+    const date = new Date(values.checked_out_at)
+
+    return Number.isNaN(date.getTime())
+        ? null
+        : `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
 // Ingecheckt? Dan is het startuur de effectieve inchecktijd (daarop wordt de speeltijd berekend)
@@ -93,6 +109,7 @@ export function useRegistrationForm(initialValues = {}, selectedStayOption = nul
         },
         subscribers: (initialValues.subscribers ?? []).map(subscriber => ({ ...subscriber })),
         event_time: startTimeFor(initialValues) ?? defaults.event_time,
+        checkout_time: checkoutTimeFor(initialValues),
     })
 
     const subscribersChildren = computed(() => form.subscribers.filter(s => s.participant_scope === 'children').length)
@@ -162,6 +179,11 @@ export function useRegistrationForm(initialValues = {}, selectedStayOption = nul
 
             if (key === 'checked_in_at') {
                 form.checked_in_at = values.checked_in_at ?? null
+                return
+            }
+
+            if (key === 'checkout_time') {
+                form.checkout_time = checkoutTimeFor(values)
                 return
             }
 
