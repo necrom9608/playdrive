@@ -37,6 +37,7 @@
                     <option value="all">Alles</option>
                     <option value="yes">Met factuur</option>
                     <option value="no">Zonder factuur</option>
+                    <option value="open">Openstaand (alle dagen){{ store.summary?.open_invoices?.count ? ` · ${store.summary.open_invoices.count}` : '' }}</option>
                 </select>
             </div>
 
@@ -51,6 +52,7 @@
                     <option value="all">Alles</option>
                     <option value="cash">Cash</option>
                     <option value="bancontact">Bancontact</option>
+                    <option value="invoice">Op factuur</option>
                 </select>
             </div>
 

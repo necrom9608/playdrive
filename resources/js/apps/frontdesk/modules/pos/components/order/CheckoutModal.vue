@@ -126,7 +126,7 @@
                         <div class="min-h-0 flex-1 overflow-y-auto pr-2">
                             <div class="space-y-4">
                                 <section>
-                                    <div class="grid grid-cols-3 gap-3">
+                                    <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
                                         <button
                                             type="button"
                                             class="overflow-hidden rounded-[20px] border transition"
@@ -157,12 +157,33 @@
                                             </div>
                                         </button>
 
+                                        <!-- Op factuur: firma betaalt achteraf (overschrijving), factuur via WeFact -->
                                         <button
                                             type="button"
                                             class="rounded-[20px] border p-4 text-left transition"
+                                            :class="paymentMethodCardClass('invoice')"
+                                            @click="paymentMethod = 'invoice'"
+                                        >
+                                            <div class="flex h-full flex-col justify-between gap-4">
+                                                <BuildingOfficeIcon class="h-7 w-7 text-white" />
+                                                <div>
+                                                    <div class="text-base font-semibold text-white">
+                                                        Op factuur
+                                                    </div>
+                                                    <p class="mt-1 text-sm leading-relaxed text-slate-400">
+                                                        Firma betaalt achteraf via overschrijving.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            class="rounded-[20px] border p-4 text-left transition disabled:cursor-not-allowed"
                                             :class="invoiceRequested
                                                 ? 'border-sky-500 bg-slate-800 ring-2 ring-sky-500/30'
                                                 : 'border-slate-700 bg-slate-800/80 hover:border-slate-500'"
+                                            :disabled="paymentMethod === 'invoice'"
                                             @click="invoiceRequested = !invoiceRequested"
                                         >
                                             <div class="flex h-full flex-col justify-between gap-4">
@@ -186,7 +207,7 @@
                                                         Facturatie
                                                     </div>
                                                     <p class="mt-1 text-sm leading-relaxed text-slate-400">
-                                                        Later mee op factuur zetten.
+                                                        {{ paymentMethod === 'invoice' ? 'Altijd bij "Op factuur".' : 'Nu betaald, met factuur.' }}
                                                     </p>
                                                 </div>
                                             </div>
@@ -394,6 +415,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import {
+    BuildingOfficeIcon,
     CheckBadgeIcon,
     CheckIcon,
     DocumentTextIcon,
@@ -537,6 +559,11 @@ watch(paymentMethod, (value) => {
 
     if (value !== 'cash') {
         cashReceivedInput.value = ''
+    }
+
+    // "Op factuur" = altijd een factuur
+    if (value === 'invoice') {
+        invoiceRequested.value = true
     }
 })
 

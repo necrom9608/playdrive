@@ -42,6 +42,7 @@ class Tenant extends Model
         'newsletter_token',
         'wefact_api_key',
         'wefact_tax_codes',
+        'wefact_payment_term',
     ];
 
     /** Hash van de beheerpincode voor toestellen: nooit mee in een JSON-antwoord. */

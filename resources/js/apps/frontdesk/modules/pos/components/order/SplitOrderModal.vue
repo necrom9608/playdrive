@@ -385,7 +385,7 @@ function markPaid(index, order = null) {
 }
 
 function paymentLabel(method) {
-    return { cash: 'Cash', bancontact: 'Bancontact', voucher: 'Cadeaubon' }[method] ?? method
+    return { cash: 'Cash', bancontact: 'Bancontact', voucher: 'Cadeaubon', invoice: 'Op factuur' }[method] ?? method
 }
 
 function handleClose() {

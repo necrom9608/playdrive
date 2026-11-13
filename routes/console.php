@@ -28,6 +28,17 @@ Schedule::command('accounting:send-day-totals')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Facturen "Op factuur" (achteraf te betalen): betaalstatus elk uur bij WeFact ophalen.
+//   php artisan invoices:sync-wefact
+Artisan::command('invoices:sync-wefact', function (\App\Domain\Invoicing\OrderInvoiceService $invoices) {
+    $this->info($invoices->syncUnsettled().' openstaande facturen nagekeken.');
+})->purpose('Betaalstatus van openstaande facturen ophalen bij WeFact');
+
+Schedule::command('invoices:sync-wefact')
+    ->hourlyAt(17)
+    ->withoutOverlapping(30)
+    ->runInBackground();
+
 // Mailassistent: nieuwe klantmails ophalen en concept-antwoorden opstellen (enkel tenants waar hij aan staat).
 //   php artisan mail-assistant:fetch --tenant=1 --no-draft
 Schedule::command('mail-assistant:fetch')

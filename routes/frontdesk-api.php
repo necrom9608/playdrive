@@ -71,6 +71,8 @@ Route::prefix('api/frontdesk')->group(function () {
         Route::put('/orders/{order}/invoice', [OrderInvoiceController::class, 'details']);
         Route::get('/vat-lookup', [OrderInvoiceController::class, 'vatLookup'])->middleware('throttle:30,1');
         Route::post('/orders/{order}/invoice/retry', [OrderInvoiceController::class, 'retry']);
+        Route::post('/orders/{order}/invoice/reminder', [OrderInvoiceController::class, 'reminder'])->middleware('throttle:10,1');
+        Route::post('/orders/{order}/invoice/sync', [OrderInvoiceController::class, 'sync'])->middleware('throttle:30,1');
 
         Route::post('/vouchers/validate', [GiftVoucherController::class, 'validateForPos']);
         Route::get('/vouchers', [GiftVoucherController::class, 'index']);

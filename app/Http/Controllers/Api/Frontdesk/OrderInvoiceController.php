@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Frontdesk;
 
 use App\Domain\Invoicing\OrderInvoiceService;
+use App\Domain\Invoicing\VatLookup;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderInvoice;
@@ -86,6 +87,44 @@ class OrderInvoiceController extends Controller
         ]);
     }
 
+    /** Bedrijfsgegevens ophalen met het btw-nummer (VIES). GET /api/frontdesk/vat-lookup?vat=BE0123456789 */
+    public function vatLookup(Request $request): JsonResponse
+    {
+        $data = $request->validate(['vat' => ['required', 'string', 'max:40']]);
+
+        try {
+            return response()->json(['data' => VatLookup::lookup($data['vat'])]);
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    /** Betalingsherinnering versturen via WeFact. */
+    public function reminder(CurrentTenant $currentTenant, Order $order): JsonResponse
+    {
+        $this->authorizeOrder($currentTenant, $order);
+        $invoice = OrderInvoice::query()->where('order_id', $order->id)->firstOrFail();
+        $invoice = $this->run(fn () => $this->invoices->sendReminder($invoice));
+
+        return response()->json([
+            'message' => 'Herinnering verstuurd naar de klant.',
+            'data'    => $invoice->toFrontdeskArray(),
+        ]);
+    }
+
+    /** Betaalstatus nu ophalen bij WeFact (anders gebeurt dat elk uur). */
+    public function sync(CurrentTenant $currentTenant, Order $order): JsonResponse
+    {
+        $this->authorizeOrder($currentTenant, $order);
+        $invoice = OrderInvoice::query()->where('order_id', $order->id)->firstOrFail();
+        $invoice = $this->run(fn () => $this->invoices->sync($invoice));
+
+        return response()->json([
+            'message' => 'Betaalstatus bijgewerkt.',
+            'data'    => $invoice->toFrontdeskArray(),
+        ]);
+    }
+
     public function retry(Request $request, CurrentTenant $currentTenant, Order $order): JsonResponse
     {
         $this->authorizeOrder($currentTenant, $order);
@@ -111,6 +150,7 @@ class OrderInvoiceController extends Controller
             abort(409, $e->getMessage());
         }
     }
+
 
     private function respond(OrderInvoice $invoice): JsonResponse
     {

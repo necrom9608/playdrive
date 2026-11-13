@@ -23,6 +23,7 @@ class OrderInvoice extends Model
         'po_number', 'comment',
         'wefact_debtor_code', 'wefact_invoice_id', 'wefact_invoice_code',
         'sent_at', 'paid_marked_at', 'error', 'attempts', 'created_by',
+        'payment_status', 'amount_outstanding', 'due_date', 'reminders_count', 'last_reminder_at', 'synced_at',
     ];
 
     protected function casts(): array
@@ -31,6 +32,11 @@ class OrderInvoice extends Model
             'sent_at'        => 'datetime',
             'paid_marked_at' => 'datetime',
             'attempts'       => 'integer',
+            'amount_outstanding' => 'decimal:2',
+            'due_date'           => 'date',
+            'reminders_count'    => 'integer',
+            'last_reminder_at'   => 'datetime',
+            'synced_at'          => 'datetime',
         ];
     }
 
@@ -60,6 +66,12 @@ class OrderInvoice extends Model
             'paid_marked_at' => $this->paid_marked_at?->toIso8601String(),
             'error'          => $this->error,
             'in_wefact'      => (bool) $this->wefact_invoice_id,
+            'payment_status'     => $this->payment_status,
+            'amount_outstanding' => $this->amount_outstanding !== null ? (float) $this->amount_outstanding : null,
+            'due_date'           => $this->due_date?->toDateString(),
+            'reminders_count'    => (int) $this->reminders_count,
+            'last_reminder_at'   => $this->last_reminder_at?->toIso8601String(),
+            'synced_at'          => $this->synced_at?->toIso8601String(),
         ];
     }
 }

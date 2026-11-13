@@ -27,7 +27,10 @@
                     class="cursor-pointer border-t border-slate-800 transition hover:bg-slate-800/50"
                     :class="store.selectedOrder && store.selectedOrder.id === order.id ? 'bg-slate-800' : ''"
                 >
-                    <td class="p-3">{{ order.paid_time || '-' }}</td>
+                    <td class="p-3">
+                        <span v-if="store.summary?.showing_open_invoices && order.paid_date" class="block text-xs text-slate-400">{{ order.paid_date }}</span>
+                        {{ order.paid_time || '-' }}
+                    </td>
 
                     <td class="p-3">
                         <div class="font-semibold text-white">#{{ order.id }}</div>
@@ -41,15 +44,24 @@
                     </td>
 
                     <td class="p-3">
-                            <span class="inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-300">
-                                {{ order.payment_method === 'bancontact' ? 'Bancontact' : 'Cash' }}
+                            <span
+                                class="inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold"
+                                :class="order.payment_method === 'invoice'
+                                    ? 'border-violet-500/30 bg-violet-500/10 text-violet-200'
+                                    : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'"
+                            >
+                                {{ order.payment_method === 'invoice' ? 'Op factuur' : order.payment_method === 'bancontact' ? 'Bancontact' : 'Cash' }}
                             </span>
                     </td>
 
                     <td class="p-3">
                             <span
                                 class="inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold"
-                                :class="order.invoice?.status === 'done'
+                                :class="order.invoice?.payment_status === 'overdue'
+                                    ? 'border-rose-500/30 bg-rose-500/10 text-rose-300'
+                                    : ['open', 'partial'].includes(order.invoice?.payment_status)
+                                        ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                                    : order.invoice?.status === 'done'
                                     ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
                                     : order.invoice?.status === 'error' || order.invoice?.status === 'missing_details'
                                         ? 'border-rose-500/30 bg-rose-500/10 text-rose-300'
@@ -57,7 +69,11 @@
                                             ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
                                             : 'border-slate-600 bg-slate-700/40 text-slate-300'"
                             >
-                                {{ order.invoice?.status === 'done'
+                                {{ order.invoice?.payment_status === 'overdue'
+                                    ? `${order.invoice.invoice_code || 'Factuur'} · vervallen`
+                                    : ['open', 'partial'].includes(order.invoice?.payment_status)
+                                        ? `${order.invoice.invoice_code || 'Factuur'} · open`
+                                    : order.invoice?.status === 'done'
                                     ? (order.invoice.invoice_code || 'Gefactureerd')
                                     : order.invoice?.status === 'error'
                                         ? 'Factuur: fout'

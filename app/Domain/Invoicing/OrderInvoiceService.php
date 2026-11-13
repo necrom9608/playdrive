@@ -28,6 +28,30 @@ class OrderInvoiceService
     /** Betaalwijzen die (nog) niet betaald zijn: dan niet als betaald markeren. */
     private const UNPAID_METHODS = ['invoice', 'factuur', 'transfer', 'overschrijving', 'wire'];
 
+    /** Betaalwijze aan de kassa: bon afgesloten, klant (firma) betaalt de factuur achteraf. */
+    public const METHOD_ON_INVOICE = 'invoice';
+
+    /** Betaalstatussen (bron: WeFact). */
+    public const PAY_OPEN      = 'open';
+    public const PAY_OVERDUE   = 'overdue';
+    public const PAY_PARTIAL   = 'partial';
+    public const PAY_PAID      = 'paid';
+    public const PAY_CREDITED  = 'credited';
+    public const PAY_CANCELLED = 'cancelled';
+
+    /** Nog te betalen: deze worden elk uur bij WeFact nagekeken. */
+    public const PAY_UNSETTLED = [self::PAY_OPEN, self::PAY_OVERDUE, self::PAY_PARTIAL];
+
+    public static function isUnpaidMethod(?string $method): bool
+    {
+        return in_array(strtolower((string) $method), self::UNPAID_METHODS, true);
+    }
+
+    public static function paymentTerm(Tenant $tenant): int
+    {
+        return max(0, (int) ($tenant->wefact_payment_term ?? 14)) ?: 14;
+    }
+
     public static function configured(?Tenant $tenant): bool
     {
         return $tenant !== null && filled($tenant->wefact_api_key);
@@ -223,16 +247,32 @@ class OrderInvoiceService
                 ]);
             }
 
-            if (! $invoice->paid_marked_at && ! in_array(strtolower((string) $order->payment_method), self::UNPAID_METHODS, true)) {
+            $unpaid = self::isUnpaidMethod($order->payment_method);
+
+            if (! $invoice->paid_marked_at && ! $unpaid) {
                 $api->call('invoice', 'markaspaid', [
                     'Identifier'    => $invoice->wefact_invoice_id,
                     'PayDate'       => ($order->paid_at ?? now())->toDateString(),
                     'PaymentMethod' => self::paymentMethod($order->payment_method),
                 ]);
-                $invoice->update(['paid_marked_at' => now()]);
+                $invoice->update(['paid_marked_at' => now(), 'payment_status' => self::PAY_PAID, 'amount_outstanding' => 0]);
             }
 
             $invoice->update(['status' => OrderInvoice::STATUS_DONE, 'error' => null]);
+
+            // Achteraf te betalen: vervaldatum en openstaand bedrag meteen uit WeFact halen.
+            if ($unpaid) {
+                $invoice->update([
+                    'payment_status'     => $invoice->payment_status ?? self::PAY_OPEN,
+                    'amount_outstanding' => $invoice->amount_outstanding ?? $order->total_incl_vat,
+                    'due_date'           => $invoice->due_date ?? ($order->paid_at ?? now())->copy()->addDays(self::paymentTerm($tenant)),
+                ]);
+                try {
+                    $this->applyStatus($invoice, $api->call('invoice', 'show', ['Identifier' => $invoice->wefact_invoice_id])['invoice'] ?? []);
+                } catch (Throwable) {
+                    // de uurlijkse controle haalt het later op
+                }
+            }
             $order->forceFill(['invoice_requested' => true, 'invoice_exported_at' => now()])->save();
         } catch (Throwable $e) {
             Log::warning('WeFact-factuur mislukt', ['order_invoice_id' => $invoice->id, 'error' => $e->getMessage()]);
@@ -245,6 +285,99 @@ class OrderInvoiceService
     }
 
     // ------------------------------------------------------------------
+
+    /** Betaalstatus van één factuur ophalen bij WeFact. */
+    public function sync(OrderInvoice $invoice): OrderInvoice
+    {
+        $tenant = Tenant::query()->find($invoice->tenant_id);
+        if (! $invoice->wefact_invoice_id || ! self::configured($tenant)) {
+            throw new RuntimeException('Deze factuur staat (nog) niet in WeFact.');
+        }
+
+        $data = (new WeFactClient((string) $tenant->wefact_api_key))
+            ->call('invoice', 'show', ['Identifier' => $invoice->wefact_invoice_id])['invoice'] ?? [];
+
+        return $this->applyStatus($invoice, $data);
+    }
+
+    /** Betalingsherinnering per e-mail via WeFact. */
+    public function sendReminder(OrderInvoice $invoice): OrderInvoice
+    {
+        $tenant = Tenant::query()->find($invoice->tenant_id);
+        if (! $invoice->wefact_invoice_id || ! self::configured($tenant)) {
+            throw new RuntimeException('Deze factuur staat (nog) niet in WeFact.');
+        }
+        if (! in_array($invoice->payment_status, self::PAY_UNSETTLED, true)) {
+            throw new RuntimeException('Deze factuur staat niet meer open.');
+        }
+
+        $api = new WeFactClient((string) $tenant->wefact_api_key);
+        $api->call('invoice', 'sendreminderbyemail', ['Identifier' => $invoice->wefact_invoice_id]);
+        $invoice->update(['reminders_count' => $invoice->reminders_count + 1, 'last_reminder_at' => now()]);
+
+        try {
+            return $this->applyStatus($invoice, $api->call('invoice', 'show', ['Identifier' => $invoice->wefact_invoice_id])['invoice'] ?? []);
+        } catch (Throwable) {
+            return $invoice->fresh();
+        }
+    }
+
+    /** Alle openstaande facturen nakijken (planner, elk uur). @return int aantal nagekeken */
+    public function syncUnsettled(): int
+    {
+        $count = 0;
+        OrderInvoice::query()
+            ->where('status', OrderInvoice::STATUS_DONE)
+            ->whereIn('payment_status', self::PAY_UNSETTLED)
+            ->whereNotNull('wefact_invoice_id')
+            ->orderBy('id')
+            ->each(function (OrderInvoice $invoice) use (&$count) {
+                try {
+                    $this->sync($invoice);
+                    $count++;
+                } catch (Throwable $e) {
+                    Log::warning('WeFact-status ophalen mislukt', ['order_invoice_id' => $invoice->id, 'error' => $e->getMessage()]);
+                }
+            });
+
+        return $count;
+    }
+
+    /** WeFact-factuur (invoice/show) → betaalstatus. Status: 2 verzonden, 3 deels betaald, 4 betaald, 8 credit, 9 vervallen. */
+    private function applyStatus(OrderInvoice $invoice, array $data): OrderInvoice
+    {
+        if (! $data) {
+            return $invoice->fresh();
+        }
+
+        $outstanding = isset($data['AmountOutstanding']) ? round((float) $data['AmountOutstanding'], 2) : $invoice->amount_outstanding;
+        $dueDate     = filled($data['PayBefore'] ?? null) ? substr((string) $data['PayBefore'], 0, 10) : $invoice->due_date?->toDateString();
+        $remoteReminders = (int) ($data['Reminders'] ?? 0);
+
+        $status = match ((int) ($data['Status'] ?? 0)) {
+            4       => self::PAY_PAID,
+            3       => self::PAY_PARTIAL,
+            8       => self::PAY_CREDITED,
+            9       => self::PAY_CANCELLED,
+            default => ($outstanding !== null && $outstanding <= 0) ? self::PAY_PAID : self::PAY_OPEN,
+        };
+        if (in_array($status, [self::PAY_OPEN, self::PAY_PARTIAL], true) && $dueDate && $dueDate < now()->toDateString()) {
+            $status = $status === self::PAY_OPEN ? self::PAY_OVERDUE : self::PAY_PARTIAL;
+        }
+
+        $invoice->update([
+            'payment_status'     => $status,
+            'amount_outstanding' => $status === self::PAY_PAID ? 0 : $outstanding,
+            'due_date'           => $dueDate,
+            'reminders_count'    => max($invoice->reminders_count, $remoteReminders),
+            'last_reminder_at'   => filled($data['ReminderDate'] ?? null) && $remoteReminders >= $invoice->reminders_count
+                ? substr((string) $data['ReminderDate'], 0, 10)
+                : $invoice->last_reminder_at,
+            'synced_at'          => now(),
+        ]);
+
+        return $invoice->fresh();
+    }
 
     private function missingDetails(OrderInvoice $invoice): ?string
     {
@@ -381,6 +514,8 @@ class OrderInvoiceService
             'Comment'         => 'PlayDrive bon #'.$order->id,
             'Description'     => $tenant->display_name.' · bon #'.$order->id,
             'PaymentMethod'   => self::paymentMethod($order->payment_method),
+            // Betaald aan de kassa: termijn 0; "Op factuur": betaaltermijn van de zaak
+            'Term'            => self::isUnpaidMethod($order->payment_method) ? self::paymentTerm($tenant) : 0,
             'InvoiceLines'    => $lines,
         ];
     }
@@ -422,7 +557,7 @@ class OrderInvoiceService
             'cash', 'contant'                                => 'cash',
             'bancontact', 'card', 'pin', 'maestro', 'kaart'  => 'card',
             'voucher', 'mixed', 'split'                      => 'various',
-            'invoice', 'factuur', 'transfer', 'overschrijving', 'wire' => 'wire',
+            'invoice', 'factuur', 'transfer', 'overschrijving', 'wire' => 'wire', // achteraf via overschrijving
             default                                          => 'other',
         };
     }

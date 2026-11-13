@@ -24,6 +24,7 @@ class DayTotalsReportService
         'bancontact' => 'Bancontact',
         'card' => 'Kaart',
         'transfer' => 'Overschrijving',
+        'invoice' => 'Op factuur',
         'voucher' => 'Cadeaubon',
         'unknown' => 'Onbekend',
     ];

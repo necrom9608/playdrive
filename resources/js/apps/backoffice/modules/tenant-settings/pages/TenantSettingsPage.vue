@@ -172,6 +172,11 @@
                     <input v-model="form.wefact_api_key" type="password" autocomplete="new-password" :placeholder="wefactKeySet ? 'Ingesteld · leeg laten om te behouden' : 'WeFact → Instellingen → API'" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-sky-500">
                     <button v-if="wefactKeySet" type="button" class="text-xs text-rose-300 hover:text-rose-200" @click="clearWefactKey = true; wefactKeySet = false">Sleutel wissen (facturen uit)</button>
                 </label>
+                <label class="space-y-2">
+                    <span class="text-sm font-medium text-slate-300">Betaaltermijn "Op factuur" (dagen)</span>
+                    <input v-model="form.wefact_payment_term" type="number" min="0" max="120" placeholder="14" class="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-sky-500">
+                    <span class="block text-xs text-slate-500">Voor firma's die achteraf betalen. Herinneringen stuurt WeFact volgens je instellingen daar.</span>
+                </label>
                 <div class="space-y-2">
                     <span class="text-sm font-medium text-slate-300">Btw-codes in WeFact</span>
                     <div class="grid grid-cols-4 gap-2">
@@ -234,6 +239,7 @@ const form = ref({
     wefact_tax_12: 'V12',
     wefact_tax_6: 'V6',
     wefact_tax_0: 'V0',
+    wefact_payment_term: 14,
 })
 
 function applyData(data = {}) {
@@ -258,6 +264,7 @@ function applyData(data = {}) {
         wefact_tax_12: data.wefact_tax_codes?.['12'] ?? 'V12',
         wefact_tax_6: data.wefact_tax_codes?.['6'] ?? 'V6',
         wefact_tax_0: data.wefact_tax_codes?.['0'] ?? 'V0',
+        wefact_payment_term: data.wefact_payment_term ?? 14,
     }
     newsletterTokenSet.value = !!data.newsletter_token_set
     wefactKeySet.value = !!data.wefact_api_key_set

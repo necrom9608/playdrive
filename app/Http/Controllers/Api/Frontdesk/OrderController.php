@@ -111,6 +111,11 @@ class OrderController extends Controller
             'items.*.quantity' => ['required_with:items', 'integer', 'min:1'],
         ]);
 
+        // "Op factuur": klant betaalt achteraf, dus altijd een factuur.
+        if (($validated['payment_method'] ?? null) === OrderInvoiceService::METHOD_ON_INVOICE) {
+            $validated['invoice_requested'] = true;
+        }
+
         $order = $this->orderService->checkout($validated, $currentTenant);
 
         // Factuur gevraagd: meteen naar WeFact (na het antwoord), met de gegevens van de reservatie.
@@ -145,6 +150,10 @@ class OrderController extends Controller
             'manual_discount_amount' => ['nullable', 'numeric', 'min:0'],
             'manual_discount_label' => ['nullable', 'string', 'max:120'],
         ]);
+
+        if (($validated['payment_method'] ?? null) === OrderInvoiceService::METHOD_ON_INVOICE) {
+            $validated['invoice_requested'] = true;
+        }
 
         try {
             $paid = $this->orderService->checkoutSplit(

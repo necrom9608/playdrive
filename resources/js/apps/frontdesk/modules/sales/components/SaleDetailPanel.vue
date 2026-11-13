@@ -52,7 +52,7 @@
 
                 <div class="flex justify-between text-sm">
                     <span class="text-slate-400">Betaalmethode</span>
-                    <span class="text-white">{{ store.selectedOrder.payment_method }}</span>
+                    <span class="text-white">{{ paymentLabel(store.selectedOrder.payment_method) }}</span>
                 </div>
 
                 <div class="flex justify-between text-sm">
@@ -73,57 +73,67 @@
                     <span class="rounded-full border px-2.5 py-0.5 text-xs font-semibold" :class="invoiceBadge.class">{{ invoiceBadge.label }}</span>
                 </div>
 
-                <!-- Factuur gevraagd aan/uit (zolang er nog niets in WeFact staat) -->
-                <label v-if="!invoice?.in_wefact" class="flex cursor-pointer items-center justify-between gap-3 text-sm">
-                    <span class="text-slate-300">Factuur gevraagd</span>
-                    <input
-                        type="checkbox"
-                        class="h-5 w-5 accent-sky-500"
-                        :checked="!!store.selectedOrder.invoice_requested"
-                        :disabled="invoiceBusy"
-                        @change="toggleRequested($event)"
-                    >
-                </label>
-
-                <!-- Factuurgegevens -->
-                <div v-if="store.selectedOrder.invoice_requested || invoice" class="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm">
-                    <div class="mb-1.5 flex items-center justify-between gap-3">
-                        <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Factuurgegevens</span>
-                        <button v-if="!invoice?.in_wefact" type="button" class="text-xs font-semibold text-sky-300 hover:text-sky-200" @click="openInvoiceModal(details)">Aanpassen</button>
+                <!-- Bekijken -->
+                <template v-if="!editing">
+                    <div v-if="requested" class="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-sm">
+                        <div class="mb-1.5 flex items-center justify-between gap-3">
+                            <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Factuurgegevens</span>
+                            <button v-if="editable" type="button" class="text-xs font-semibold text-sky-300 hover:text-sky-200" @click="startEdit">Aanpassen</button>
+                        </div>
+                        <template v-if="hasDetails">
+                            <div class="font-medium text-white">{{ details.company_name || details.contact_name }}</div>
+                            <div v-if="details.company_name && details.contact_name" class="text-slate-400">t.a.v. {{ details.contact_name }}</div>
+                            <div v-if="details.vat_number" class="text-slate-400">{{ details.vat_number }}</div>
+                            <div v-if="details.address || details.city" class="text-slate-400">{{ [details.address, [details.postal_code, details.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') }}</div>
+                            <div v-if="details.email" class="text-slate-400">{{ details.email }}</div>
+                            <div v-if="details.po_number" class="text-slate-400">Bestelbon: {{ details.po_number }}</div>
+                            <div v-if="details.comment" class="whitespace-pre-line text-xs text-slate-500">{{ details.comment }}</div>
+                        </template>
+                        <p v-else class="text-slate-500">Nog geen gegevens.</p>
                     </div>
-                    <template v-if="hasDetails">
-                        <div class="font-medium text-white">{{ details.company_name || details.contact_name }}</div>
-                        <div v-if="details.company_name && details.contact_name" class="text-slate-400">t.a.v. {{ details.contact_name }}</div>
-                        <div v-if="details.vat_number" class="text-slate-400">{{ details.vat_number }}</div>
-                        <div v-if="details.address || details.city" class="text-slate-400">{{ [details.address, [details.postal_code, details.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') }}</div>
-                        <div v-if="details.email" class="text-slate-400">{{ details.email }}</div>
-                        <div v-if="details.po_number" class="text-slate-400">Bestelbon: {{ details.po_number }}</div>
-                        <div v-if="details.comment" class="whitespace-pre-line text-xs text-slate-500">{{ details.comment }}</div>
-                    </template>
-                    <p v-else class="text-slate-500">Nog geen gegevens.</p>
-                </div>
+                    <p v-else class="text-sm text-slate-400">Geen factuur gevraagd.</p>
 
-                <p v-if="!store.summary?.invoicing_enabled" class="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
-                    WeFact is nog niet ingesteld: vul de API-sleutel in bij Backoffice → Zaakgegevens → WeFact.
-                </p>
+                    <p v-if="!store.summary?.invoicing_enabled" class="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                        WeFact is nog niet ingesteld: vul de API-sleutel in bij Backoffice → Zaakgegevens → WeFact.
+                    </p>
 
-                <template v-else>
                     <div v-if="invoice?.status === 'done'" class="text-sm">
                         <div class="font-semibold text-white">{{ invoice.invoice_code }}</div>
                         <div class="text-xs text-slate-500">{{ invoice.channel === 'peppol' ? 'Verstuurd via Peppol' : `Verstuurd per e-mail${invoice.email ? ` naar ${invoice.email}` : ''}` }}</div>
                     </div>
 
+                    <!-- Betaalstatus (achteraf te betalen) -->
+                    <div v-if="invoice?.status === 'done' && invoice.payment_status && invoice.payment_status !== 'paid'" class="rounded-xl border px-3 py-2.5 text-sm" :class="paymentBox.class">
+                        <div class="font-semibold">{{ paymentBox.title }}</div>
+                        <div v-if="invoice.amount_outstanding != null" class="mt-0.5">€ {{ formatPrice(invoice.amount_outstanding) }} openstaand</div>
+                        <div v-if="invoice.due_date" class="mt-0.5 text-xs opacity-80">Te betalen vóór {{ formatDate(invoice.due_date) }}</div>
+                        <div v-if="invoice.reminders_count" class="mt-0.5 text-xs opacity-80">
+                            {{ invoice.reminders_count === 1 ? '1 herinnering' : `${invoice.reminders_count} herinneringen` }} verstuurd<span v-if="invoice.last_reminder_at">, laatste op {{ formatDate(invoice.last_reminder_at) }}</span>
+                        </div>
+                        <div v-if="invoice.synced_at" class="mt-1 text-[11px] opacity-60">Nagekeken bij WeFact: {{ formatDateTime(invoice.synced_at) }}</div>
+                    </div>
+                    <div v-if="invoice?.status === 'done' && ['open', 'overdue', 'partial'].includes(invoice.payment_status)" class="grid gap-2 sm:grid-cols-2">
+                        <button type="button" class="rounded-2xl border px-4 py-2.5 text-sm font-semibold transition disabled:opacity-50" :class="invoice.payment_status === 'overdue' ? 'border-rose-500/30 bg-rose-500/10 text-rose-100 hover:bg-rose-500/20' : 'border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700'" :disabled="invoiceBusy" @click="sendReminder">
+                            Herinnering sturen
+                        </button>
+                        <button type="button" class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-slate-700 disabled:opacity-50" :disabled="invoiceBusy" @click="syncInvoice">
+                            Status vernieuwen
+                        </button>
+                    </div>
                     <p v-if="invoice?.status === 'pending'" class="text-sm text-sky-200">Wordt naar WeFact gestuurd…</p>
                     <p v-if="invoice?.error && invoice.status !== 'done'" class="rounded-xl border px-3 py-2 text-sm" :class="invoice.status === 'missing_details' ? 'border-amber-500/30 bg-amber-500/10 text-amber-100' : 'border-rose-500/30 bg-rose-500/10 text-rose-100'">
                         {{ invoice.error }}
                     </p>
 
                     <div v-if="invoice?.status !== 'done'" class="grid gap-2">
+                        <button v-if="!requested && editable" type="button" class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-slate-700" @click="startEdit">
+                            Factuurgegevens invullen
+                        </button>
+                        <button v-if="requested && editable && store.summary?.invoicing_enabled && invoice?.status !== 'pending'" type="button" class="rounded-2xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-500 disabled:opacity-50" :disabled="invoiceBusy" @click="createFromSaved">
+                            {{ invoiceBusy ? 'Bezig met WeFact…' : 'Factuur maken en versturen' }}
+                        </button>
                         <button v-if="invoice?.status === 'pending'" type="button" class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-slate-700" @click="store.fetchSales()">
                             Vernieuwen
-                        </button>
-                        <button v-if="!invoice?.in_wefact && invoice?.status !== 'pending'" type="button" class="rounded-2xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-500" @click="openInvoiceModal(details)">
-                            Factuur maken
                         </button>
                         <button v-if="invoice?.status === 'error'" type="button" class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-slate-700 disabled:opacity-50" :disabled="invoiceBusy" @click="retryInvoice(false)">
                             {{ invoiceBusy ? 'Bezig…' : 'Opnieuw proberen' }}
@@ -133,6 +143,72 @@
                         </button>
                     </div>
                 </template>
+
+                <!-- Bewerken (in het paneel zelf) -->
+                <form v-else class="space-y-3" @submit.prevent="submitInvoice">
+                    <div class="space-y-1">
+                        <label for="inv-vat" class="text-xs text-slate-400">Btw-nummer</label>
+                        <div class="flex gap-2">
+                            <input id="inv-vat" v-model="invoiceForm.vat_number" type="text" placeholder="BE0123.456.789" class="inv-input" @keydown.enter.prevent="lookupVat">
+                            <button type="button" class="shrink-0 rounded-2xl border border-sky-500/30 bg-sky-500/10 px-3 text-sm font-semibold text-sky-100 transition hover:bg-sky-500/20 disabled:opacity-50" :disabled="vatBusy || !invoiceForm.vat_number" title="Gegevens ophalen via VIES" @click="lookupVat">
+                                {{ vatBusy ? '…' : 'Ophalen' }}
+                            </button>
+                        </div>
+                        <p v-if="vatMessage" class="text-xs" :class="vatOk ? 'text-emerald-300' : 'text-amber-300'">{{ vatMessage }}</p>
+                    </div>
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <label class="space-y-1 sm:col-span-2">
+                            <span class="text-xs text-slate-400">Bedrijfsnaam</span>
+                            <input v-model="invoiceForm.company_name" type="text" class="inv-input">
+                        </label>
+                        <label class="space-y-1">
+                            <span class="text-xs text-slate-400">Contactpersoon</span>
+                            <input v-model="invoiceForm.contact_name" type="text" class="inv-input">
+                        </label>
+                        <label class="space-y-1">
+                            <span class="text-xs text-slate-400">E-mail</span>
+                            <input v-model="invoiceForm.email" type="email" class="inv-input">
+                        </label>
+                        <label class="space-y-1 sm:col-span-2">
+                            <span class="text-xs text-slate-400">Adres</span>
+                            <input v-model="invoiceForm.address" type="text" class="inv-input">
+                        </label>
+                        <label class="space-y-1">
+                            <span class="text-xs text-slate-400">Postcode</span>
+                            <input v-model="invoiceForm.postal_code" type="text" class="inv-input">
+                        </label>
+                        <label class="space-y-1">
+                            <span class="text-xs text-slate-400">Gemeente</span>
+                            <input v-model="invoiceForm.city" type="text" class="inv-input">
+                        </label>
+                        <label class="space-y-1 sm:col-span-2">
+                            <span class="text-xs text-slate-400">Bestelbonnummer <span class="text-slate-500">(optioneel)</span></span>
+                            <input v-model="invoiceForm.po_number" type="text" maxlength="100" class="inv-input">
+                        </label>
+                        <label class="space-y-1 sm:col-span-2">
+                            <span class="text-xs text-slate-400">Extra commentaar op de factuur <span class="text-slate-500">(optioneel)</span></span>
+                            <textarea v-model="invoiceForm.comment" rows="2" maxlength="1000" class="inv-input resize-y"></textarea>
+                        </label>
+                    </div>
+
+                    <p class="rounded-xl border px-3 py-2 text-xs" :class="viaPeppol ? 'border-sky-500/30 bg-sky-500/10 text-sky-100' : 'border-slate-700 bg-slate-900 text-slate-300'">
+                        {{ viaPeppol ? 'Belgisch btw-nummer: de factuur gaat via Peppol.' : 'Geen Belgisch btw-nummer: de factuur gaat per e-mail.' }}
+                    </p>
+                    <p v-if="invoiceFormError" class="text-sm text-rose-300">{{ invoiceFormError }}</p>
+
+                    <div class="grid gap-2 sm:grid-cols-2">
+                        <button type="button" class="rounded-2xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-slate-700 disabled:opacity-50" :disabled="invoiceBusy" @click="saveInvoiceDetails">
+                            Opslaan
+                        </button>
+                        <button v-if="store.summary?.invoicing_enabled" type="submit" class="rounded-2xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-500 disabled:opacity-50" :disabled="invoiceBusy">
+                            {{ invoiceBusy ? 'Bezig met WeFact…' : 'Maken en versturen' }}
+                        </button>
+                    </div>
+                    <div class="flex justify-between gap-3 text-xs">
+                        <button type="button" class="font-semibold text-slate-400 hover:text-slate-200" :disabled="invoiceBusy" @click="editing = false">Annuleren</button>
+                        <button v-if="requested" type="button" class="font-semibold text-rose-300 hover:text-rose-200" :disabled="invoiceBusy" @click="removeInvoice">Geen factuur voor deze bon</button>
+                    </div>
+                </form>
 
                 <p v-if="invoiceMessage" class="text-sm" :class="invoiceOk ? 'text-emerald-300' : 'text-rose-300'">{{ invoiceMessage }}</p>
             </div>
@@ -243,78 +319,6 @@
             </div>
         </div>
     </teleport>
-
-    <teleport to="body">
-        <div
-            v-if="invoiceModalOpen"
-            class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/80 px-4"
-            @click.self="closeInvoiceModal"
-        >
-            <form class="w-full max-w-lg rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl" @submit.prevent="submitInvoice">
-                <div class="flex items-start justify-between gap-4">
-                    <div>
-                        <h3 class="text-lg font-semibold text-white">Factuurgegevens</h3>
-                        <p class="mt-1 text-sm text-slate-400">Bon #{{ store.selectedOrder?.id }} · € {{ formatPrice(store.selectedOrder?.total_incl_vat) }}. "Opslaan" bewaart enkel de gegevens; "Maken en versturen" maakt de factuur definitief en als betaald in WeFact.</p>
-                    </div>
-                    <button type="button" class="rounded-xl border border-slate-700 px-3 py-1.5 text-sm text-slate-300 transition hover:bg-slate-800" @click="closeInvoiceModal">Sluiten</button>
-                </div>
-
-                <div class="mt-5 grid gap-3 sm:grid-cols-2">
-                    <label class="space-y-1 sm:col-span-2">
-                        <span class="text-sm text-slate-300">Bedrijfsnaam</span>
-                        <input v-model="invoiceForm.company_name" type="text" class="inv-input">
-                    </label>
-                    <label class="space-y-1">
-                        <span class="text-sm text-slate-300">Naam contactpersoon</span>
-                        <input v-model="invoiceForm.contact_name" type="text" class="inv-input">
-                    </label>
-                    <label class="space-y-1">
-                        <span class="text-sm text-slate-300">Btw-nummer</span>
-                        <input v-model="invoiceForm.vat_number" type="text" placeholder="BE0123.456.789" class="inv-input">
-                    </label>
-                    <label class="space-y-1 sm:col-span-2">
-                        <span class="text-sm text-slate-300">E-mail</span>
-                        <input v-model="invoiceForm.email" type="email" class="inv-input">
-                    </label>
-                    <label class="space-y-1 sm:col-span-2">
-                        <span class="text-sm text-slate-300">Adres</span>
-                        <input v-model="invoiceForm.address" type="text" class="inv-input">
-                    </label>
-                    <label class="space-y-1">
-                        <span class="text-sm text-slate-300">Postcode</span>
-                        <input v-model="invoiceForm.postal_code" type="text" class="inv-input">
-                    </label>
-                    <label class="space-y-1">
-                        <span class="text-sm text-slate-300">Gemeente</span>
-                        <input v-model="invoiceForm.city" type="text" class="inv-input">
-                    </label>
-                    <label class="space-y-1 sm:col-span-2">
-                        <span class="text-sm text-slate-300">Bestelbonnummer <span class="text-slate-500">(optioneel)</span></span>
-                        <input v-model="invoiceForm.po_number" type="text" maxlength="100" placeholder="PO-nummer of referentie van de klant" class="inv-input">
-                    </label>
-                    <label class="space-y-1 sm:col-span-2">
-                        <span class="text-sm text-slate-300">Extra commentaar op de factuur <span class="text-slate-500">(optioneel)</span></span>
-                        <textarea v-model="invoiceForm.comment" rows="2" maxlength="1000" class="inv-input resize-y"></textarea>
-                    </label>
-                </div>
-
-                <p class="mt-4 rounded-2xl border px-4 py-3 text-sm" :class="viaPeppol ? 'border-sky-500/30 bg-sky-500/10 text-sky-100' : 'border-slate-700 bg-slate-950 text-slate-300'">
-                    {{ viaPeppol ? 'Belgisch btw-nummer: de factuur gaat via Peppol.' : 'Geen Belgisch btw-nummer: de factuur gaat per e-mail.' }}
-                </p>
-                <p v-if="invoiceFormError" class="mt-3 text-sm text-rose-300">{{ invoiceFormError }}</p>
-
-                <div class="mt-6 flex justify-end gap-3">
-                    <button type="button" class="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-800" :disabled="invoiceBusy" @click="closeInvoiceModal">Annuleren</button>
-                    <button type="button" class="rounded-2xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-100 transition hover:bg-sky-500/20 disabled:opacity-60" :disabled="invoiceBusy" @click="saveInvoiceDetails">
-                        Opslaan
-                    </button>
-                    <button v-if="store.summary?.invoicing_enabled" type="submit" class="rounded-2xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-500 disabled:opacity-60" :disabled="invoiceBusy">
-                        {{ invoiceBusy ? 'Bezig met WeFact…' : 'Maken en versturen' }}
-                    </button>
-                </div>
-            </form>
-        </div>
-    </teleport>
 </template>
 
 <script setup>
@@ -332,66 +336,126 @@ const receiptEmail = ref('')
 const receiptEmailError = ref('')
 
 // ── Factuur (WeFact) ─────────────────────────────────────────────────
-const invoiceModalOpen = ref(false)
+const editing = ref(false)
 const invoiceBusy = ref(false)
 const invoiceMessage = ref('')
 const invoiceOk = ref(false)
 const invoiceFormError = ref('')
+const vatBusy = ref(false)
+const vatMessage = ref('')
+const vatOk = ref(false)
 const invoiceForm = reactive({ company_name: '', contact_name: '', vat_number: '', email: '', address: '', postal_code: '', city: '', po_number: '', comment: '' })
 
 const invoice = computed(() => store.selectedOrder?.invoice ?? null)
 // Gegevens: van de factuur, anders voorgevuld uit de reservatie
 const details = computed(() => invoice.value ?? store.selectedOrder?.invoice_defaults ?? {})
 const hasDetails = computed(() => !!(details.value.company_name || details.value.contact_name || details.value.vat_number || details.value.email))
+const requested = computed(() => !!(store.selectedOrder?.invoice_requested || invoice.value))
+// Aanpassen kan zolang de factuur nog niet in WeFact staat
+const editable = computed(() => !invoice.value?.in_wefact && invoice.value?.status !== 'pending')
 const canInvoice = computed(() => {
     const order = store.selectedOrder
     return !!order && order.status === 'paid' && !order.cancelled_at && !order.refunded_at
 })
 const viaPeppol = computed(() => /^(BE)?[01]\d{9}$/.test(String(invoiceForm.vat_number || '').toUpperCase().replace(/[^A-Z0-9]/g, '')))
-const invoiceBadge = computed(() => ({
+const PAYMENT_BADGES = {
+    paid: { label: 'Betaald', class: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' },
+    open: { label: 'Open', class: 'border-amber-500/30 bg-amber-500/10 text-amber-200' },
+    partial: { label: 'Deels betaald', class: 'border-amber-500/30 bg-amber-500/10 text-amber-200' },
+    overdue: { label: 'Vervallen', class: 'border-rose-500/30 bg-rose-500/10 text-rose-200' },
+    credited: { label: 'Gecrediteerd', class: 'border-slate-700 bg-slate-800 text-slate-300' },
+    cancelled: { label: 'Geannuleerd', class: 'border-slate-700 bg-slate-800 text-slate-300' },
+}
+const paymentBox = computed(() => ({
+    open: { title: 'Nog te betalen', class: 'border-amber-500/30 bg-amber-500/10 text-amber-100' },
+    partial: { title: 'Deels betaald', class: 'border-amber-500/30 bg-amber-500/10 text-amber-100' },
+    overdue: { title: 'Vervallen: nog niet betaald', class: 'border-rose-500/30 bg-rose-500/10 text-rose-100' },
+    credited: { title: 'Gecrediteerd in WeFact', class: 'border-slate-700 bg-slate-900 text-slate-300' },
+    cancelled: { title: 'Geannuleerd in WeFact', class: 'border-slate-700 bg-slate-900 text-slate-300' },
+}[invoice.value?.payment_status] ?? { title: '', class: '' }))
+const invoiceBadge = computed(() => (invoice.value?.status === 'done' && PAYMENT_BADGES[invoice.value.payment_status]) || ({
     done: { label: 'Verstuurd', class: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' },
     draft: { label: 'Klaar om te maken', class: 'border-sky-500/30 bg-sky-500/10 text-sky-200' },
     pending: { label: 'Bezig', class: 'border-sky-500/30 bg-sky-500/10 text-sky-200' },
     missing_details: { label: 'Gegevens ontbreken', class: 'border-amber-500/30 bg-amber-500/10 text-amber-200' },
     error: { label: 'Fout', class: 'border-rose-500/30 bg-rose-500/10 text-rose-200' },
-}[invoice.value?.status] ?? { label: 'Geen', class: 'border-slate-700 bg-slate-800 text-slate-300' }))
+}[invoice.value?.status] ?? (requested.value
+    ? { label: 'Gevraagd', class: 'border-amber-500/30 bg-amber-500/10 text-amber-200' }
+    : { label: 'Geen', class: 'border-slate-700 bg-slate-800 text-slate-300' })))
 
-watch(() => store.selectedOrder?.id, () => { invoiceMessage.value = '' })
+watch(() => store.selectedOrder?.id, () => {
+    invoiceMessage.value = ''
+    editing.value = false
+})
 
-function openInvoiceModal(details) {
-    Object.keys(invoiceForm).forEach(key => { invoiceForm[key] = details?.[key] ?? '' })
+function fillForm() {
+    Object.keys(invoiceForm).forEach(key => { invoiceForm[key] = details.value?.[key] ?? '' })
     invoiceFormError.value = ''
-    invoiceModalOpen.value = true
+    vatMessage.value = ''
 }
 
-function closeInvoiceModal() {
-    if (!invoiceBusy.value) invoiceModalOpen.value = false
+function startEdit() {
+    fillForm()
+    invoiceMessage.value = ''
+    editing.value = true
 }
 
+function validateForm() {
+    if (!invoiceForm.company_name && !invoiceForm.contact_name) return 'Vul een bedrijfsnaam of naam in.'
+    if (!viaPeppol.value && !invoiceForm.email) return 'Zonder Belgisch btw-nummer is een e-mailadres nodig.'
+    return ''
+}
+
+/** Maken en versturen vanuit het formulier. */
 async function submitInvoice() {
     const orderId = store.selectedOrder?.id
     if (!orderId || invoiceBusy.value) return
-    if (!invoiceForm.company_name && !invoiceForm.contact_name) {
-        invoiceFormError.value = 'Vul een bedrijfsnaam of naam in.'
-        return
-    }
-    if (!viaPeppol.value && !invoiceForm.email) {
-        invoiceFormError.value = 'Zonder Belgisch btw-nummer is een e-mailadres nodig.'
-        return
-    }
+    invoiceFormError.value = validateForm()
+    if (invoiceFormError.value) return
     invoiceBusy.value = true
-    invoiceFormError.value = ''
     const result = await store.createInvoice(orderId, { ...invoiceForm, country: 'BE' })
     invoiceBusy.value = false
     invoiceOk.value = result.ok
     invoiceMessage.value = result.message
-    if (result.ok || store.selectedOrder?.invoice) {
-        invoiceModalOpen.value = false
-    } else {
-        invoiceFormError.value = result.message
+    if (result.ok || store.selectedOrder?.invoice?.in_wefact) editing.value = false
+    else invoiceFormError.value = result.message
+}
+
+/** Maken en versturen met de opgeslagen gegevens; ontbreekt er iets, dan het formulier openen. */
+async function createFromSaved() {
+    fillForm()
+    if (validateForm()) {
+        editing.value = true
+        invoiceFormError.value = validateForm()
+        return
+    }
+    await submitInvoice()
+}
+
+/** Bedrijfsnaam en adres ophalen via VIES (btw-register van de EU). */
+async function lookupVat() {
+    const vat = String(invoiceForm.vat_number || '').trim()
+    if (!vat || vatBusy.value) return
+    vatBusy.value = true
+    vatMessage.value = ''
+    try {
+        const { data } = await axios.get('/api/frontdesk/vat-lookup', { params: { vat } })
+        const found = data?.data ?? {}
+        invoiceForm.vat_number = found.vat_number || invoiceForm.vat_number
+        ;['company_name', 'address', 'postal_code', 'city'].forEach(key => {
+            if (found[key]) invoiceForm[key] = found[key]
+        })
+        vatOk.value = true
+        vatMessage.value = found.company_name ? `Gevonden: ${found.company_name}` : 'Geldig btw-nummer (geen naam in VIES).'
+    } catch (error) {
+        vatOk.value = false
+        vatMessage.value = error?.response?.data?.message ?? 'Ophalen mislukt: vul de gegevens zelf in.'
+    } finally {
+        vatBusy.value = false
     }
 }
 
+/** Enkel de gegevens bewaren (factuur gevraagd), nog niet versturen. */
 async function saveInvoiceDetails() {
     const orderId = store.selectedOrder?.id
     if (!orderId || invoiceBusy.value) return
@@ -401,26 +465,53 @@ async function saveInvoiceDetails() {
     invoiceBusy.value = false
     invoiceOk.value = result.ok
     invoiceMessage.value = result.message
-    if (result.ok) invoiceModalOpen.value = false
+    if (result.ok) editing.value = false
     else invoiceFormError.value = result.message
 }
 
-async function toggleRequested(event) {
-    const requested = event.target.checked
-    // Vinkje volgt de opgeslagen toestand; die wijzigt pas na opslaan.
-    event.target.checked = !!store.selectedOrder?.invoice_requested
+async function removeInvoice() {
     const orderId = store.selectedOrder?.id
     if (!orderId || invoiceBusy.value) return
-    if (requested) {
-        openInvoiceModal(details.value)
-        return
-    }
-    if (invoice.value && !window.confirm('Factuurgegevens van deze bon verwijderen?')) return
+    if (!window.confirm('Geen factuur voor deze bon? De factuurgegevens van deze bon worden weggehaald.')) return
     invoiceBusy.value = true
     const result = await store.saveInvoiceDetails(orderId, { invoice_requested: false })
     invoiceBusy.value = false
     invoiceOk.value = result.ok
     invoiceMessage.value = result.message
+    if (result.ok) editing.value = false
+}
+
+async function sendReminder() {
+    const orderId = store.selectedOrder?.id
+    if (!orderId || invoiceBusy.value) return
+    if (!window.confirm('Betalingsherinnering per e-mail sturen via WeFact?')) return
+    invoiceBusy.value = true
+    const result = await store.sendInvoiceReminder(orderId)
+    invoiceBusy.value = false
+    invoiceOk.value = result.ok
+    invoiceMessage.value = result.message
+}
+
+async function syncInvoice() {
+    const orderId = store.selectedOrder?.id
+    if (!orderId || invoiceBusy.value) return
+    invoiceBusy.value = true
+    const result = await store.syncInvoice(orderId)
+    invoiceBusy.value = false
+    invoiceOk.value = result.ok
+    invoiceMessage.value = result.message
+}
+
+function paymentLabel(method) {
+    return { cash: 'Cash', bancontact: 'Bancontact', invoice: 'Op factuur' }[method] ?? method
+}
+
+function formatDate(value) {
+    return value ? new Date(value).toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''
+}
+
+function formatDateTime(value) {
+    return value ? new Date(value).toLocaleString('nl-BE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
 }
 
 async function retryInvoice(viaEmail) {

@@ -53,6 +53,7 @@ class TenantSettingsController extends Controller
             'wefact_tax_6' => ['nullable', 'string', 'max:20'],
             'wefact_tax_0' => ['nullable', 'string', 'max:20'],
             'test_wefact' => ['nullable', 'boolean'],
+            'wefact_payment_term' => ['nullable', 'integer', 'min:0', 'max:120'],
         ]);
 
         if ($request->boolean('remove_logo') && $tenant->logo_path) {
@@ -108,6 +109,7 @@ class TenantSettingsController extends Controller
             }
         }
         $tenant->wefact_tax_codes = $taxCodes ?: null;
+        $tenant->wefact_payment_term = filled($data['wefact_payment_term'] ?? null) ? (int) $data['wefact_payment_term'] : null;
 
         $tenant->save();
 
@@ -155,6 +157,7 @@ class TenantSettingsController extends Controller
             'newsletter_token_set' => filled($tenant->newsletter_token),
             'wefact_api_key_set' => filled($tenant->wefact_api_key),
             'wefact_tax_codes' => OrderInvoiceService::taxCodes($tenant),
+            'wefact_payment_term' => OrderInvoiceService::paymentTerm($tenant),
         ];
     }
 }

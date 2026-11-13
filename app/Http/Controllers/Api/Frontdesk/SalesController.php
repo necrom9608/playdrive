@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Frontdesk;
 use App\Domain\Invoicing\OrderInvoiceService;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\OrderInvoice;
 use App\Support\CurrentTenant;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -25,9 +26,27 @@ class SalesController extends Controller
             'invoice_requested' => ['nullable', 'boolean'],
             'payment_method' => ['nullable', 'string', 'max:50'],
             'source' => ['nullable', 'string', 'max:50'],
+            'order_id' => ['nullable', 'integer', 'min:1'],
+            'open_invoices' => ['nullable', 'boolean'],
         ]);
+        $openInvoices = (bool) ($validated['open_invoices'] ?? false);
 
         $selectedDate = $validated['date'] ?? now()->format('Y-m-d');
+
+        // Zoeken op bonnummer (bv. klant komt later een factuur vragen): naar de dag van die bon springen.
+        if (! empty($validated['order_id'])) {
+            $found = Order::query()
+                ->where('tenant_id', $currentTenant->id())
+                ->whereNotNull('paid_at')
+                ->find((int) $validated['order_id']);
+
+            if (! $found) {
+                return response()->json(['message' => "Bon #{$validated['order_id']} niet gevonden (of nog niet afgerekend)."], 404);
+            }
+
+            $selectedDate = $found->paid_at->format('Y-m-d');
+            unset($validated['invoice_requested'], $validated['payment_method'], $validated['source']);
+        }
         $day = Carbon::createFromFormat('Y-m-d', $selectedDate);
 
         $query = Order::query()
@@ -44,7 +63,12 @@ class SalesController extends Controller
                 'items.updater:id,name',
             ])
             ->where('tenant_id', $currentTenant->id())
-            ->whereDate('paid_at', $day->toDateString())
+            // Openstaande facturen: over alle dagen heen; anders één dag
+            ->when(
+                $openInvoices,
+                fn ($q) => $q->whereHas('invoice', fn ($i) => $i->whereIn('payment_status', OrderInvoiceService::PAY_UNSETTLED)),
+                fn ($q) => $q->whereDate('paid_at', $day->toDateString()),
+            )
             ->latest('paid_at')
             ->latest('id');
 
@@ -88,6 +112,9 @@ class SalesController extends Controller
             'walk_in_order_count' => $activeOrders->where('source', Order::SOURCE_WALK_IN)->count(),
             'reservation_order_count' => $activeOrders->where('source', Order::SOURCE_RESERVATION)->count(),
             'invoicing_enabled' => OrderInvoiceService::configured($currentTenant->tenant),
+            'on_invoice_revenue' => round((float) $activeOrders->where('payment_method', OrderInvoiceService::METHOD_ON_INVOICE)->sum('total_incl_vat'), 2),
+            'open_invoices' => $this->openInvoiceSummary((int) $currentTenant->id()),
+            'showing_open_invoices' => $openInvoices,
         ];
 
         $sales = $orders->map(function (Order $order) {
@@ -95,6 +122,7 @@ class SalesController extends Controller
                 'id' => $order->id,
                 'paid_at' => optional($order->paid_at)?->toIso8601String(),
                 'paid_time' => optional($order->paid_at)?->format('H:i'),
+                'paid_date' => optional($order->paid_at)?->format('d/m/Y'),
                 'status' => $order->status,
                 'source' => $order->source,
                 'source_label' => $order->source === Order::SOURCE_RESERVATION ? 'Reservatie' : 'Losse verkoop',
@@ -173,5 +201,20 @@ class SalesController extends Controller
                 'orders' => $sales,
             ],
         ]);
+    }
+
+    /** Openstaande facturen (alle dagen): aantal, bedrag en hoeveel vervallen. */
+    private function openInvoiceSummary(int $tenantId): array
+    {
+        $open = OrderInvoice::query()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('payment_status', OrderInvoiceService::PAY_UNSETTLED)
+            ->get(['payment_status', 'amount_outstanding']);
+
+        return [
+            'count'   => $open->count(),
+            'amount'  => round((float) $open->sum('amount_outstanding'), 2),
+            'overdue' => $open->where('payment_status', OrderInvoiceService::PAY_OVERDUE)->count(),
+        ];
     }
 }

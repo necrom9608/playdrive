@@ -15,7 +15,7 @@ export const useSalesStore = defineStore('sales', {
         error: null,
 
         selectedDate: todayString(),
-        invoiceFilter: 'all', // all | yes | no
+        invoiceFilter: 'all', // all | yes | no | open (openstaande facturen, alle dagen)
         paymentMethodFilter: 'all', // all | cash | bancontact
         sourceFilter: 'all', // all | walk_in | reservation
 
@@ -44,6 +44,8 @@ export const useSalesStore = defineStore('sales', {
                     params.invoice_requested = 1
                 } else if (this.invoiceFilter === 'no') {
                     params.invoice_requested = 0
+                } else if (this.invoiceFilter === 'open') {
+                    params.open_invoices = 1
                 }
 
                 if (this.paymentMethodFilter !== 'all') {
@@ -182,6 +184,14 @@ export const useSalesStore = defineStore('sales', {
         /** Factuurgegevens opslaan zonder te versturen (of factuur gevraagd uit). */
         async saveInvoiceDetails(orderId, details) {
             return this._invoiceRequest(orderId, `/api/frontdesk/orders/${orderId}/invoice`, details, 'put')
+        },
+
+        async sendInvoiceReminder(orderId) {
+            return this._invoiceRequest(orderId, `/api/frontdesk/orders/${orderId}/invoice/reminder`, {})
+        },
+
+        async syncInvoice(orderId) {
+            return this._invoiceRequest(orderId, `/api/frontdesk/orders/${orderId}/invoice/sync`, {})
         },
 
         async retryInvoice(orderId, viaEmail = false) {

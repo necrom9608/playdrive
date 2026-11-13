@@ -80,6 +80,7 @@ class ReceiptBuilder
             'cash' => 'Cash',
             'bancontact' => 'Bancontact',
             'card' => 'Kaart',
+            'invoice' => 'Op factuur (nog te betalen)',
             default => ucfirst((string) ($method ?: 'Onbekend')),
         };
     }
