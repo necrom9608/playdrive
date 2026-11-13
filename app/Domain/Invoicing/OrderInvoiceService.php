@@ -406,10 +406,16 @@ class OrderInvoiceService
         }
     }
 
-    /** Klant zoeken (btw-nummer, anders e-mail) of aanmaken; geeft de DebtorCode terug. */
+    /**
+     * Klant zoeken (btw-nummer, anders e-mail) of aanmaken; geeft de DebtorCode terug.
+     *
+     * Peppol: Belgische bedrijven staan op Peppol onder 0208:{ondernemingsnummer} en/of
+     * 9925:be{nummer}. Weigert WeFact elke schrijfwijze, dan gaat de factuur per e-mail
+     * (als er een e-mailadres is).
+     */
     private function debtor(WeFactClient $api, OrderInvoice $invoice): string
     {
-        $peppol = $invoice->channel === OrderInvoice::CHANNEL_PEPPOL ? self::peppolId($invoice->vat_number) : null;
+        $candidates = $invoice->channel === OrderInvoice::CHANNEL_PEPPOL ? self::peppolCandidates($invoice->vat_number) : [];
 
         [$searchAt, $searchFor] = $invoice->vat_number
             ? ['TaxNumber', $invoice->vat_number]
@@ -419,33 +425,51 @@ class OrderInvoiceService
         $match = collect($found)->first(fn ($d) => filled($d['DebtorCode'] ?? null));
 
         if ($match) {
-            $edit = ['Identifier' => $match['Identifier'], 'InvoiceMethod' => $peppol ? 5 : 0];
-            if ($peppol) {
-                $edit['PeppolAddress'] = $peppol;
+            $base = array_filter([
+                'Identifier'   => $match['Identifier'],
+                'EmailAddress' => $invoice->email,
+            ], fn ($v) => $v !== null && $v !== '');
+
+            // Staat de klant in WeFact al op Peppol (bv. manueel ingesteld), dan dat adres laten staan.
+            if ($candidates) {
+                $existing = $api->call('debtor', 'show', ['Identifier' => $match['Identifier']])['debtor'] ?? [];
+                if ((int) ($existing['InvoiceMethod'] ?? 0) === 5 && filled($existing['PeppolAddress'] ?? null)) {
+                    if (count($base) > 1) {
+                        $api->call('debtor', 'edit', $base);
+                    }
+
+                    return (string) $match['DebtorCode'];
+                }
             }
-            if ($invoice->email) {
-                $edit['EmailAddress'] = $invoice->email;
-            }
-            $api->call('debtor', 'edit', $edit);
+
+            $this->withPeppolFallback($invoice, $candidates, fn (?string $peppol) => $api->call('debtor', 'edit', [
+                ...$base,
+                'InvoiceMethod' => $peppol ? 5 : 0,
+                ...($peppol ? ['PeppolAddress' => $peppol] : []),
+            ]));
 
             return (string) $match['DebtorCode'];
         }
 
         [$initials, $surname] = self::splitName($invoice->contact_name);
 
-        $created = $api->call('debtor', 'add', array_filter([
-            'CompanyName'   => $invoice->company_name,
-            'Initials'      => $initials,
-            'SurName'       => $surname ?: ($invoice->company_name ? null : $invoice->contact_name),
-            'TaxNumber'     => $invoice->vat_number,
-            'Address'       => $invoice->address,
-            'ZipCode'       => $invoice->postal_code,
-            'City'          => $invoice->city,
-            'Country'       => $invoice->country ?: 'BE',
-            'EmailAddress'  => $invoice->email,
+        $base = array_filter([
+            'CompanyName'  => $invoice->company_name,
+            'Initials'     => $initials,
+            'SurName'      => $surname ?: ($invoice->company_name ? null : $invoice->contact_name),
+            'TaxNumber'    => $invoice->vat_number,
+            'Address'      => $invoice->address,
+            'ZipCode'      => $invoice->postal_code,
+            'City'         => $invoice->city,
+            'Country'      => $invoice->country ?: 'BE',
+            'EmailAddress' => $invoice->email,
+        ], fn ($v) => $v !== null && $v !== '');
+
+        $created = $this->withPeppolFallback($invoice, $candidates, fn (?string $peppol) => $api->call('debtor', 'add', [
+            ...$base,
             'InvoiceMethod' => $peppol ? 5 : 0,
-            'PeppolAddress' => $peppol,
-        ], fn ($v) => $v !== null && $v !== ''))['debtor'] ?? [];
+            ...($peppol ? ['PeppolAddress' => $peppol] : []),
+        ]))['debtor'] ?? [];
 
         $code = (string) ($created['DebtorCode'] ?? '');
         if ($code === '') {
@@ -453,6 +477,70 @@ class OrderInvoiceService
         }
 
         return $code;
+    }
+
+    /**
+     * Klant opslaan met elk Peppol-adres na elkaar; weigert WeFact ze allemaal ("ongeldig Peppol adres"),
+     * dan zonder Peppol en de factuur per e-mail. Geen e-mailadres: duidelijke fout voor de frontdesk.
+     *
+     * WeFact documenteert het formaat van PeppolAddress niet; we proberen de gangbare vormen en
+     * onthouden per zaak welke vorm WeFact aanvaardt, zodat die de volgende keer eerst komt.
+     */
+    private function withPeppolFallback(OrderInvoice $invoice, array $candidates, callable $save): array
+    {
+        $cacheKey = 'wefact:peppol-format:'.$invoice->tenant_id;
+        $preferred = Cache::get($cacheKey);
+        if ($preferred && isset($candidates[$preferred])) {
+            $candidates = [$preferred => $candidates[$preferred]] + $candidates;
+        }
+
+        $lastError = null;
+        foreach ($candidates as $format => $peppol) {
+            try {
+                $result = $save($peppol);
+                if ($format !== $preferred) {
+                    Cache::forever($cacheKey, $format);
+                    Log::info('WeFact Peppol-adres aanvaard', ['format' => $format, 'peppol' => $peppol]);
+                }
+
+                return $result;
+            } catch (RuntimeException $e) {
+                if (stripos($e->getMessage(), 'peppol') === false) {
+                    throw $e;
+                }
+                $lastError = $e;
+            }
+        }
+
+        if ($candidates) {
+            if (! $invoice->email) {
+                throw new RuntimeException('WeFact weigerde het Peppol-adres van deze klant ('.reset($candidates).'). Vul een e-mailadres in, dan gaat de factuur per e-mail.');
+            }
+            Log::warning('WeFact weigerde elk Peppol-adres: factuur per e-mail', [
+                'order_invoice_id' => $invoice->id,
+                'tried'            => array_values($candidates),
+                'error'            => $lastError?->getMessage(),
+            ]);
+            $invoice->update(['channel' => OrderInvoice::CHANNEL_EMAIL]);
+        }
+
+        return $save(null);
+    }
+
+    /** Mogelijke schrijfwijzen van het Peppol-adres voor een Belgisch btw-nummer (vorm => adres). */
+    public static function peppolCandidates(?string $vat): array
+    {
+        if (! $vat || ! preg_match('/^BE([01]\d{9})$/', $vat, $m)) {
+            return [];
+        }
+
+        return [
+            'iso0208'   => '0208:'.$m[1],               // 0208:0850037526
+            'kbo'       => $m[1],                        // 0850037526
+            'iso9925'   => '9925:'.strtolower($vat),     // 9925:be0850037526
+            'iso9925uc' => '9925:'.$vat,                 // 9925:BE0850037526
+            'vat'       => $vat,                         // BE0850037526
+        ];
     }
 
     private function invoicePayload(OrderInvoice $invoice, Order $order, Tenant $tenant): array
