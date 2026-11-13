@@ -1,6 +1,19 @@
 <template>
     <div class="rounded-3xl border border-slate-800 bg-slate-900 p-4 shadow-xl">
-        <div class="grid items-end gap-4 xl:grid-cols-[1.2fr_1fr_1fr_1fr_auto_auto]">
+        <div class="grid items-end gap-4 xl:grid-cols-[0.8fr_1.2fr_1fr_1fr_1fr_auto_auto]">
+
+            <!-- Bon zoeken (ook van een andere dag) -->
+            <form @submit.prevent="findOrder">
+                <label for="sales-find-order" class="mb-1 block text-xs text-slate-400">Bon #</label>
+                <input
+                    id="sales-find-order"
+                    v-model="orderNumber"
+                    type="text"
+                    inputmode="numeric"
+                    placeholder="Bonnummer"
+                    class="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white"
+                />
+            </form>
 
             <!-- Datum -->
             <div>
@@ -76,9 +89,15 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useSalesStore } from '../stores/useSalesStore'
 
 const store = useSalesStore()
+const orderNumber = ref('')
+
+async function findOrder() {
+    if (await store.findOrder(orderNumber.value)) orderNumber.value = ''
+}
 
 function resetAndReload() {
     const now = new Date()

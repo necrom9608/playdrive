@@ -25,6 +25,7 @@ import BookingFormConfigPage from '../modules/booking-form/pages/BookingFormConf
 import EmailTemplatesPage from '../modules/email-templates/pages/EmailTemplatesPage.vue'
 import PurchasesPage from '../modules/purchases/pages/PurchasesPage.vue'
 import PurchaseEditPage from '../modules/purchases/pages/PurchaseEditPage.vue'
+import TenantSettingsPage from '../modules/tenant-settings/pages/TenantSettingsPage.vue'
 
 const routes = [
     { path: '/', name: 'backoffice.dashboard', component: DashboardPage },
@@ -66,6 +67,7 @@ const routes = [
     { path: '/display-skin', name: 'backoffice.display-skin', component: DisplaySkinPage },
     { path: '/booking-form', name: 'backoffice.booking-form', component: BookingFormConfigPage },
     { path: '/email-templates', name: 'backoffice.email-templates', component: EmailTemplatesPage },
+    { path: '/settings', name: 'backoffice.settings', component: TenantSettingsPage },
 ]
 
 export default createRouter({

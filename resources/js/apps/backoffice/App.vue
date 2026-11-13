@@ -25,6 +25,7 @@ import {
     ClipboardDocumentCheckIcon,
     ClipboardDocumentListIcon,
     ClockIcon,
+    Cog6ToothIcon,
     CreditCardIcon,
     CubeIcon,
     DocumentCheckIcon,
@@ -75,6 +76,7 @@ const navigation = [
     { label: 'Reservatieformulier', to: '/booking-form', group: 'Instellingen', icon: DocumentTextIcon },
     { label: 'E-mailtemplates', to: '/email-templates', group: 'Instellingen', icon: EnvelopeOpenIcon },
     { label: 'Boekhouding', to: '/accounting', group: 'Instellingen', icon: BanknotesIcon },
+    { label: 'Zaakgegevens', to: '/settings', group: 'Instellingen', icon: Cog6ToothIcon },
 ].map(item => ({ ...item, icon: markRaw(item.icon) }))
 
 // Teller bij "Games": nieuwe games die Playscope meldde en nog niet ingedeeld zijn.

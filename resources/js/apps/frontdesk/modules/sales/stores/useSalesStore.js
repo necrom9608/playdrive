@@ -78,6 +78,27 @@ export const useSalesStore = defineStore('sales', {
             }
         },
 
+        /** Bon opzoeken op nummer, ook van een andere dag; filters worden gewist. */
+        async findOrder(orderId) {
+            const id = Number(String(orderId ?? '').replace(/[^0-9]/g, ''))
+            if (!id) return false
+            this.error = null
+            try {
+                const response = await axios.get('/api/frontdesk/sales', { params: { order_id: id } })
+                this.invoiceFilter = 'all'
+                this.paymentMethodFilter = 'all'
+                this.sourceFilter = 'all'
+                this.summary = response.data?.data?.summary ?? null
+                this.selectedDate = this.summary?.selected_date ?? this.selectedDate
+                this.orders = response.data?.data?.orders ?? []
+                this.selectedOrder = this.orders.find(order => order.id === id) ?? this.orders[0] ?? null
+                return true
+            } catch (error) {
+                this.error = error?.response?.data?.message ?? 'Bon niet gevonden.'
+                return false
+            }
+        },
+
         selectOrder(orderId) {
             this.selectedOrder = this.orders.find(order => order.id === orderId) ?? null
         },

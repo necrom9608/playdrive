@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\Backoffice\DisplaySkinController;
 use App\Http\Controllers\Api\Backoffice\AccountingExportController;
 use App\Http\Controllers\Api\Backoffice\MailAssistantController;
 use App\Http\Controllers\Api\Backoffice\PrivatePurchaseController;
+use App\Http\Controllers\Api\Backoffice\TenantSettingsController;
 use App\Http\Controllers\Api\Backoffice\VoucherTemplateController;
 use Illuminate\Support\Facades\Route;
 
@@ -277,6 +278,10 @@ Route::prefix('api/backoffice')->group(function () {
         Route::delete('/purchases/{purchase}/photos/{index}', [PrivatePurchaseController::class, 'deletePhoto'])->whereNumber(['purchase', 'index']);
 
         // Klantenscherm (skin + filmpjes)
+        // Zaakgegevens: adres, logo, bon footer, gezinsabonnement, nieuwsbrief, WeFact
+        Route::get('/tenant-settings', [TenantSettingsController::class, 'show']);
+        Route::post('/tenant-settings', [TenantSettingsController::class, 'update']);
+
         Route::get('/display-skin', [DisplaySkinController::class, 'show']);
         Route::put('/display-skin', [DisplaySkinController::class, 'update']);
         Route::post('/display-skin/videos', [DisplaySkinController::class, 'storeVideo']);
