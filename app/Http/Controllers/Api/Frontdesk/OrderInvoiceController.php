@@ -14,7 +14,7 @@ use RuntimeException;
 /**
  * Frontdesk → Verkopen: factuur van een bestelling maken in WeFact.
  *
- *   POST /api/frontdesk/orders/{order}/invoice        {company_name, contact_name, vat_number, email, address, postal_code, city, country}
+ *   POST /api/frontdesk/orders/{order}/invoice        {company_name, contact_name, vat_number, email, address, postal_code, city, country, po_number, comment}
  *   POST /api/frontdesk/orders/{order}/invoice/retry  {email?: bool}  opnieuw proberen (email = toch per e-mail i.p.v. Peppol)
  */
 class OrderInvoiceController extends Controller
@@ -37,6 +37,8 @@ class OrderInvoiceController extends Controller
             'postal_code'  => ['nullable', 'string', 'max:20'],
             'city'         => ['nullable', 'string', 'max:255'],
             'country'      => ['nullable', 'string', 'size:2'],
+            'po_number'    => ['nullable', 'string', 'max:100'],
+            'comment'      => ['nullable', 'string', 'max:1000'],
         ]);
 
         $existing = OrderInvoice::query()->where('order_id', $order->id)->first();

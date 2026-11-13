@@ -19,6 +19,7 @@ class OrderInvoice extends Model
     protected $fillable = [
         'tenant_id', 'order_id', 'status', 'channel',
         'company_name', 'contact_name', 'vat_number', 'email', 'address', 'postal_code', 'city', 'country',
+        'po_number', 'comment',
         'wefact_debtor_code', 'wefact_invoice_id', 'wefact_invoice_code',
         'sent_at', 'paid_marked_at', 'error', 'attempts', 'created_by',
     ];
@@ -52,6 +53,8 @@ class OrderInvoice extends Model
             'postal_code'    => $this->postal_code,
             'city'           => $this->city,
             'country'        => $this->country,
+            'po_number'      => $this->po_number,
+            'comment'        => $this->comment,
             'sent_at'        => $this->sent_at?->toIso8601String(),
             'paid_marked_at' => $this->paid_marked_at?->toIso8601String(),
             'error'          => $this->error,

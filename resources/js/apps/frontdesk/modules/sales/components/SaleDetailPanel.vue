@@ -85,6 +85,8 @@
                         <div v-if="invoice.invoice_code && invoice.status === 'done'" class="font-semibold text-white">{{ invoice.invoice_code }}</div>
                         <div class="text-slate-300">{{ invoice.company_name || invoice.contact_name }}</div>
                         <div v-if="invoice.vat_number" class="text-slate-400">{{ invoice.vat_number }}</div>
+                        <div v-if="invoice.po_number" class="text-slate-400">Bestelbon: {{ invoice.po_number }}</div>
+                        <div v-if="invoice.comment" class="whitespace-pre-line text-xs text-slate-500">{{ invoice.comment }}</div>
                         <div class="text-xs text-slate-500">{{ invoice.channel === 'peppol' ? 'Via Peppol' : `Per e-mail${invoice.email ? ` naar ${invoice.email}` : ''}` }}</div>
                     </div>
 
@@ -263,6 +265,14 @@
                         <span class="text-sm text-slate-300">Gemeente</span>
                         <input v-model="invoiceForm.city" type="text" class="inv-input">
                     </label>
+                    <label class="space-y-1 sm:col-span-2">
+                        <span class="text-sm text-slate-300">Bestelbonnummer <span class="text-slate-500">(optioneel)</span></span>
+                        <input v-model="invoiceForm.po_number" type="text" maxlength="100" placeholder="PO-nummer of referentie van de klant" class="inv-input">
+                    </label>
+                    <label class="space-y-1 sm:col-span-2">
+                        <span class="text-sm text-slate-300">Extra commentaar op de factuur <span class="text-slate-500">(optioneel)</span></span>
+                        <textarea v-model="invoiceForm.comment" rows="2" maxlength="1000" class="inv-input resize-y"></textarea>
+                    </label>
                 </div>
 
                 <p class="mt-4 rounded-2xl border px-4 py-3 text-sm" :class="viaPeppol ? 'border-sky-500/30 bg-sky-500/10 text-sky-100' : 'border-slate-700 bg-slate-950 text-slate-300'">
@@ -301,7 +311,7 @@ const invoiceBusy = ref(false)
 const invoiceMessage = ref('')
 const invoiceOk = ref(false)
 const invoiceFormError = ref('')
-const invoiceForm = reactive({ company_name: '', contact_name: '', vat_number: '', email: '', address: '', postal_code: '', city: '' })
+const invoiceForm = reactive({ company_name: '', contact_name: '', vat_number: '', email: '', address: '', postal_code: '', city: '', po_number: '', comment: '' })
 
 const invoice = computed(() => store.selectedOrder?.invoice ?? null)
 const canInvoice = computed(() => {

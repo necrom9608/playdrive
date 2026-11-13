@@ -104,6 +104,8 @@ class OrderInvoiceService
                 'postal_code'  => $clean($details['postal_code'] ?? null),
                 'city'         => $clean($details['city'] ?? null),
                 'country'      => strtoupper($clean($details['country'] ?? null) ?: 'BE'),
+                'po_number'    => $clean($details['po_number'] ?? null),
+                'comment'      => $clean($details['comment'] ?? null),
             ]);
             $invoice->channel = self::peppolId($invoice->vat_number) ? OrderInvoice::CHANNEL_PEPPOL : OrderInvoice::CHANNEL_EMAIL;
         }
@@ -326,12 +328,19 @@ class OrderInvoiceService
             }
         }
 
+        // Extra commentaar: notitieregel onderaan de factuur (enkel een omschrijving).
+        if ($invoice->comment) {
+            $lines[] = ['Description' => $invoice->comment];
+        }
+
         return [
             'DebtorCode'      => $invoice->wefact_debtor_code,
             'Date'            => ($order->paid_at ?? now())->toDateString(),
             'InvoiceMethod'   => $invoice->channel === OrderInvoice::CHANNEL_PEPPOL ? 5 : 0,
             'VatCalcMethod'   => 'incl',
-            'ReferenceNumber' => 'Bon #'.$order->id,
+            // Bestelbonnummer van de klant als referentie (gaat ook mee in Peppol), anders het bonnummer.
+            'ReferenceNumber' => $invoice->po_number ?: 'Bon #'.$order->id,
+            'Comment'         => 'PlayDrive bon #'.$order->id,
             'Description'     => $tenant->display_name.' · bon #'.$order->id,
             'PaymentMethod'   => self::paymentMethod($order->payment_method),
             'InvoiceLines'    => $lines,
